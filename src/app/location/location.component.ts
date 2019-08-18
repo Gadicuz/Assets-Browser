@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { ActivatedRoute, ParamMap } from '@angular/router';
-import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 import { Observable, of, from, forkJoin, concat, zip, throwError } from 'rxjs';
 
 import { EsiServer, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo } from '../services/ESI.service';
@@ -14,13 +14,13 @@ import { AssetsLocation } from '../models/assets.location'
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
-class StructureInfo {
+interface StructureInfo {
   name: string;        // structure name
-  type_id: number;     // structure type_id or 0
-  comment?: string;    // structure type if type_id==0
+  type_id?: number;     // structure type_id or 0/undefined
+  type_info?: string;   // structure type if !type_id
 }
 
-class LocationContentData {
+interface LocationContentData {
   items: number[];                 // content item_id's
   value: number | undefined;       // content gross value
   volume: number | undefined;      // content volume
@@ -120,7 +120,7 @@ export class LocationComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.locInfoMap.set(0, { name: 'Universe', type_id: 0, comment: 'Tranquility' });
+    this.locInfoMap.set(0, { name: 'Universe', type_info: 'Tranquility' });
     this.locationItems = new MatTableDataSource<any>();
     this.location$ = this.route.paramMap.pipe(
       map((params: ParamMap) => +params.get('id')),
@@ -168,12 +168,12 @@ export class LocationComponent implements OnInit {
     if (locInfo)
       return {
         name: locInfo.name,
-        comment: locInfo.type_id ? this.typeInfoMap.get(locInfo.type_id).name : locInfo.comment
+        comment: locInfo.type_id ? this.typeInfoMap.get(locInfo.type_id).name : locInfo.type_info
       };
     return { name: "Loading data..." };
   }
 
-  private getTypeID(itemID: number, item: EsiAssetsItem): any {
+  private getTypeID(itemID: number, item: EsiAssetsItem): number | undefined {
     if (item)
       return item.type_id;
     const locInfo = this.locInfoMap.get(itemID);
@@ -264,22 +264,23 @@ export class LocationComponent implements OnInit {
     let ids = this.getUnknownIDs(locIDs, this.locInfoMap);
     if (ids.length == 0) return of(this.locInfoMap);
     return from(ids).pipe(
-      mergeMap<number, Observable<StructureInfo|EsiStructureInfo|EsiStationInfo>>(locID => {
-        return this.esi.getInformation<EsiStructureInfo|EsiStationInfo>((locID >= Math.pow(2, 32)) ? 'structures' : 'stations', locID).pipe(
+      mergeMap(locID =>
+        this.esi.getInformation<EsiStructureInfo | EsiStationInfo>((locID >= Math.pow(2, 32)) ? 'structures' : 'stations', locID).pipe(
           catchError((err: any) => {
 //            if (err.name == 'EsiError' ...
             if (err instanceof EsiError && err.status == 403) // some structures are 'forbidden'
-              return of(<StructureInfo>{ name: `*** Forbidden Structure ***`, type_id: 0, comment: `ID = ${locID}` }); // err.error - server 403 error body
+              return of({ name: `*** Forbidden Structure ***`, type_id: undefined, type_info: `ID = ${locID}` }); // err.error - server 403 error body
             return throwError(err);
+          }),
+          map(info => {
+            this.locInfoMap.set(locID, info);
+            return info.type_id;
           })
-        );
-      }),
-      map((info,i) => {
-        this.locInfoMap.set(ids[i], <StructureInfo>info);
-        return info.type_id;
-      }),
+        )
+      ),
+      filter(id => !!id),
       toArray(),
-      switchMap(ids => this.getTypeInfo(ids.filter(id => id != null))),
+      switchMap(ids => this.getTypeInfo(ids)),
       mapTo(this.locInfoMap)
     );
   }
