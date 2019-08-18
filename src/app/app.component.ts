@@ -7,12 +7,19 @@ import ru from '@angular/common/locales/ru';
 
 import ccpCopyright from '../assets/ccp.copyright.json';
 
+interface InvironmentData {
+  production: boolean;
+  client: { id: string, secret: string };
+}
+
+import { environment } from '../environments/environment'
+
 export const authConfig: AuthConfig = {
   issuer: 'https://login.eveonline.com/',
   skipIssuerCheck: true,
   redirectUri: window.location.origin,
-  clientId: '27cf90d1a97846b69b58bf2084638458',
-  dummyClientSecret: 'roUzg2KRCIRjVCaze98YNjIeDCLyMZO4yeBGtzmg',
+  clientId: environment.client.id,
+  dummyClientSecret: environment.client.secret,
   oidc: false,
   disablePKCE: true,
   scope: 'esi-assets.read_assets.v1 esi-universe.read_structures.v1',
