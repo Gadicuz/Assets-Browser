@@ -182,8 +182,7 @@ export class EsiServer {
       bufferCount(chunk <= 1000 ? chunk : 1000),
       mergeMap(ids => this.getCharacterAssetNames_chunk(character_id, ids)),
       map(ans => from(ans)),
-      mergeAll(),
-      map(an => ({ item_id: an.item_id, name: an.name != 'None' ? an.name : undefined }))
+      mergeAll()
     );
   }
 
