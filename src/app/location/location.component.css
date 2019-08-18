@@ -1,0 +1,43 @@
+.mat-row {
+  min-height: 36px;
+}
+.mat-row-link {
+  /*background-color: mat-color($tab-focus-color, lighter, 0.3);*/
+  background-color:rgba(209,196,233,.3)
+}
+.error-card {
+  background-color: #f44336
+}
+.error-card .mat-icon {
+  font-size: 40px
+}
+.mat-column-name {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center
+}
+.mat-column-name {
+}
+.mat-column-quantity {
+  flex: 0 1 80px;
+  justify-content: center
+}
+.mat-column-value {
+  flex: 0 1 160px;
+  justify-content: flex-end
+}
+.mat-column-volume {
+  flex: 0 1 100px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center
+}
+.no-margin {
+  margin: 0 0 0 0
+}
+.gap-margin {
+  margin: 8px 8px 8px 8px
+}
+.route {
+  padding: 0px 0px 0px 0px;
+}
