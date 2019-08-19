@@ -109,6 +109,23 @@ export interface EsiStructureInfo {
   position?: any;
 }
 
+export interface EsiOrder {
+  duration: number;
+  escrow?: number;
+  is_buy_order?: boolean;
+  is_corporation: boolean;
+  issued: string;
+  location_id: number;
+  min_volume?: number;
+  order_id: number;
+  price: number;
+  range: string;
+  region_id: number;
+  type_id: number;
+  volume_remain: number;
+  volume_total: number;
+}
+
 export class ESI_CONFIG {
   baseUrl: string;
   datasource?: string;
@@ -149,8 +166,16 @@ export class EsiServer {
     );
   }
 
+  private getCharacterInformation<T>(character_id: number, route: string): Observable<T> {
+    return this.getData<T>(`characters/${character_id}/${route}/`);
+  }
+
+  public getCharacterOrders(character_id: number): Observable<EsiOrder[]> {
+    return this.getCharacterInformation<EsiOrder[]>(character_id, 'orders');
+  }
+
   public getCharacterAssets(character_id: number): Observable<EsiAssetsItem[]> {
-    return this.getData<EsiAssetsItem[]>(`characters/${character_id}/assets/`);
+    return this.getCharacterInformation<EsiAssetsItem[]>(character_id, 'assets');
   }
 
   private getCharacterAssetNames_chunk(character_id: number, item_ids: number[]): Observable<EsiAssetsName[]> {

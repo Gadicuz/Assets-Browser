@@ -13,6 +13,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { OAuthModule, OAuthModuleConfig } from 'angular-oauth2-oidc';
 
 import { LocationComponent } from './location/location.component';
+import { OrdersComponent } from './orders/orders.component';
 
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { XpageInterceptorService } from './xpage.interceptor.service';
@@ -40,6 +41,7 @@ const authModuleConfig: OAuthModuleConfig = {
   declarations: [
     AppComponent,
     LocationComponent,
+    OrdersComponent,
     NgLetDirective,
     ScalePipe
   ],
