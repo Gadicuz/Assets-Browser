@@ -42,10 +42,10 @@
           </mat-card-content>
         </ng-template>
         <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
-          <div><button mat-icon-button [routerLink]="['/',0]"><mat-icon>home</mat-icon></button></div>
+          <div><button mat-icon-button [routerLink]="['/browse',0]"><mat-icon>home</mat-icon></button></div>
           <ng-container *ngFor="let node of location.route">
             <mat-icon fxFlexAlign="center">navigate_next</mat-icon>
-            <button mat-button [matTooltip]="node.comment" [routerLink]="['/',node.id]"  fxFlexAlign="center">{{node.name}}</button>
+            <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]"  fxFlexAlign="center">{{node.name}}</button>
           </ng-container>
         </mat-card-actions>
       </mat-card>
@@ -56,7 +56,7 @@
           <mat-header-cell *matHeaderCellDef mat-sort-header> Name </mat-header-cell>
           <mat-cell *matCellDef="let item">
             <ng-container *ngIf="item.content_id; else nolink">
-              <a [routerLink]="['/',item.content_id]">{{item.name}}</a>
+              <a [routerLink]="['/browse',item.content_id]">{{item.name}}</a>
             </ng-container>
             <ng-template #nolink>
               {{item.name}}
