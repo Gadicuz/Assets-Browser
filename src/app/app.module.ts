@@ -23,17 +23,17 @@ import { ScalePipe } from './pipes/scale.pipe';
 
 import { ESI_CONFIG } from './services/ESI.service';
 
-const authModuleConfig: OAuthModuleConfig = {
-  // Inject "Authorization: Bearer ..." header for these APIs:
-  resourceServer: {
-    allowedUrls: ["https://esi.evetech.net"],
-    sendAccessToken: true,
-  },
-};
-
 const esiServiceConfig: ESI_CONFIG = {
   baseUrl: 'https://esi.evetech.net/latest/',
   datasource: 'tranquility'
+};
+
+const authModuleConfig: OAuthModuleConfig = {
+  // Inject "Authorization: Bearer ..." header for these APIs:
+  resourceServer: {
+    allowedUrls: [esiServiceConfig.baseUrl],
+    sendAccessToken: true,
+  },
 };
 
 @NgModule({

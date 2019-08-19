@@ -1,9 +1,9 @@
 import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
-import { OAuthService } from 'angular-oauth2-oidc';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 import { Observable, of, from, forkJoin, concat, zip, throwError } from 'rxjs';
 
+import { EVESSOService } from '../services/EVESSO.service';
 import { EsiServer, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo } from '../services/ESI.service';
 
 import { MatSort } from '@angular/material/sort';
@@ -52,11 +52,10 @@ export class LocationComponent implements OnInit {
 
   @ViewChild(MatSort, { static: false }) sort: MatSort;
 
-  constructor(private oauthService: OAuthService, private route: ActivatedRoute, private esi: EsiServer) { }
+  constructor(private sso: EVESSOService, private route: ActivatedRoute, private esi: EsiServer) { }
 
-  // get current auth character ID
   private getCharID(): number {
-    return this.oauthService.getIdentityClaims()['CharacterID'];
+    return this.sso.charData.CharacterID;
   }
 
   private getItemName(item: EsiAssetsItem): string {
