@@ -9,7 +9,7 @@ export class EsiError extends Error {
   constructor(e: HttpErrorResponse) {
     super(e.message);
     Object.setPrototypeOf(this, EsiError.prototype);
-    this.name = 'ESI.ServiceError';
+    this.name = 'EsiError';
     this.status = e.status;
     this.error = e.error;
   }
@@ -134,7 +134,7 @@ export class ESI_CONFIG {
 @Injectable({
   providedIn: 'root'
 })
-export class EsiServer {
+export class EsiService {
 
   private readonly params: HttpParams;
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
@@ -144,7 +144,7 @@ export class EsiServer {
     this.params = config.datasource ? new HttpParams().set('datasource', config.datasource) : new HttpParams();
   }
 
-  private retry(count: number, timeout: number = 1000, noRetry: (status: number) => boolean = EsiServer.status_is_4xx) {
+  private retry(count: number, timeout: number = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx) {
     return (errors:Observable<HttpErrorResponse>) => errors.pipe(
       mergeMap((error, i) => {
         const attempt = i + 1;

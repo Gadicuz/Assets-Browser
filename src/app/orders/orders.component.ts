@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { EVESSOService } from '../services/EVESSO.service';
-import { EsiServer, EsiError, EsiOrder } from '../services/ESI.service';
+import { EsiOrder } from '../services/ESI.service';
+import { EsiDataService } from '../services/ESIDATA.service';
 
 @Component({
   selector: 'app-orders',
@@ -13,14 +13,10 @@ export class OrdersComponent implements OnInit {
 
   orders$: Observable<EsiOrder[]>;
 
-  constructor(private sso: EVESSOService, private esi: EsiServer) { }
-
-  private get character_id(): number {
-    return this.sso.charData.CharacterID;
-  }
+  constructor(private esiData: EsiDataService) { }
 
   ngOnInit() {
-    this.orders$ = this.esi.getCharacterOrders(this.character_id);
+    this.orders$ = this.esiData.getCharacterOrders();
   }
 
 }
