@@ -170,7 +170,7 @@ export class LocationComponent implements OnInit {
         name: locInfo.name,
         comment: locInfo.type_id ? this.typeInfoMap.get(locInfo.type_id).name : locInfo.type_info
       };
-    return { name: "Loading data..." };
+    return { name: 'Unknown location', comment: `ID = ${itemID}` };
   }
 
   private getTypeID(itemID: number, item: EsiAssetsItem): number | undefined {
@@ -196,7 +196,7 @@ export class LocationComponent implements OnInit {
 
   private getLocation(locID: number): Observable<any> {
     const contentData = this.locationContent.get(locID); // content data for locID location, might be null
-    if (contentData == null) return of({ name: 'UNKNOWN', route: [] });
+    if (contentData == null) return throwError(new Error(`Unknown location '${locID}'`));
     const routeIDs = this.getItemRouteIDs(locID);
     const usedItemIDs = this.getLocationContentItemIDs(locID, contentData); // location, content and children (verified) itemIDs
     return forkJoin([ // ensure data is available ...
