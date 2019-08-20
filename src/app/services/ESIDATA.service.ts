@@ -3,7 +3,7 @@ import { Observable, of, concat, from, throwError } from 'rxjs';
 import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from '../services/EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiOrder } from './ESI.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder } from './ESI.service';
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
@@ -36,6 +36,9 @@ export class EsiDataService {
   // MAP: item_id -> name?
   public charAssetsNames: Map<number, string>;
 
+  // characters/{character_id}/orders/
+  public charOrders: EsiCharOrder[];
+
   // MAP: (station_id|structure_id) -> {name, type_id, err}
   public structuresInfo: Map<number, EsiStationOrStructureInfo>;
    
@@ -54,6 +57,10 @@ export class EsiDataService {
    
   get character_id(): number {
     return this.sso.charData.CharacterID;
+  }
+
+  findCharAssetsItem(item_id: number): EsiAssetsItem {
+    return this.charAssets && this.charAssets.find(item => item.item_id == item_id);
   }
 
   loadTypeInfo(ids: number[]): Observable<Map<number, EsiDataTypeInfo>> {
@@ -94,6 +101,13 @@ export class EsiDataService {
     );
   }
 
+  loadCharacterOrders(reload?: boolean): Observable<EsiCharOrder[]> {
+    if (this.charOrders != null && !reload) return of(this.charOrders);
+    return this.esi.getCharacterOrders(this.character_id).pipe(
+      tap(orders => this.charOrders = orders)
+    );
+  }
+
   loadStructuresInfo(ids: number[]): Observable<Map<number, EsiStationOrStructureInfo>> {
     ids = this.missedIDs(ids, this.structuresInfo);
     if (ids.length == 0) return of(this.structuresInfo);
@@ -119,14 +133,14 @@ export class EsiDataService {
     );
   }
 
-  findCharAssetsItem(item_id: number): EsiAssetsItem {
-    return this.charAssets && this.charAssets.find(item => item.item_id == item_id);
+  //-----------------
+
+  loadStructureOrders(id: number): Observable<EsiStructureOrder[]> {
+    return this.esi.getStructureOrders(id);
   }
 
-  //----------------------------
-
-  getCharacterOrders(): Observable<EsiOrder[]> {
-    return this.esi.getCharacterOrders(this.character_id);
+  loadRegionOrders(region_id: number, type_id: number): Observable<EsiRegionOrder[]> {
+    return this.esi.getRegionOrders(region_id, type_id);
   }
 
 }
