@@ -111,20 +111,38 @@ export interface EsiStructureInfo {
 
 export interface EsiOrder {
   duration: number;
-  escrow?: number;
   is_buy_order?: boolean;
-  is_corporation: boolean;
   issued: string;
   location_id: number;
   min_volume?: number;
   order_id: number;
   price: number;
   range: string;
-  region_id: number;
   type_id: number;
   volume_remain: number;
   volume_total: number;
 }
+
+export interface EsiCharCorpOrder extends EsiOrder {
+  escrow?: number;
+  region_id: number;
+  state?: string; // 'cancelled', 'expired' for history, absent for current
+}
+
+export interface EsiCharOrder extends EsiCharCorpOrder {
+  is_corporation: boolean;
+}
+
+export interface EsiCorpOrder extends EsiCharCorpOrder {
+  issued_by: number;
+  wallet_division: number;
+}
+
+export interface EsiRegionOrder extends EsiOrder {
+  system_id: number;
+}
+
+export type EsiStructureOrder = EsiOrder;
 
 export class ESI_CONFIG {
   baseUrl: string;
@@ -154,8 +172,8 @@ export class EsiService {
     )
   }
 
-  private getData<T>(route: string, retry = this.retry(3)) {
-    return <Observable<T>>this.httpClient.get(this.config.baseUrl + route, { params: this.params }).pipe(
+  private getData<T>(route: string, params = this.params, retry = this.retry(3)) {
+    return <Observable<T>>this.httpClient.get(this.config.baseUrl + route, { params: params }).pipe(
       retryWhen(retry)
     );
   }
@@ -170,8 +188,8 @@ export class EsiService {
     return this.getData<T>(`characters/${character_id}/${route}/`);
   }
 
-  public getCharacterOrders(character_id: number): Observable<EsiOrder[]> {
-    return this.getCharacterInformation<EsiOrder[]>(character_id, 'orders');
+  public getCharacterOrders(character_id: number): Observable<EsiCharOrder[]> {
+    return this.getCharacterInformation<EsiCharOrder[]>(character_id, 'orders');
   }
 
   public getCharacterAssets(character_id: number): Observable<EsiAssetsItem[]> {
@@ -202,6 +220,10 @@ export class EsiService {
     return this.getInformation<EsiStructureInfo>('structure', structure_id);
   }
 
+  public getStructureOrders(structure_id: number): Observable<EsiStructureOrder[]> {
+    return this.getData<EsiStructureOrder[]>(`markets/structures/${structure_id}/`);
+  }
+
   public getCharacterAssetNames(character_id: number, item_ids: number[], chunk: number = 1000): Observable<EsiAssetsName> {
     return from(item_ids).pipe(
       bufferCount(chunk <= 1000 ? chunk : 1000),
@@ -213,6 +235,10 @@ export class EsiService {
 
   public getCharacterAssetNamesArray(character_id: number, item_ids: number[], chunk: number = 1000): Observable<EsiAssetsName[]> {
     return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
+  }
+
+  getRegionOrders(region_id: number, type_id: number): Observable<EsiRegionOrder[]> {
+    return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, this.params.set('type_id', type_id.toString(10)));
   }
 
 }
