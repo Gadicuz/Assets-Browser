@@ -54,7 +54,10 @@ export class EVESSOService {
         if (this.oauth.hasValidAccessToken()) {
           this.oauth.userinfoEndpoint = 'https://esi.evetech.net/verify'; // reset by discovery doc
           this.oauth.loadUserProfile().then(
-            profile => this.charData = profile
+            profile => {
+              this.charData = profile;
+              //console.log(profile);  profile['Scopes'] is granted scopes for the token
+            }
           );
         }
       }
