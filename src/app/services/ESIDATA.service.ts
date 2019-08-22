@@ -33,6 +33,8 @@ export class EsiDataService {
   // characters/{character_id}/assets/
   public charAssets: EsiAssetsItem[];
 
+  public charOrders: EsiCharOrder[];
+
   // MAP: item_id -> name?
   public charAssetsNames: Map<number, string>;
 
@@ -50,6 +52,7 @@ export class EsiDataService {
     this.typesInfo = new Map<number, EsiDataTypeInfo>(<([number, EsiDataTypeInfo])[]>universeTypesCache);
     this.prices = null;
     this.charAssets = null;
+    this.charOrders = null;
     this.charAssetsNames = new Map<number, string>();
     this.structuresInfo = new Map<number, EsiStationOrStructureInfo>([[0, { name: 'Universe', type_info: 'Tranquility' }]]);
   }
@@ -86,6 +89,13 @@ export class EsiDataService {
     if (this.charAssets != null && !reload) return of(this.charAssets);
     return this.esi.getCharacterAssets(this.character_id).pipe(
       tap(assets => this.charAssets = assets)
+    );
+  }
+
+  loadCharacterOrders(reload?: boolean): Observable<EsiCharOrder[]> {
+    if (this.charOrders != null && !reload) return of(this.charOrders);
+    return this.esi.getCharacterOrders(this.character_id, false).pipe(
+      tap(orders => this.charOrders = orders)
     );
   }
 

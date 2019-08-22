@@ -216,7 +216,7 @@ export class OrdersComponent implements OnInit {
   ngOnInit() {
     const character_id = this.esiData.character_id;
     this.orders$ = zip(
-      this.esiData.service.getCharacterOrders(character_id).pipe(
+      this.esiData.loadCharacterOrders().pipe(
         map(orders => orders.filter(o => !o.is_buy_order))
       ),
       this.esiData.service.getCharacterWalletTransactions(character_id).pipe(
