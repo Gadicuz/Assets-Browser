@@ -8,6 +8,7 @@ export class ScalePipe implements PipeTransform {
   constructor(@Inject(LOCALE_ID) private locale: string) {}
 
   transform(value: any, digitsInfo?: string, locale?: string): string {
+    if (value == null) return null;
     const letter = ['', ' k', ' M', ' B'];
     let index = 0;
     let v = Number(value);
