@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, concat, from, throwError } from 'rxjs';
 import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
-import { EVESSOService } from '../services/EVESSO.service';
+import { EVESSOService } from './EVESSO.service';
 import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder } from './ESI.service';
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
@@ -32,6 +32,7 @@ export class EsiDataService {
 
   // characters/{character_id}/assets/
   public charAssets: EsiAssetsItem[];
+  private max_item_id: number;
 
   public charOrders: EsiCharOrder[];
 
@@ -52,6 +53,7 @@ export class EsiDataService {
     this.typesInfo = new Map<number, EsiDataTypeInfo>(<([number, EsiDataTypeInfo])[]>universeTypesCache);
     this.prices = null;
     this.charAssets = null;
+    this.max_item_id = 0;
     this.charOrders = null;
     this.charAssetsNames = new Map<number, string>();
     this.structuresInfo = new Map<number, EsiStationOrStructureInfo>([[0, { name: 'Universe', type_info: 'Tranquility' }]]);
@@ -85,10 +87,24 @@ export class EsiDataService {
     );
   }
 
+  private resetCharacterAssetsItemId() {
+    this.max_item_id = Math.max(...this.charAssets.map(item => item.item_id));
+  }
+
+  generateCharacterAssetsItemId(): number {
+    return ++this.max_item_id;
+  }
+
   loadCharacterAssets(reload?: boolean): Observable<EsiAssetsItem[]> {
-    if (this.charAssets != null && !reload) return of(this.charAssets);
+    if (this.charAssets != null && !reload) {
+      this.resetCharacterAssetsItemId();
+      return of(this.charAssets);
+    }
     return this.esi.getCharacterAssets(this.character_id).pipe(
-      tap(assets => this.charAssets = assets)
+      tap(assets => {
+        this.charAssets = assets;
+        this.resetCharacterAssetsItemId();
+      })
     );
   }
 
@@ -99,14 +115,14 @@ export class EsiDataService {
     );
   }
 
-  loadCharacterAssetsNames(ids: number[]): Observable<Map<number, string | null>> {
+  loadCharacterAssetsNames(ids: number[]): Observable<null> {
     ids = this.missedIDs(ids, this.charAssetsNames);
-    if (ids.length == 0) return of(this.charAssetsNames); // all names resolved
+    if (ids.length == 0) return of(null); // all names resolved
     return concat(
       this.esi.getCharacterAssetNames(this.character_id, ids).pipe(
         tap(id_name => this.charAssetsNames.set(id_name.item_id, id_name.name != 'None' ? id_name.name : null)), // remove 'None' names
         ignoreElements()),
-      of(this.charAssetsNames)
+      of(null)
     );
   }
 

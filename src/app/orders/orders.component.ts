@@ -5,9 +5,7 @@ import { tap, map, mergeMap, toArray, filter, ignoreElements } from 'rxjs/operat
 import { EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/ESI.service';
 import { EsiDataService } from '../services/ESIDATA.service';
 
-const tuple = <T extends any[]>(...args: T): T => args;
-
-const set = <T extends any>(items: T[]): T[] => [...new Set(items)];
+import { set, tuple } from '../utils/utils';
 
 interface LocationOrdersScheme {
   location_id: number;
