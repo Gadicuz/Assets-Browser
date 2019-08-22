@@ -144,6 +144,19 @@ export interface EsiRegionOrder extends EsiOrder {
 
 export type EsiStructureOrder = EsiOrder;
 
+export interface EsiWalletTransaction {
+  client_id: number;
+  date: string;
+  is_buy: boolean;
+  is_personal?: boolean;
+  journal_ref_id: number;
+  location_id: number;
+  quantity: number;
+  transaction_id: number;
+  type_id: number;
+  unit_price: number;
+}
+
 export class ESI_CONFIG {
   baseUrl: string;
   datasource?: string;
@@ -185,15 +198,19 @@ export class EsiService {
   }
 
   private getCharacterInformation<T>(character_id: number, route: string): Observable<T> {
-    return this.getData<T>(`characters/${character_id}/${route}/`);
+    return this.getData<T>(`characters/${character_id}/${route}`);
   }
 
-  public getCharacterOrders(character_id: number): Observable<EsiCharOrder[]> {
-    return this.getCharacterInformation<EsiCharOrder[]>(character_id, 'orders');
+  public getCharacterOrders(character_id: number, historical: boolean = false): Observable<EsiCharOrder[]> {
+    return this.getCharacterInformation<EsiCharOrder[]>(character_id, historical ? 'orders/history/' : 'orders/');
   }
 
   public getCharacterAssets(character_id: number): Observable<EsiAssetsItem[]> {
-    return this.getCharacterInformation<EsiAssetsItem[]>(character_id, 'assets');
+    return this.getCharacterInformation<EsiAssetsItem[]>(character_id, 'assets/');
+  }
+
+  public getCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
+    return this.getCharacterInformation<EsiWalletTransaction[]>(character_id, 'wallet/transactions/');
   }
 
   private getCharacterAssetNames_chunk(character_id: number, item_ids: number[]): Observable<EsiAssetsName[]> {
@@ -237,8 +254,15 @@ export class EsiService {
     return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
   }
 
-  getRegionOrders(region_id: number, type_id: number): Observable<EsiRegionOrder[]> {
-    return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, this.params.set('type_id', type_id.toString(10)));
+  getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {    ;
+    let params = this.params;
+    if (type_id != undefined) {
+      params = params.set('type_id', type_id.toString(10));
+      if (order_type != undefined) {
+        params = params.set('order_type', order_type);
+      }
+    }
+    return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, params);
   }
 
 }

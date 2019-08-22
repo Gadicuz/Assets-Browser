@@ -36,12 +36,11 @@ export class EsiDataService {
   // MAP: item_id -> name?
   public charAssetsNames: Map<number, string>;
 
-  // characters/{character_id}/orders/
-  public charOrders: EsiCharOrder[];
-
   // MAP: (station_id|structure_id) -> {name, type_id, err}
   public structuresInfo: Map<number, EsiStationOrStructureInfo>;
-   
+
+  public get service(): EsiService { return this.esi; }
+
   private missedIDs(ids: number[], map: Map<number, any>): number[] {
     let knownIDs = [...map.keys()];
     return [...new Set(ids)].filter(id => knownIDs.indexOf(id) < 0);
@@ -101,13 +100,6 @@ export class EsiDataService {
     );
   }
 
-  loadCharacterOrders(reload?: boolean): Observable<EsiCharOrder[]> {
-    if (this.charOrders != null && !reload) return of(this.charOrders);
-    return this.esi.getCharacterOrders(this.character_id).pipe(
-      tap(orders => this.charOrders = orders)
-    );
-  }
-
   loadStructuresInfo(ids: number[]): Observable<Map<number, EsiStationOrStructureInfo>> {
     ids = this.missedIDs(ids, this.structuresInfo);
     if (ids.length == 0) return of(this.structuresInfo);
@@ -131,16 +123,6 @@ export class EsiDataService {
       switchMap(ids => this.loadTypeInfo(ids)),
       mapTo(this.structuresInfo)
     );
-  }
-
-  //-----------------
-
-  loadStructureOrders(id: number): Observable<EsiStructureOrder[]> {
-    return this.esi.getStructureOrders(id);
-  }
-
-  loadRegionOrders(region_id: number, type_id: number): Observable<EsiRegionOrder[]> {
-    return this.esi.getRegionOrders(region_id, type_id);
   }
 
 }

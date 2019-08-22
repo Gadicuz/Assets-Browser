@@ -1,0 +1,72 @@
+.mat-column-name {
+  flex: 1 1 400px;
+  justify-content: flex-start
+}
+.mat-column-icon {
+  flex: 0 0 75px;
+  justify-content: flex-end
+}
+.mat-column-quantity {
+  flex: 0 1 70px;
+  justify-content: flex-end
+}
+.mat-column-price {
+  flex: 0 1 150px;
+  justify-content: flex-end
+}
+.mat-column-duration {
+  flex: 0 1 80px;
+  justify-content: flex-end
+}
+.mat-column-sold {
+  flex: 0 1 70px;
+  justify-content: flex-end
+}
+
+
+.summary-row.expandable {
+  cursor: pointer;
+}
+.summary-row.expandable:hover {
+  background-color: rgba(0,0,0,.04)
+}
+.summary-row:not(.has_owned) {
+  background-color: rgba(244,67,54,.3);
+}
+.summary-row:not(.has_owned).expandable:hover {
+  background-color: rgba(244,67,54,.5);
+}
+.summary-row.has_owned:not(.best_price) {
+  background-color: rgba(255,215,64,.3);
+}
+.summary-row.has_owned:not(.best_price).expandable:hover {
+  background-color: rgba(255,215,64,.5);
+}
+
+
+.order-row {
+  min-height: 0px;
+  height: 0px;
+  visibility: hidden;
+  border-bottom-width: 0px;
+}
+.expanded.order-row {
+  min-height: 24px;
+  height: auto;
+  visibility: visible;
+  border-bottom-width: 1px;
+  background-color: rgba(209,196,233,.5);
+}
+.order-row .mat-cell {
+  font-size: 12px;
+}
+.order-row.owned .mat-cell{
+  /*background-color: rgba(209,196,233,.3);*/
+  font-weight: bold;
+}
+.order-row .mat-icon {
+  height: 14px;
+  width: 14px;
+  font-size: 14px;
+}
+

@@ -21,8 +21,10 @@ import { XpageInterceptorService } from './xpage.interceptor.service';
 import { NgLetDirective } from "./ng-let.directive";
 
 import { ScalePipe } from './pipes/scale.pipe';
+import { DurationPipe } from './pipes/duration.pipe';
 
 import { ESI_CONFIG } from './services/ESI.service';
+import { OrdersListComponent } from './orders.list/orders.list.component';
 
 const esiServiceConfig: ESI_CONFIG = {
   baseUrl: 'https://esi.evetech.net/latest/',
@@ -43,7 +45,9 @@ const authModuleConfig: OAuthModuleConfig = {
     LocationComponent,
     OrdersComponent,
     NgLetDirective,
-    ScalePipe
+    ScalePipe,
+    DurationPipe,
+    OrdersListComponent
   ],
   imports: [
     BrowserModule,

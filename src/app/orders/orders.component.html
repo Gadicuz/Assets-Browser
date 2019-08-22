@@ -1,1 +1,32 @@
-{{orders$ | async | json}}
+<div fxLayout="row" fxLayoutAlign="center">
+
+  <div fxLayout="column" fxLayoutGap="16px" fxLayoutAlign="start stretch" fxFlex="80%">
+
+    <div></div>
+
+    <mat-accordion>
+
+      <mat-expansion-panel *ngFor="let locationOrders of (orders$ | async) as orders">
+
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            {{locationOrders.name}}
+          </mat-panel-title>
+          <!---
+  <mat-panel-description>
+    {{locationOrders.items.length}}
+  </mat-panel-description>
+          -->
+        </mat-expansion-panel-header>
+
+        <app-orders-list [orders]="locationOrders.items"></app-orders-list>
+
+      </mat-expansion-panel>
+
+    </mat-accordion>
+
+    <div></div>
+
+  </div>
+
+</div>
