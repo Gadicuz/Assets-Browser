@@ -10,8 +10,10 @@
           <mat-card-title>{{location.name}}</mat-card-title>
           <mat-card-subtitle *ngIf="location.comment">{{location.comment}}</mat-card-subtitle>
         </mat-card-header>
+
         <ng-container *ngIf="location.info || location.error; else loading">
-          <mat-card-content fxLayout="row wrap" fxLayoutAkign="start stretch">
+          <mat-card-content fxLayout="row wrap" fxLayoutAlign="start stretch">
+            <app-error *ngIf="location.error as e" fxFlex fxFill [err]="e"></app-error>
             <ng-container *ngIf="location.info">
               <div *ngFor="let info of location.info">
                 <mat-card class="gap-margin" *ngIf="info.content">
@@ -22,32 +24,23 @@
                 </mat-card>
               </div>
             </ng-container>
-            <ng-container *ngIf="location.error as e">
-              <mat-card fxFlex class="mat-elevation-z6 error-card">
-                <mat-card-header>
-                  <mat-icon mat-card-avatar>error</mat-icon>
-                  <mat-card-title>{{e.name}}</mat-card-title>
-                  <mat-card-subtitle>{{e.message}}</mat-card-subtitle>
-                </mat-card-header>
-                <mat-card-content>
-                  {{e.error | json}}
-                </mat-card-content>
-              </mat-card>
-            </ng-container>
           </mat-card-content>
         </ng-container>
+
         <ng-template #loading>
           <mat-card-content>
             <mat-progress-bar mode="indeterminate"></mat-progress-bar>
           </mat-card-content>
         </ng-template>
+
         <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
-          <div><button mat-icon-button [routerLink]="['/browse',0]"><mat-icon>home</mat-icon></button></div>
-          <ng-container *ngFor="let node of location.route">
-            <mat-icon fxFlexAlign="center">navigate_next</mat-icon>
-            <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]"  fxFlexAlign="center">{{node.name}}</button>
+          <div></div>
+          <ng-container *ngFor="let node of location.route; let idx = index">
+            <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
+            <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]" fxFlexAlign="center">{{node.name}}</button>
           </ng-container>
         </mat-card-actions>
+
       </mat-card>
 
       <table mat-table [dataSource]="locationItems" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>

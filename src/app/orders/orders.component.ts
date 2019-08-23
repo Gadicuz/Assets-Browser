@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Observable, of, merge, concat, from, zip } from 'rxjs';
-import { tap, map, mergeMap, toArray, filter, ignoreElements } from 'rxjs/operators';
+import { tap, map, mergeMap, toArray, filter, ignoreElements, catchError } from 'rxjs/operators';
 
 import { EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/ESI.service';
 import { EsiDataService } from '../services/ESIDATA.service';
@@ -212,7 +212,6 @@ export class OrdersComponent implements OnInit {
   }
 
   ngOnInit() {
-    const character_id = this.esiData.character_id;
     this.orders$ = concat(
       of(null),
       zip(
@@ -228,7 +227,11 @@ export class OrdersComponent implements OnInit {
           map(orders => this.assembleLocationInfo(orders, ids, trans))
         )),
         toArray(),
-        map(data => data.sort((a, b) => a.name.localeCompare(b.name)))
+        map(data => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
+        catchError(err => {
+          console.log(err);
+          return of({ error: err });
+        })
       )
     );
   }

@@ -5,19 +5,17 @@
     <div></div>
 
     <mat-accordion *ngIf="orders; else loading">
-
-      <mat-expansion-panel *ngFor="let locationOrders of orders">
-
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            {{locationOrders.name}}
-          </mat-panel-title>
-        </mat-expansion-panel-header>
-
-        <app-orders-list [orders]="locationOrders.items"></app-orders-list>
-
-      </mat-expansion-panel>
-
+      <app-error *ngIf="orders.error" [err]="orders.error"></app-error>
+      <ng-container *ngIf="orders.data">
+        <mat-expansion-panel *ngFor="let locationOrders of orders.data">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              {{locationOrders.name}}
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+          <app-orders-list [orders]="locationOrders.items"></app-orders-list>
+        </mat-expansion-panel>
+      </ng-container>
     </mat-accordion>
 
     <ng-template #loading>

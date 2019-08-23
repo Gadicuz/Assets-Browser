@@ -5,12 +5,6 @@
   /*background-color: mat-color($tab-focus-color, lighter, 0.3);*/
   background-color:rgba(209,196,233,.3)
 }
-.error-card {
-  background-color: #f44336
-}
-.error-card .mat-icon {
-  font-size: 40px
-}
 .mat-column-name {
   flex-direction: column;
   align-items: flex-start;

@@ -1,0 +1,11 @@
+<mat-card fxFlex fxFill class="mat-elevation-z6 error-card">
+  <mat-card-header>
+    <mat-icon mat-card-avatar>error</mat-icon>
+    <mat-card-title>{{err.name}}</mat-card-title>
+    <mat-card-subtitle>{{err.message}}</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    {{err.error | json}}
+  </mat-card-content>
+</mat-card>
+

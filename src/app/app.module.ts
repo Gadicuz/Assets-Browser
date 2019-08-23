@@ -25,6 +25,7 @@ import { DurationPipe } from './pipes/duration.pipe';
 
 import { ESI_CONFIG } from './services/ESI.service';
 import { OrdersListComponent } from './orders.list/orders.list.component';
+import { ErrorComponent } from './error/error.component';
 
 const esiServiceConfig: ESI_CONFIG = {
   baseUrl: 'https://esi.evetech.net/latest/',
@@ -47,7 +48,8 @@ const authModuleConfig: OAuthModuleConfig = {
     NgLetDirective,
     ScalePipe,
     DurationPipe,
-    OrdersListComponent
+    OrdersListComponent,
+    ErrorComponent
   ],
   imports: [
     BrowserModule,

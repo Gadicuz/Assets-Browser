@@ -12,10 +12,11 @@ import { MatTableDataSource } from '@angular/material/table';
 
 import { set, tuple } from '../utils/utils';
 
-interface LocationContentData {
+interface LocationData {
   items: number[];                 // content item_id's
-  value: number | undefined;       // content gross value
-  volume: number | undefined;      // content volume
+  value: number;                   // content gross value
+  volume: number | null;           // content volume
+  parent?: number;                 // parent location_id
 }
 
 @Component({
@@ -40,9 +41,9 @@ export class LocationComponent implements OnInit {
 
   private imageUrl = 'https://image.eveonline.com/';
 
-  private locationContent: Map<number, LocationContentData> = null;    // Map  location_id -> LocationContentData
+  private locations: Map<number, LocationData> = null; // Map  loc_id -> LocationData
 
-  private marketLocations: Map<number, number> = new Map();  // item_id -> locaion_id
+  private marketLocations: number[] = []; // loc_id for market location
   private marketAssets: EsiAssetsItem[] = [];
   private marketAssetsNames: Map<number, string> = new Map();
 
@@ -50,98 +51,111 @@ export class LocationComponent implements OnInit {
 
   constructor(private route: ActivatedRoute, private esiData: EsiDataService) { }
 
+  private buildLocations() {
+    this.locations = new Map( [[0, <LocationData>{ items: [], volume: undefined, value: 0 }]] ); // root location
+    this.linkAssetsItemsData();
+    this.linkMarketOrdersData();
+    this.linkChildren();
+    return this.esiData.loadLocationsInfo(this.locations.get(0).items);
+  }
+
+  private addLocations(loc_ids: number[], parent: number = 0) {
+    loc_ids.forEach(loc_id => this.locations.set(loc_id, <LocationData>{ items: [], volume: undefined, value: 0, parent: parent }));
+  }
+
+  private linkChildren() {
+    [...this.locations.entries()].forEach(([loc_id, data]) => { if (data.parent != null) this.locations.get(data.parent).items.push(loc_id); });
+  }
+
+  private processItems(items: EsiAssetsItem[]) {
+    items.forEach(item => {
+      if (!this.locations.has(item.item_id))
+        this.locations.get(item.location_id).items.push(item.item_id); // add item_id to location items
+      const value = this.getItemPrice(item);
+      this.getLocationRoute(item.location_id).forEach(loc_id => this.locations.get(loc_id).value += value);
+    });
+  }
+
+  private linkAssetsItemsData() {
+    const items = this.esiData.charAssets;
+    this.addLocations(set(items.map(item => item.location_id))); // link all to the root
+    items.filter(item => this.locations.has(item.item_id)).forEach(item => this.locations.get(item.item_id).parent = item.location_id); // relink items
+    this.processItems(items);
+  }
+
+  private linkMarket(loc_id: number, orders: EsiOrder[]) {
+    const market_loc_id = this.esiData.generateCharacterAssetsItemId();
+    this.marketLocations.push(market_loc_id);
+    if (!this.locations.has(loc_id)) this.addLocations([loc_id]);
+    this.addLocations([market_loc_id], loc_id);
+    orders.forEach(o => {
+      const item_id = this.esiData.generateCharacterAssetsItemId();
+      this.marketAssets.push(<EsiAssetsItem>{
+        is_singleton: true,
+        item_id: item_id,
+        location_flag: 'MarketOrder',
+        location_id: market_loc_id,
+        location_type: 'other',
+        quantity: o.volume_remain,
+        type_id: o.type_id
+      });
+      this.marketAssetsNames.set(item_id,
+        'Sell value: ' + (o.volume_remain * o.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      );
+    });
+  }
+
+  private linkMarketOrdersData() {
+    const orders = this.esiData.charOrders.filter(o => !o.is_buy_order);
+    const loc_ids = set(orders.map(o => o.location_id)); // all markets
+    loc_ids.forEach(loc_id => this.linkMarket(loc_id, orders.filter(o => o.location_id == loc_id)));
+    this.processItems(this.marketAssets);
+  }
+
+
   private getLocationInfo(item_id: number): EsiDataLocationInfo {
-    return this.esiData.locationsInfo.get(item_id) || (() => {      
-      return { name: 'Unknown location', comment: `ID = ${item_id}`, type_id: undefined };
+    return this.esiData.locationsInfo.get(item_id) || (() => {
+      if (this.marketLocations.indexOf(item_id) >= 0)
+        return <EsiDataLocationInfo>{
+          name: '*** Market hangar ***', // ${this.esiData.locationsInfo.get(this.locations.get(item_id).parent).name}
+          type_info: 'Sell orders'
+        }
+      else
+        return <EsiDataLocationInfo>{
+          name: 'Unknown location',
+          type_info: `ID = ${item_id}`
+        };
     })();
   }  
 
-  private findAssetsItem(item_id: number): EsiAssetsItem | null {
+  private getAssetsItem(item_id: number): EsiAssetsItem | null {
     return this.esiData.findCharAssetsItem(item_id) || this.marketAssets.find(item => item.item_id == item_id);
-  }
-
-  private getAssetsItems(): EsiAssetsItem[] {
-    return this.esiData.charAssets.concat(this.marketAssets);
   }
 
   private getAssetsItemName(item_id: number): string | null {
     return this.marketAssetsNames.get(item_id) || this.esiData.charAssetsNames.get(item_id);
   }
 
-  private loadAssetsNames(ids: number[]): Observable<null> {
+  private loadAssetsItemNames(ids: number[]): Observable<null> {
     const marketIds = this.marketAssets.map(item => item.item_id);
     return this.esiData.loadCharacterAssetsNames(ids.filter(id => marketIds.indexOf(id) < 0));
   }
-
-  private addMarket(location_id: number, orders: EsiOrder[]) {
-    const marketId = this.esiData.generateCharacterAssetsItemId();
-    this.marketLocations.set(marketId, location_id);
-
-    this.marketAssets.push(<EsiAssetsItem>{
-      is_singleton: true,
-      item_id: marketId,
-      location_flag: 'StructureMarket',
-      location_id: location_id,
-      location_type: 'other',
-      quantity: 1,
-      type_id: 60
-    });
-
-    orders.forEach(o => {
-      const itemId = this.esiData.generateCharacterAssetsItemId();
-      this.marketAssets.push(<EsiAssetsItem>{
-        is_singleton: true,
-        item_id: itemId,
-        location_flag: 'MarketOrder',
-        location_id: marketId,
-        location_type: 'other',
-        quantity: o.volume_remain,
-        type_id: o.type_id
-      });
-      this.marketAssetsNames.set(itemId, 'Sell value: ' + (o.volume_remain * o.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 } ));
-    });
-  }
-
-  private updateMarketAssetsData() {
-    const orders = this.esiData.charOrders.filter(o => !o.is_buy_order);
-    set(orders.map(o => o.location_id)).forEach(location_id => this.addMarket(location_id, orders.filter(o => o.location_id == location_id)));
-  }
- 
-  // fill initial data
-  private initLocationContent(): Observable<any> {
-    const assetsItems = this.getAssetsItems();
-    const locIDs = set(assetsItems.map(v => v.location_id)); // all unique locations
-    this.locationContent = new Map<number, any>(locIDs.map(id => [id, { items: [], volume: undefined, value: 0 }])); // init all locations empty
-    this.locationContent.set(0, { items: locIDs.filter(loc => !this.findAssetsItem(loc)), volume: 0, value: 0 }); // root location
-    assetsItems.forEach(a => {
-      this.locationContent.get(a.location_id).items.push(a.item_id); // add item_id to location
-      const val = this.getItemPrice(a);
-      do {
-        const loc_id = a.location_id;
-        this.locationContent.get(loc_id).value += val;
-        a = this.findAssetsItem(loc_id);
-      } while (a);
-      this.locationContent.get(0).value += val; // root item value
-    });
-    return this.esiData.loadLocationsInfo(this.locationContent.get(0).items);
-  }
-
+   
   private getAssetsFast(locID: number): Observable<any> {
     return of(this.getLocationData(locID));
   }
 
-  // get assets info for locID
-  private getAssets(locID: number): Observable<any> {
-    if (this.locationContent) return this.getLocation(locID);
+  // get assets info for loc_id
+  private getAssets(loc_id: number): Observable<any> {
+    if (this.locations) return this.getLocation(loc_id);
     return zip(
       this.esiData.loadPrices(),
       this.esiData.loadCharacterAssets(),
       this.esiData.loadCharacterOrders()
     ).pipe(
       delay(0), // just to update page
-      tap(() => this.updateMarketAssetsData()),
-      mergeMap(() => this.initLocationContent()),
-      mergeMap(() => this.getLocation(locID))
+      mergeMap(() => this.buildLocations()),
+      mergeMap(() => this.getLocation(loc_id))
     );
   }
 
@@ -166,8 +180,7 @@ export class LocationComponent implements OnInit {
     this.locationItems.sort = this.sort;
   }
 
-  private getNameCommentType(itemID: number, item?: EsiAssetsItem): any {
-    item = item || this.findAssetsItem(itemID);
+  private getNameCommentType(itemID: number, item: EsiAssetsItem = this.getAssetsItem(itemID)): any {
     if (item)
       return {
         name: this.getItemName(item),
@@ -181,17 +194,11 @@ export class LocationComponent implements OnInit {
       type_id: locInfo.type_id
     };
   }
-    
-  private getLocationData(locID: number) {
-    let loc = this.getNameCommentType(locID);
-    if (loc.type_id && loc.type_id < Math.pow(2,32)) loc.image = this.imageUrl + `Type/${loc.type_id}_32.png`;
-    return loc;
-  }
 
-  private getItemRouteIDs(id: number): number[] {
-    if (id == 0) return [];
-    const item = this.findAssetsItem(id);
-    return item ? [...this.getItemRouteIDs(item.location_id), id] : [id];
+  private getLocationData(loc_id: number, locItem?: EsiAssetsItem) {
+    let loc = this.getNameCommentType(loc_id, locItem);
+    if (loc.type_id) loc.image = this.imageUrl + `Type/${loc.type_id}_32.png`;
+    return loc;
   }
 
   getItemName(item: EsiAssetsItem): string {
@@ -200,65 +207,70 @@ export class LocationComponent implements OnInit {
   }
 
   getItemPrice(item: EsiAssetsItem): number {
-    return item.is_blueprint_copy ? 0 : (this.esiData.prices.get(item.type_id) || 0) * item.quantity;
+    return item && (item.is_blueprint_copy ? 0 : (this.esiData.prices.get(item.type_id) || 0) * item.quantity);
   }
 
   private getItemVol(item: EsiAssetsItem): number {
-    const hasNoContent = this.locationContent.get(item.item_id) == null;
+    if (item == null) return null;
     if (this.isVirtualContainer(item.type_id))
-      return this.getContentVol(this.locationContent.get(item.item_id));
+      return this.getLocationContentVol(this.locations.get(item.item_id));
     const typeInfo = this.esiData.typesInfo.get(item.type_id);
-    return typeInfo ? (hasNoContent && typeInfo.packaged_volume || typeInfo.volume) * item.quantity : 0;
+    const isEmpty = this.locations.get(item.item_id) == null;
+    return typeInfo ? (isEmpty && typeInfo.packaged_volume || typeInfo.volume) * item.quantity : 0;
   }
 
-  private getContentVol(contentData: LocationContentData): number | null {
-    if (contentData == null) return null;
-    if (!contentData.volume) {
-      const vols = contentData.items.map(id => this.findAssetsItem(id)).filter(item => item != null).map(item => this.getItemVol(item)); // content volumes
-      if (vols.findIndex(v => !v) == -1)
-        contentData.volume = vols.reduce((acc, v) => acc + v, 0);
-    }
-    return contentData.volume || null;
+  private getLocationContentVol(locData: LocationData): number | null {
+    if (locData == null) return undefined;
+    if (locData.volume == null)
+      locData.volume = locData.items
+        .map(id => this.getAssetsItem(id))
+        .filter(item => item != null)
+        .map(item => this.getItemVol(item))
+        .reduce((acc, v) => (acc === null || v === null ? null : acc + v), 0);
+    return locData.volume;
   }
 
-  // get (verified) itemIDs for location and contentData items
-  private getLocationContentItemIDs(locID: number, contentData?: LocationContentData): number[] {
-    if (contentData == null) contentData = this.locationContent.get(locID);
-    return [locID].concat(contentData.items).filter(id => this.findAssetsItem(id) != null);
+  private getLocationRoute(loc_id: number): number[] {
+    let route = [];
+    do {
+      route = [loc_id, ...route];
+      loc_id = this.locations.get(loc_id).parent;
+    } while (loc_id != null);
+    return route;
   }
 
-  private getLocation(locID: number): Observable<any> {   
-    const contentData = this.locationContent.get(locID); // content data for locID location, might be null
-    if (contentData == null) return throwError(new Error(`Unknown location '${locID}'`));
-    const routeIDs = this.getItemRouteIDs(locID);
-    const usedItemIDs = this.getLocationContentItemIDs(locID, contentData); // location, content and children (verified) itemIDs
+  private getLocation(loc_id: number): Observable<any> {
+    const locData = this.locations.get(loc_id);
+    if (locData == null) return throwError(new Error(`Unknown location '${loc_id}'`));
+    const route = this.getLocationRoute(loc_id);
+    const usedItem = [loc_id, ...locData.items].map(id => this.getAssetsItem(id)).filter(item => !!item);
     return forkJoin([ // ensure data is available ...
-      this.loadAssetsNames(usedItemIDs), // ... user names
-      this.esiData.loadTypeInfo(usedItemIDs.map(id => this.findAssetsItem(id).type_id)) // ... typeInfo
+      this.loadAssetsItemNames(usedItem.map(item => item.item_id)), // ... user names
+      this.esiData.loadTypeInfo(usedItem.map(item => item.type_id)) // ... typeInfo
     ]).pipe(
       map(() => {
-        const contentIDs = contentData.items; // might be top level location_id (for root) or item_id (else)
-        const locItems = contentIDs.map(contentItemID => {
-          const itemContentData = this.locationContent.get(contentItemID);
-          const contentItem = this.findAssetsItem(contentItemID);
+        const contentIDs = locData.items; // might be top level location_id (for root) or item_id (else)
+        const locItems = contentIDs.map(item_id => {
+          const itemLocData = this.locations.get(item_id);
+          const itemItem = this.getAssetsItem(item_id);
           return {
-            ...this.getNameCommentType(contentItemID, contentItem),
-            quantity: contentItem && contentItem.quantity,
-            value: (contentItem && this.getItemPrice(contentItem) || 0) + (itemContentData && itemContentData.value || 0),
-            volume: contentItem && this.getItemVol(contentItem),
-            content_volume: itemContentData && this.getContentVol(itemContentData),
-            content_id: itemContentData && contentItemID
+            ...this.getNameCommentType(item_id, itemItem),
+            quantity: itemItem && itemItem.quantity,
+            value: (this.getItemPrice(itemItem) || 0) + (itemLocData && itemLocData.value || 0),
+            volume: this.getItemVol(itemItem),
+            content_volume: this.getLocationContentVol(itemLocData),
+            content_id: itemLocData && item_id
           }
         });
-        const locItemData = this.findAssetsItem(locID); // location item or null for top/root level location locID
+        const locItem = this.getAssetsItem(loc_id); // location item or null for top/root level location locID
         return {
-          ...this.getLocationData(locID),
-          route: routeIDs.map(item_id => { return { ...this.getLocationData(item_id), id: item_id }; }),
+          ...this.getLocationData(loc_id, locItem),
+          route: route.map(item_id => { return { ...this.getLocationData(item_id), id: item_id }; }),
           info: [
-            { title: 'Item Value (ISK)', content: locItemData && this.getItemPrice(locItemData) },
-            { title: 'Item Volume (m3)', content: locItemData && this.getItemVol(locItemData) },
-            { title: 'Content Value (ISK)', content: contentData.value },
-            { title: 'Content Volume (m3)', content: this.getContentVol(contentData) }
+            { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
+            { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
+            { title: 'Content Value (ISK)', content: locData.value },
+            { title: 'Content Volume (m3)', content: this.getLocationContentVol(locData) }
           ],
           items: locItems
         }
