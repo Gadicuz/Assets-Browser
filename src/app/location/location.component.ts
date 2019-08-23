@@ -72,7 +72,7 @@ export class LocationComponent implements OnInit {
   // fill initial data
   private initLocationContent(): Observable<any> {
     const assetsItems = this.getAssetsItems();
-    const locIDs = [...new Set(assetsItems.map(v => v.location_id))]; // all unique locations
+    const locIDs = set(assetsItems.map(v => v.location_id)); // all unique locations
     this.locationContent = new Map<number, any>(locIDs.map(id => [id, { items: [], volume: undefined, value: 0 }])); // top level items
     this.locationContent.set(0, { items: locIDs.filter(loc => !this.findAssetsItem(loc)), volume: 0, value: 0 }); 
     assetsItems.forEach(a => {

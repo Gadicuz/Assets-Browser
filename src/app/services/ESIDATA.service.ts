@@ -7,6 +7,8 @@ import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, 
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
+import { set, tuple } from '../utils/utils';
+
 export interface EsiDataTypeInfo {
   name: string;
   volume: number;
@@ -48,7 +50,7 @@ export class EsiDataService {
 
   private missedIDs(ids: number[], map: Map<number, any>): number[] {
     let knownIDs = [...map.keys()];
-    return [...new Set(ids)].filter(id => knownIDs.indexOf(id) < 0);
+    return set(ids).filter(id => knownIDs.indexOf(id) < 0);
   }
 
   constructor(private esi: EsiService, private sso: EVESSOService) {
