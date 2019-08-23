@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
-import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { map, tap, switchMap, delay, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 import { Observable, of, from, forkJoin, concat, zip, throwError } from 'rxjs';
 
 import { EVESSOService } from '../services/EVESSO.service';
@@ -127,6 +127,7 @@ export class LocationComponent implements OnInit {
       this.esiData.loadCharacterAssets(),
       this.esiData.loadCharacterOrders()
     ).pipe(
+      delay(0), // just to update page
       tap(() => this.updateAssetsWithMarketData()),
       mergeMap(() => this.initLocationContent()),
       mergeMap(() => this.getLocation(locID))
@@ -218,7 +219,7 @@ export class LocationComponent implements OnInit {
     return [locID].concat(contentData.items).filter(id => this.findAssetsItem(id) != null);
   }
 
-  private getLocation(locID: number): Observable<any> {
+  private getLocation(locID: number): Observable<any> {   
     const contentData = this.locationContent.get(locID); // content data for locID location, might be null
     if (contentData == null) return throwError(new Error(`Unknown location '${locID}'`));
     const routeIDs = this.getItemRouteIDs(locID);

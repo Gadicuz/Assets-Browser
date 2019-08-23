@@ -213,20 +213,23 @@ export class OrdersComponent implements OnInit {
 
   ngOnInit() {
     const character_id = this.esiData.character_id;
-    this.orders$ = zip(
-      this.esiData.loadCharacterOrders().pipe(
-        map(orders => orders.filter(o => !o.is_buy_order))
-      ),
-      this.esiData.service.getCharacterWalletTransactions(character_id).pipe(
-        map(trans => trans.filter(t => t.is_personal && !t.is_buy && ((Date.now() - new Date(t.date).getTime()) < this.depth)))
-      ),
-      (orders, trans) => this.analyzeData(orders, trans)
-    ).pipe(
-      mergeMap(([ids, locs, trans]) => this.loadOrders(locs).pipe(
+    this.orders$ = concat(
+      of(null),
+      zip(
+        this.esiData.loadCharacterOrders().pipe(
+          map(orders => orders.filter(o => !o.is_buy_order))
+        ),
+        this.esiData.loadCharacterWalletTransactions().pipe(
+          map(trans => trans.filter(t => t.is_personal && !t.is_buy && ((Date.now() - new Date(t.date).getTime()) < this.depth)))
+        ),
+        (orders, trans) => this.analyzeData(orders, trans)
+      ).pipe(
+        mergeMap(([ids, locs, trans]) => this.loadOrders(locs).pipe(
           map(orders => this.assembleLocationInfo(orders, ids, trans))
-      )),
-      toArray(),
-      map(data => data.sort((a, b) => a.name.localeCompare(b.name)))
+        )),
+        toArray(),
+        map(data => data.sort((a, b) => a.name.localeCompare(b.name)))
+      )
     );
   }
 

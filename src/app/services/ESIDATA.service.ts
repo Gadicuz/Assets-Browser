@@ -3,7 +3,7 @@ import { Observable, of, concat, from, throwError } from 'rxjs';
 import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from './EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder } from './ESI.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiWalletTransaction } from './ESI.service';
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
@@ -35,6 +35,8 @@ export class EsiDataService {
   private max_item_id: number;
 
   public charOrders: EsiCharOrder[];
+
+  public charWalletTransactions: EsiWalletTransaction[];
 
   // MAP: item_id -> name?
   public charAssetsNames: Map<number, string>;
@@ -112,6 +114,13 @@ export class EsiDataService {
     if (this.charOrders != null && !reload) return of(this.charOrders);
     return this.esi.getCharacterOrders(this.character_id, false).pipe(
       tap(orders => this.charOrders = orders)
+    );
+  }
+
+  loadCharacterWalletTransactions(reload?: boolean): Observable<EsiWalletTransaction[]> {
+    if (this.charWalletTransactions != null && !reload) return of(this.charWalletTransactions);
+    return this.esi.getCharacterWalletTransactions(this.character_id).pipe(
+      tap(transactions => this.charWalletTransactions = transactions)
     );
   }
 
