@@ -85,7 +85,7 @@ export class LocationComponent implements OnInit {
       } while (a);
       this.locationContent.get(0).value += val; // root item value
     });
-    return this.esiData.loadStructuresInfo(this.locationContent.get(0).items);
+    return this.esiData.loadLocationsInfo(this.locationContent.get(0).items);
   }
 
   private updateMarketAssetsData() {
@@ -117,7 +117,7 @@ export class LocationComponent implements OnInit {
 
   private updateMarketAssetsDataNames() {
     const markets = [...this.marketAssetsNames.entries()].filter(([, name]) => name != null).map(([id,]) => this.marketAssets.find(m => m.item_id == id));
-    markets.forEach(m => this.marketAssetsNames.set(m.item_id, 'Sell orders at ' + this.esiData.structuresInfo.get(m.location_id).name));
+    markets.forEach(m => this.marketAssetsNames.set(m.item_id, 'Sell orders at ' + this.esiData.locationsInfo.get(m.location_id).name));
   }
 
   private getAssetsFast(locID: number): Observable<any> {
@@ -170,7 +170,7 @@ export class LocationComponent implements OnInit {
         comment: this.getAssetsItemName(itemID),
         type_id: item.type_id
       };
-    const locInfo = this.esiData.structuresInfo.get(itemID);
+    const locInfo = this.esiData.locationsInfo.get(itemID);
     if (locInfo)
       return {
         name: locInfo.name,

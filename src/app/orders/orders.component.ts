@@ -128,7 +128,7 @@ export class OrdersComponent implements OnInit {
     const typ_ids = locs.map(loc => loc.type_ids).reduce((s,a) => s.concat(a), []);
     return concat(
       merge(
-        this.esiData.loadStructuresInfo(loc_ids),
+        this.esiData.loadLocationsInfo(loc_ids),
         this.esiData.loadTypeInfo(typ_ids)
       ).pipe(ignoreElements()),
       merge(
@@ -206,7 +206,7 @@ export class OrdersComponent implements OnInit {
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
     return <LocationInfo>{
-      name: this.esiData.structuresInfo.get(orders.location_id).name,
+      name: this.esiData.locationsInfo.get(orders.location_id).name,
       items: items
     };
   }

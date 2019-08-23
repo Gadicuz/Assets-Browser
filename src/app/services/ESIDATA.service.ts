@@ -15,7 +15,7 @@ export interface EsiDataTypeInfo {
   packaged_volume?: number;
 }
 
-export interface EsiStationOrStructureInfo {
+export interface EsiDataLocationInfo {
   name: string;        // name
   type_id?: number;    // type_id or 0/undefined
   type_info?: string;  // type if !type_id
@@ -44,7 +44,7 @@ export class EsiDataService {
   public charAssetsNames: Map<number, string>;
 
   // MAP: (station_id|structure_id) -> {name, type_id, err}
-  public structuresInfo: Map<number, EsiStationOrStructureInfo>;
+  public locationsInfo: Map<number, EsiDataLocationInfo>;
 
   public get service(): EsiService { return this.esi; }
 
@@ -60,7 +60,7 @@ export class EsiDataService {
     this.max_item_id = 0;
     this.charOrders = null;
     this.charAssetsNames = new Map<number, string>();
-    this.structuresInfo = new Map<number, EsiStationOrStructureInfo>([[0, { name: 'Universe', type_info: 'Tranquility' }]]);
+    this.locationsInfo = new Map<number, EsiDataLocationInfo>([[0, { name: 'Universe', type_info: 'Tranquility' }]]);
   }
    
   get character_id(): number {
@@ -137,9 +137,9 @@ export class EsiDataService {
     );
   }
 
-  loadStructuresInfo(ids: number[]): Observable<Map<number, EsiStationOrStructureInfo>> {
-    ids = this.missedIDs(ids, this.structuresInfo);
-    if (ids.length == 0) return of(this.structuresInfo);
+  loadLocationsInfo(ids: number[]): Observable<Map<number, EsiDataLocationInfo>> {
+    ids = this.missedIDs(ids, this.locationsInfo);
+    if (ids.length == 0) return of(this.locationsInfo);
     return from(ids).pipe(
       mergeMap(sID =>
         this.esi.getInformation<EsiStructureInfo | EsiStationInfo>((sID >= Math.pow(2, 32)) ? 'structures' : 'stations', sID).pipe(
@@ -150,7 +150,7 @@ export class EsiDataService {
             return throwError(err);
           }),
           map(info => {
-            this.structuresInfo.set(sID, info);
+            this.locationsInfo.set(sID, info);
             return info.type_id;
           })
         )
@@ -158,7 +158,7 @@ export class EsiDataService {
       filter(id => !!id),
       toArray(),
       switchMap(ids => this.loadTypeInfo(ids)),
-      mapTo(this.structuresInfo)
+      mapTo(this.locationsInfo)
     );
   }
 
