@@ -88,7 +88,7 @@ export class LocationComponent implements OnInit {
     return this.esiData.loadStructuresInfo(this.locationContent.get(0).items);
   }
 
-  private updateAssetsWithMarketData() {
+  private updateMarketAssetsData() {
     const orders = this.esiData.charOrders.filter(o => !o.is_buy_order);
     set(orders.map(o => o.location_id)).forEach(location_id => {
       const market = <EsiAssetsItem>{
@@ -115,6 +115,11 @@ export class LocationComponent implements OnInit {
     });
   }
 
+  private updateMarketAssetsDataNames() {
+    const markets = [...this.marketAssetsNames.entries()].filter(([, name]) => name != null).map(([id,]) => this.marketAssets.find(m => m.item_id == id));
+    markets.forEach(m => this.marketAssetsNames.set(m.item_id, 'Sell orders at ' + this.esiData.structuresInfo.get(m.location_id).name));
+  }
+
   private getAssetsFast(locID: number): Observable<any> {
     return of(this.getLocationData(locID));
   }
@@ -128,8 +133,9 @@ export class LocationComponent implements OnInit {
       this.esiData.loadCharacterOrders()
     ).pipe(
       delay(0), // just to update page
-      tap(() => this.updateAssetsWithMarketData()),
+      tap(() => this.updateMarketAssetsData()),
       mergeMap(() => this.initLocationContent()),
+      tap(() => this.updateMarketAssetsDataNames()),
       mergeMap(() => this.getLocation(locID))
     );
   }
