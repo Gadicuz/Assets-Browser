@@ -4,8 +4,8 @@ import { map, tap, switchMap, delay, switchMapTo, mergeMap, mergeMapTo, concatMa
 import { Observable, of, from, forkJoin, concat, zip, throwError } from 'rxjs';
 
 import { EVESSOService } from '../services/EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo } from '../services/ESI.service';
-import { EsiDataService, EsiDataTypeInfo } from '../services/ESIDATA.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiOrder } from '../services/ESI.service';
+import { EsiDataService, EsiDataTypeInfo, EsiDataLocationInfo } from '../services/ESIDATA.service';
 
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
@@ -29,23 +29,32 @@ export class LocationComponent implements OnInit {
   location$ = null;
   locationItems: MatTableDataSource<any> | null = null;
 
-  private readonly TYPE_ID_AssetSafetyWrap = 60;
-  private readonly TYPE_ID_StructueMarket = Math.pow(2, 32);
+  private static readonly TYPE_ID_AssetSafetyWrap = 60;
   private readonly virtualContainerTypes: number[] = [
-    this.TYPE_ID_AssetSafetyWrap,
-    this.TYPE_ID_StructueMarket
+    LocationComponent.TYPE_ID_AssetSafetyWrap
   ];
+
+  isVirtualContainer(type_id: number): boolean {
+    return type_id == LocationComponent.TYPE_ID_AssetSafetyWrap;
+  }
 
   private imageUrl = 'https://image.eveonline.com/';
 
   private locationContent: Map<number, LocationContentData> = null;    // Map  location_id -> LocationContentData
 
+  private marketLocations: Map<number, number> = new Map();  // item_id -> locaion_id
   private marketAssets: EsiAssetsItem[] = [];
   private marketAssetsNames: Map<number, string> = new Map();
 
   @ViewChild(MatSort, { static: false }) sort: MatSort;
 
   constructor(private route: ActivatedRoute, private esiData: EsiDataService) { }
+
+  private getLocationInfo(item_id: number): EsiDataLocationInfo {
+    return this.esiData.locationsInfo.get(item_id) || (() => {      
+      return { name: 'Unknown location', comment: `ID = ${item_id}`, type_id: undefined };
+    })();
+  }  
 
   private findAssetsItem(item_id: number): EsiAssetsItem | null {
     return this.esiData.findCharAssetsItem(item_id) || this.marketAssets.find(item => item.item_id == item_id);
@@ -64,17 +73,46 @@ export class LocationComponent implements OnInit {
     return this.esiData.loadCharacterAssetsNames(ids.filter(id => marketIds.indexOf(id) < 0));
   }
 
-  private addMarketItem(item: EsiAssetsItem, name?: string) {
-    this.marketAssets.push(item);
-    this.marketAssetsNames.set(item.item_id, name);
+  private addMarket(location_id: number, orders: EsiOrder[]) {
+    const marketId = this.esiData.generateCharacterAssetsItemId();
+    this.marketLocations.set(marketId, location_id);
+
+    this.marketAssets.push(<EsiAssetsItem>{
+      is_singleton: true,
+      item_id: marketId,
+      location_flag: 'StructureMarket',
+      location_id: location_id,
+      location_type: 'other',
+      quantity: 1,
+      type_id: 60
+    });
+
+    orders.forEach(o => {
+      const itemId = this.esiData.generateCharacterAssetsItemId();
+      this.marketAssets.push(<EsiAssetsItem>{
+        is_singleton: true,
+        item_id: itemId,
+        location_flag: 'MarketOrder',
+        location_id: marketId,
+        location_type: 'other',
+        quantity: o.volume_remain,
+        type_id: o.type_id
+      });
+      this.marketAssetsNames.set(itemId, 'Sell value: ' + (o.volume_remain * o.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 } ));
+    });
   }
 
+  private updateMarketAssetsData() {
+    const orders = this.esiData.charOrders.filter(o => !o.is_buy_order);
+    set(orders.map(o => o.location_id)).forEach(location_id => this.addMarket(location_id, orders.filter(o => o.location_id == location_id)));
+  }
+ 
   // fill initial data
   private initLocationContent(): Observable<any> {
     const assetsItems = this.getAssetsItems();
     const locIDs = set(assetsItems.map(v => v.location_id)); // all unique locations
-    this.locationContent = new Map<number, any>(locIDs.map(id => [id, { items: [], volume: undefined, value: 0 }])); // top level items
-    this.locationContent.set(0, { items: locIDs.filter(loc => !this.findAssetsItem(loc)), volume: 0, value: 0 }); 
+    this.locationContent = new Map<number, any>(locIDs.map(id => [id, { items: [], volume: undefined, value: 0 }])); // init all locations empty
+    this.locationContent.set(0, { items: locIDs.filter(loc => !this.findAssetsItem(loc)), volume: 0, value: 0 }); // root location
     assetsItems.forEach(a => {
       this.locationContent.get(a.location_id).items.push(a.item_id); // add item_id to location
       const val = this.getItemPrice(a);
@@ -86,38 +124,6 @@ export class LocationComponent implements OnInit {
       this.locationContent.get(0).value += val; // root item value
     });
     return this.esiData.loadLocationsInfo(this.locationContent.get(0).items);
-  }
-
-  private updateMarketAssetsData() {
-    const orders = this.esiData.charOrders.filter(o => !o.is_buy_order);
-    set(orders.map(o => o.location_id)).forEach(location_id => {
-      const market = <EsiAssetsItem>{
-        is_singleton: true,
-        item_id: this.esiData.generateCharacterAssetsItemId(),
-        location_flag: 'StructureMarket',
-        location_id: location_id,
-        location_type: 'other',
-        quantity: 1,
-        type_id: this.TYPE_ID_StructueMarket
-      };
-      this.addMarketItem(market, 'Sell orders');
-      orders.filter(o => o.location_id == location_id).forEach(o => this.addMarketItem(
-        <EsiAssetsItem>{
-          is_singleton: true,
-          item_id: this.esiData.generateCharacterAssetsItemId(),
-          location_flag: 'MarketOrder',
-          location_id: market.item_id,
-          location_type: 'other',
-          quantity: o.volume_remain,
-          type_id: o.type_id
-        }
-      ));
-    });
-  }
-
-  private updateMarketAssetsDataNames() {
-    const markets = [...this.marketAssetsNames.entries()].filter(([, name]) => name != null).map(([id,]) => this.marketAssets.find(m => m.item_id == id));
-    markets.forEach(m => this.marketAssetsNames.set(m.item_id, 'Sell orders at ' + this.esiData.locationsInfo.get(m.location_id).name));
   }
 
   private getAssetsFast(locID: number): Observable<any> {
@@ -135,13 +141,11 @@ export class LocationComponent implements OnInit {
       delay(0), // just to update page
       tap(() => this.updateMarketAssetsData()),
       mergeMap(() => this.initLocationContent()),
-      tap(() => this.updateMarketAssetsDataNames()),
       mergeMap(() => this.getLocation(locID))
     );
   }
 
   ngOnInit() {
-    this.esiData.typesInfo.set(this.TYPE_ID_StructueMarket, <EsiDataTypeInfo>{ name: "*** Structure market ***", volume: 0 });
     this.locationItems = new MatTableDataSource<any>();
     this.location$ = this.route.paramMap.pipe(
       map((params: ParamMap) => +params.get('id')),
@@ -170,14 +174,12 @@ export class LocationComponent implements OnInit {
         comment: this.getAssetsItemName(itemID),
         type_id: item.type_id
       };
-    const locInfo = this.esiData.locationsInfo.get(itemID);
-    if (locInfo)
-      return {
-        name: locInfo.name,
-        comment: locInfo.type_id ? this.esiData.typesInfo.get(locInfo.type_id).name : locInfo.type_info,
-        type_id: locInfo.type_id
-      };
-    return { name: 'Unknown location', comment: `ID = ${itemID}`, type_id: undefined };
+    const locInfo = this.getLocationInfo(itemID);
+    return {
+      name: locInfo.name,
+      comment: locInfo.type_id ? this.esiData.typesInfo.get(locInfo.type_id).name : locInfo.type_info,
+      type_id: locInfo.type_id
+    };
   }
     
   private getLocationData(locID: number) {
@@ -203,7 +205,7 @@ export class LocationComponent implements OnInit {
 
   private getItemVol(item: EsiAssetsItem): number {
     const hasNoContent = this.locationContent.get(item.item_id) == null;
-    if (this.virtualContainerTypes.indexOf(item.type_id) >= 0)
+    if (this.isVirtualContainer(item.type_id))
       return this.getContentVol(this.locationContent.get(item.item_id));
     const typeInfo = this.esiData.typesInfo.get(item.type_id);
     return typeInfo ? (hasNoContent && typeInfo.packaged_volume || typeInfo.volume) * item.quantity : 0;
