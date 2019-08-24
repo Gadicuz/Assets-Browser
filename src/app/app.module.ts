@@ -17,6 +17,7 @@ import { OrdersComponent } from './orders/orders.component';
 
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { XpageInterceptorService } from './xpage.interceptor.service';
+import { NostoreInterceptorService } from './nostore.interceptor.service';
 
 import { NgLetDirective } from "./ng-let.directive";
 
@@ -62,6 +63,7 @@ const authModuleConfig: OAuthModuleConfig = {
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
     { provide: OAuthModuleConfig, useValue: authModuleConfig },
     { provide: ESI_CONFIG, useValue: esiServiceConfig }
   ],
