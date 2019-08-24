@@ -43,7 +43,7 @@
 
       </mat-card>
 
-      <table mat-table [dataSource]="locationItems" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>
+      <mat-table [dataSource]="locationItems" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>
 
         <ng-container matColumnDef="name">
           <mat-header-cell *matHeaderCellDef mat-sort-header> Name </mat-header-cell>
@@ -83,7 +83,7 @@
         <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
         <mat-row *matRowDef="let row; columns: displayedColumns;" [class.mat-row-link]="row.content_id"></mat-row>
 
-      </table>
+      </mat-table>
 
       <div></div>
 
