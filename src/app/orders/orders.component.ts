@@ -41,6 +41,13 @@ interface LocationInfo {
   items: OrderListItem[];
 }
 
+interface SalesHistroy {
+  location_id: number;
+  type_id: number;
+  quantity: number;
+  value: number;
+  date: number;
+}
 
 @Component({
   selector: 'app-orders',
@@ -138,17 +145,22 @@ export class OrdersComponent implements OnInit {
     );
   }
 
-  private analyzeData(orders: EsiCharOrder[], trans: EsiWalletTransaction[]): [number[], LocationOrdersScheme[], EsiWalletTransaction[]] {
-    trans = trans.reduce((sum: EsiWalletTransaction[], t: EsiWalletTransaction) => {
-      const i = sum.findIndex(x => t.location_id == x.location_id && t.type_id == x.type_id);
-      if (i >= 0) {
-        sum[i].quantity += t.quantity;
-        sum[i].unit_price += t.quantity * t.unit_price;
-        if (new Date(sum[i].date).getTime() < new Date(t.date).getTime()) sum[i].date = t.date;
+  private analyzeData(orders: EsiCharOrder[], trans: EsiWalletTransaction[]): [number[], LocationOrdersScheme[], SalesHistroy[]] {
+    const sales = trans.reduce((sum: SalesHistroy[], t: EsiWalletTransaction) => {
+      const s = sum.find(s => t.location_id == s.location_id && t.type_id == s.type_id);
+      if (s) {
+        s.quantity += t.quantity;
+        s.value += t.quantity * t.unit_price;
+        if (s.date < new Date(t.date).getTime()) s.date = new Date(t.date).getTime();
       }
       else {
-        t.unit_price *= t.quantity;
-        sum = [...sum, t];
+        sum.push(<SalesHistroy>{
+          location_id: t.location_id,
+          type_id: t.type_id,
+          quantity: t.quantity,
+          value: t.quantity * t.unit_price,
+          date: new Date(t.date).getTime()
+        });
       }
       return sum;
     }, []);
@@ -161,11 +173,11 @@ export class OrdersComponent implements OnInit {
         region_id: (orders.filter(o => o.location_id == id).find(o => !!o.region_id) || { region_id: null }).region_id,
         type_ids: set(loc_id_types.filter(([location_id,]) => location_id == id).map(([, type_id]) => type_id))
       })),
-      trans
+      sales
     ];
   }
 
-  private assembleItemsInfo(type_order: TypeOrders, ids: number[], trans: EsiWalletTransaction): OrderListItem[] {
+  private assembleItemsInfo(type_order: TypeOrders, ids: number[], sale: SalesHistroy): OrderListItem[] {
     const now = Date.now();
     const dtime = 1 * 24 * 60 * 60 * 1000;
     const lines = type_order.orders.map(o => {
@@ -182,9 +194,9 @@ export class OrdersComponent implements OnInit {
     }).sort((l1, l2) => ((l1.price < l2.price) ? -1 : ((l1.price > l2.price) ? 1 : 0)));
     const [has_owned, has_other, best_price, expandable] = lines.reduce((s, x, i) => [s[0] || x.owned, s[1] || !x.owned, s[2] || (x.owned && i == 0), true], [false, false, false, false]);
     const [quantity, total] = lines.filter(val => val.owned).reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
-    const sold = trans && trans.quantity || 0;
+    const sold = sale && sale.quantity || 0;
     let icons = [];
-    if (sold && (now - new Date(trans.date).getTime()) < dtime) icons.push('attach_money');
+    if (sold && (now - sale.date) < dtime) icons.push('attach_money');
     if (lines.find(x => x.icons.length)) icons.push('new_releases');
     if (!has_owned && has_other) icons.push('people_outline');
     if (has_owned && !has_other) icons.push('person');
@@ -192,7 +204,7 @@ export class OrdersComponent implements OnInit {
       type_id: type_order.type_id,
       name: this.esiData.typesInfo.get(type_order.type_id).name,
       quantity: quantity || null,
-      price: quantity ? total / quantity : (sold ? trans.unit_price / trans.quantity : null),
+      price: quantity ? total / quantity : (sold ? sale.value / sale.quantity : null),
       duration: sold && this.depth || null,
       sold: sold || null,
       icons: icons,
@@ -200,9 +212,9 @@ export class OrdersComponent implements OnInit {
     }].concat(lines);
   }
 
-  private assembleLocationInfo(orders: LocationOrders, ids: number[], trans: EsiWalletTransaction[]): LocationInfo {
+  private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistroy[]): LocationInfo {
     const items = orders.types
-      .map(type_order => this.assembleItemsInfo(type_order, ids, trans.find(t => t.type_id == type_order.type_id && t.location_id == orders.location_id)))
+      .map(type_order => this.assembleItemsInfo(type_order, ids, sales.find(t => t.type_id == type_order.type_id && t.location_id == orders.location_id)))
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
     return <LocationInfo>{
@@ -223,8 +235,8 @@ export class OrdersComponent implements OnInit {
         ),
         (orders, trans) => this.analyzeData(orders, trans)
       ).pipe(
-        mergeMap(([ids, locs, trans]) => this.loadOrders(locs).pipe(
-          map(orders => this.assembleLocationInfo(orders, ids, trans))
+        mergeMap(([ids, locs, sales]) => this.loadOrders(locs).pipe(
+          map(orders => this.assembleLocationInfo(orders, ids, sales))
         )),
         toArray(),
         map(data => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
