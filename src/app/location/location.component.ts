@@ -17,6 +17,7 @@ interface LocationData {
   value: number;                   // content gross value
   volume: number | null;           // content volume
   parent?: number;                 // parent location_id
+  type: string | null;             // "station" | "solar_system" | "other"
 }
 
 @Component({
@@ -52,15 +53,15 @@ export class LocationComponent implements OnInit {
   constructor(private route: ActivatedRoute, private esiData: EsiDataService) { }
 
   private buildLocations() {
-    this.locations = new Map( [[0, <LocationData>{ items: [], volume: undefined, value: 0 }]] ); // root location
+    this.locations = new Map( [[0, <LocationData>{ items: [], volume: undefined, value: 0, type: 'other' }]] ); // root location
     this.linkAssetsItemsData();
     this.linkMarketOrdersData();
     this.linkChildren();
-    return this.esiData.loadLocationsInfo(this.locations.get(0).items);
+    return this.esiData.loadLocationsInfo(this.locations.get(0).items.map(id => [id, this.locations.get(id).type]));
   }
 
-  private addLocations(loc_ids: number[], parent: number = 0) {
-    loc_ids.forEach(loc_id => this.locations.set(loc_id, <LocationData>{ items: [], volume: undefined, value: 0, parent: parent }));
+  private addLocations(loc_ids: number[], type: string = null, parent: number = 0) {
+    loc_ids.forEach(loc_id => this.locations.set(loc_id, <LocationData>{ items: [], volume: undefined, value: 0, parent: parent, type: type }));
   }
 
   private linkChildren() {
@@ -79,23 +80,27 @@ export class LocationComponent implements OnInit {
   private linkAssetsItemsData() {
     const items = this.esiData.charAssets;
     this.addLocations(set(items.map(item => item.location_id))); // link all to the root
-    items.filter(item => this.locations.has(item.item_id)).forEach(item => this.locations.get(item.item_id).parent = item.location_id); // relink items
+    items.forEach(item => { 
+      if (this.locations.has(item.item_id)) this.locations.get(item.item_id).parent = item.location_id; // relink items
+      this.locations.get(item.location_id).type = item.location_type;
+    }); 
     this.processItems(items);
   }
 
   private linkMarket(loc_id: number, orders: EsiOrder[]) {
     const market_loc_id = this.esiData.generateCharacterAssetsItemId();
     this.marketLocations.push(market_loc_id);
-    if (!this.locations.has(loc_id)) this.addLocations([loc_id]);
-    this.addLocations([market_loc_id], loc_id);
+    if (!this.locations.has(loc_id)) this.addLocations([loc_id], EsiService.isStationId(loc_id) ? 'station' : 'other');
+    const market_location_type = 'other';
+    this.addLocations([market_loc_id], market_location_type, loc_id);
     orders.forEach(o => {
       const item_id = this.esiData.generateCharacterAssetsItemId();
       this.marketAssets.push(<EsiAssetsItem>{
         is_singleton: true,
         item_id: item_id,
-        location_flag: 'MarketOrder',
+        location_flag: 'MarketHangar',
         location_id: market_loc_id,
-        location_type: 'other',
+        location_type: market_location_type,
         quantity: o.volume_remain,
         type_id: o.type_id
       });

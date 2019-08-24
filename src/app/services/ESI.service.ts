@@ -69,13 +69,19 @@ export interface EsiAssetsName {
   name: string;
 }
 
+export interface EsiPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface EsiStationInfo {
   station_id: number;
   name: string;
   type_id: number;
   owner?: number;
   system_id: number;
-  position: any;
+  position: EsiPosition;
   max_dockable_ship_volume?: number;
   office_rental_cost: number;
   race_id?: number;
@@ -106,7 +112,26 @@ export interface EsiStructureInfo {
   type_id?: number;
   owner_id: number;
   solar_system_id: number;
-  position?: any;
+  position?: EsiPosition;
+}
+
+export interface EsiPlanetInfo {
+  planet_id: number;
+  moons?: number[];
+  asteroid_belts?: number[];
+}
+
+export interface EsiSystemInfo {
+  constellation_id: number;
+  name: string;
+  planets?: EsiPlanetInfo[];
+  position: EsiPosition;
+  security_class: string;
+  security_status: number;
+  star_id?: number;
+  stargates?: number[];
+  stations?: number[];
+  system_id: number;
 }
 
 export interface EsiOrder {
@@ -171,6 +196,14 @@ export class EsiService {
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
+  public static isStationId(id: number) {
+    return id < Math.pow(2, 32);
+  }
+
+  public static getLocationType(id: number) {
+    return EsiService.isStationId(id) ? 'station' : 'other';
+  }
+
   constructor(private httpClient: HttpClient, private config: ESI_CONFIG) {
     this.params = config.datasource ? new HttpParams().set('datasource', config.datasource) : new HttpParams();
   }
@@ -230,11 +263,15 @@ export class EsiService {
   }
 
   public getStationInformation(station_id: number): Observable<EsiStationInfo> {
-    return this.getInformation<EsiStationInfo>('station', station_id);
+    return this.getInformation<EsiStationInfo>('stations', station_id);
   }
 
   public getStructureInformation(structure_id: number): Observable<EsiStructureInfo> {
-    return this.getInformation<EsiStructureInfo>('structure', structure_id);
+    return this.getInformation<EsiStructureInfo>('structures', structure_id);
+  }
+
+  public getSolarSystemInformation(solar_system_id: number): Observable<EsiSystemInfo> {
+    return this.getInformation<EsiSystemInfo>('systems', solar_system_id);
   }
 
   public getStructureOrders(structure_id: number): Observable<EsiStructureOrder[]> {

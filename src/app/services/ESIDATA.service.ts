@@ -3,7 +3,7 @@ import { Observable, of, concat, from, throwError } from 'rxjs';
 import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from './EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiWalletTransaction } from './ESI.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiWalletTransaction } from './ESI.service';
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
@@ -137,16 +137,42 @@ export class EsiDataService {
     );
   }
 
-  loadLocationsInfo(ids: number[]): Observable<Map<number, EsiDataLocationInfo>> {
-    ids = this.missedIDs(ids, this.locationsInfo);
+  loadLocationsInfo(id_types: [number,string][]): Observable<Map<number, EsiDataLocationInfo>> {
+    const types = new Map(id_types);
+    const ids = this.missedIDs([...types.keys()], this.locationsInfo);
     if (ids.length == 0) return of(this.locationsInfo);
     return from(ids).pipe(
-      mergeMap(sID =>
-        this.esi.getInformation<EsiStructureInfo | EsiStationInfo>((sID >= Math.pow(2, 32)) ? 'structures' : 'stations', sID).pipe(
+      mergeMap(sID => {
+        const type = types.get(sID) || EsiService.getLocationType(sID);
+        let selector;
+        switch (type) {
+          case 'solar_system': selector = 'systems'; break;
+          case 'station': selector = 'stations'; break;
+          case 'other': selector = 'structures'; break;
+          default:
+            this.locationsInfo.set(sID, <EsiDataLocationInfo>{
+              name: `*** Unknown '${type}' ***`,
+              type_id: null,
+              type_info: `ID = ${sID}`
+            });
+            return of(null);
+        }
+        return this.esi.getInformation<EsiSystemInfo | EsiStructureInfo | EsiStationInfo>(selector, sID).pipe(
+          map(esiInfo => {
+            return <EsiDataLocationInfo>{
+              name: esiInfo.name,
+              type_id: type == 'solar_system' ? null : (<EsiStructureInfo | EsiStationInfo>esiInfo).type_id,
+              type_info: type == 'solar_system' ? 'Solar system' : null
+            };
+          }),
           catchError((err: any) => {
             //            if (err.name == 'EsiError' ...
-            if (err instanceof EsiError && err.status == 403) // some structures are 'forbidden'
-              return of({ name: `*** Forbidden Structure ***`, type_id: null, type_info: `ID = ${sID}` }); // err.error - server 403 error body
+            if (err instanceof EsiError && err.status == 403) // some locations are 'forbidden'
+              return of(<EsiDataLocationInfo>{
+                name: `*** Forbidden '${type}' ***`,
+                type_id: null,
+                type_info: `ID = ${sID}`
+              }); // err.error - server 403 error body
             return throwError(err);
           }),
           map(info => {
@@ -154,7 +180,7 @@ export class EsiDataService {
             return info.type_id;
           })
         )
-      ),
+      }),
       filter(id => !!id),
       toArray(),
       switchMap(ids => this.loadTypeInfo(ids)),
