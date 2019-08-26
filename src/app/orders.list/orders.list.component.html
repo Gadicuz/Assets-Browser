@@ -13,7 +13,7 @@
 
     <ng-container matColumnDef="quantity">
       <mat-header-cell *matHeaderCellDef> Quantity </mat-header-cell>
-      <mat-cell *matCellDef="let item">{{item.quantity | scale}}</mat-cell>
+      <mat-cell *matCellDef="let item">{{item.quantity | scale:'.0-2'}}</mat-cell>
     </ng-container>
 
     <ng-container matColumnDef="price">
@@ -28,7 +28,7 @@
 
     <ng-container matColumnDef="sold">
       <mat-header-cell *matHeaderCellDef> Sold </mat-header-cell>
-      <mat-cell *matCellDef="let item">{{item.sold | scale}}</mat-cell>
+      <mat-cell *matCellDef="let item">{{item.sold | scale:'.0-2'}}</mat-cell>
     </ng-container>
 
     <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
