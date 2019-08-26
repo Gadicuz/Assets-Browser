@@ -33,17 +33,26 @@ export const authConfig: AuthConfig = {
 }
 */
 
+export interface EVESSOVerifyResponse {
+  CharacterID: number;
+  CharacterName?: string;
+  CharacterOwnerHash?: string;
+  ExpiresOn?: string;
+  IntellectualProperty?: string;
+  Scopes?: string;
+  TokenType?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class EVESSOService {
-  public charData;
+  public charData: EVESSOVerifyResponse;
 
   constructor(private oauth: OAuthService) { }
 
   public configure() {
     this.oauth.configure(authConfig);
-    this.oauth.setupAutomaticSilentRefresh();
     this.oauth.tokenValidationHandler = new JwksValidationHandler();
   }
 
@@ -52,10 +61,13 @@ export class EVESSOService {
     this.oauth.loadDiscoveryDocumentAndTryLogin().then(
       () => {
         if (this.oauth.hasValidAccessToken()) {
+          //this.oauth.timeoutFactor = 0.1;
+          this.oauth.setupAutomaticSilentRefresh();
           this.oauth.userinfoEndpoint = 'https://esi.evetech.net/verify'; // reset by discovery doc
           this.oauth.loadUserProfile().then(
             profile => {
-              this.charData = profile;
+              this.charData = <EVESSOVerifyResponse>profile;
+              // this.oauth.getIdentityClaims() returns EVESSOVerifyResponse
               //console.log(profile);  profile['Scopes'] is granted scopes for the token
             }
           );
