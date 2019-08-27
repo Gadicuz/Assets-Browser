@@ -1,31 +1,27 @@
-<div fxLayout="row" fxLayoutAlign="center">
+<div fxLayout="column" fxLayoutGap="16px" fxLayoutAlign="start stretch" *ngLet="(orders$ | async) as orders">
 
-  <div fxLayout="column" fxLayoutGap="16px" fxLayoutAlign="start stretch" fxFlex="80%" *ngLet="(orders$ | async) as orders">
+  <div></div>
 
-    <div></div>
+  <mat-accordion *ngIf="orders; else loading">
+    <app-error *ngIf="orders.error" [err]="orders.error"></app-error>
+    <ng-container *ngIf="orders.data">
+      <mat-expansion-panel *ngFor="let locationOrders of orders.data">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            {{locationOrders.name}}
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <app-orders-list [orders]="locationOrders.items"></app-orders-list>
+      </mat-expansion-panel>
+    </ng-container>
+  </mat-accordion>
 
-    <mat-accordion *ngIf="orders; else loading">
-      <app-error *ngIf="orders.error" [err]="orders.error"></app-error>
-      <ng-container *ngIf="orders.data">
-        <mat-expansion-panel *ngFor="let locationOrders of orders.data">
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              {{locationOrders.name}}
-            </mat-panel-title>
-          </mat-expansion-panel-header>
-          <app-orders-list [orders]="locationOrders.items"></app-orders-list>
-        </mat-expansion-panel>
-      </ng-container>
-    </mat-accordion>
+  <ng-template #loading>
+    <mat-card class="mat-elevation-z4">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </mat-card>
+  </ng-template>
 
-    <ng-template #loading>
-      <mat-card class="mat-elevation-z4">
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-      </mat-card>
-    </ng-template>
-
-    <div></div>
-
-  </div>
+  <div></div>
 
 </div>

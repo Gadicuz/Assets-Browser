@@ -1,93 +1,89 @@
-  <div fxLayout="row" fxLayoutAlign="center">
+<div fxLayout="column" fxLayoutGap="16px" fxLayoutAlign="start stretch" *ngLet="(location$ | async) as location">
 
-    <div fxLayout="column" fxLayoutGap="16px" fxLayoutAlign="start stretch" fxFlex="80%" *ngLet="(location$ | async) as location">
+  <div></div>
 
-      <div></div>
+  <mat-card class="mat-elevation-z4">
+    <mat-card-header>
+      <img *ngIf="location.image" mat-card-avatar [src]="location.image">
+      <mat-card-title>{{location.name}}</mat-card-title>
+      <mat-card-subtitle *ngIf="location.comment">{{location.comment}}</mat-card-subtitle>
+    </mat-card-header>
 
-      <mat-card class="mat-elevation-z4">
-        <mat-card-header>
-          <img *ngIf="location.image" mat-card-avatar [src]="location.image">
-          <mat-card-title>{{location.name}}</mat-card-title>
-          <mat-card-subtitle *ngIf="location.comment">{{location.comment}}</mat-card-subtitle>
-        </mat-card-header>
-
-        <ng-container *ngIf="location.info || location.error; else loading">
-          <mat-card-content fxLayout="row wrap" fxLayoutAlign="start stretch">
-            <app-error *ngIf="location.error as e" fxFlex fxFill [err]="e"></app-error>
-            <ng-container *ngIf="location.info">
-              <div *ngFor="let info of location.info">
-                <mat-card class="gap-margin" *ngIf="info.content">
-                  <div fxLayout="column">
-                    <div class="mat-caption">{{info.title}}</div>
-                    <div class="mat-display-1 no-margin">{{info.content | scale:'.2-2'}}</div>
-                  </div>
-                </mat-card>
+    <ng-container *ngIf="location.info || location.error; else loading">
+      <mat-card-content fxLayout="row wrap" fxLayoutAlign="start stretch">
+        <app-error *ngIf="location.error as e" fxFlex fxFill [err]="e"></app-error>
+        <ng-container *ngIf="location.info">
+          <div *ngFor="let info of location.info">
+            <mat-card class="gap-margin" *ngIf="info.content">
+              <div fxLayout="column">
+                <div class="mat-caption">{{info.title}}</div>
+                <div class="mat-display-1 no-margin">{{info.content | scale:'.2-2'}}</div>
               </div>
-            </ng-container>
-          </mat-card-content>
+            </mat-card>
+          </div>
         </ng-container>
+      </mat-card-content>
+    </ng-container>
 
-        <ng-template #loading>
-          <mat-card-content>
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-          </mat-card-content>
-        </ng-template>
+    <ng-template #loading>
+      <mat-card-content>
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      </mat-card-content>
+    </ng-template>
 
-        <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
-          <div></div>
-          <ng-container *ngFor="let node of location.route; let idx = index">
-            <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
-            <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]" fxFlexAlign="center">{{node.name}}</button>
-          </ng-container>
-        </mat-card-actions>
-
-      </mat-card>
-
-      <mat-table [dataSource]="locationItems" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>
-
-        <ng-container matColumnDef="name">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Name </mat-header-cell>
-          <mat-cell *matCellDef="let item">
-            <ng-container *ngIf="item.content_id; else nolink">
-              <a [routerLink]="['/browse',item.content_id]">{{item.name}}</a>
-            </ng-container>
-            <ng-template #nolink>
-              {{item.name}}
-            </ng-template>
-            <font *ngIf="item.comment" size="-2">
-              {{item.comment}}
-            </font>
-          </mat-cell>
-        </ng-container>
-
-        <ng-container matColumnDef="quantity">
-          <mat-header-cell *matHeaderCellDef> Quantity </mat-header-cell>
-          <mat-cell *matCellDef="let item"> {{item.quantity}} </mat-cell>
-        </ng-container>
-
-        <ng-container matColumnDef="value">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Value </mat-header-cell>
-          <mat-cell *matCellDef="let item"> {{item.value | currency:'':'':'.2-2':'en-US'}} </mat-cell>
-        </ng-container>
-
-        <ng-container matColumnDef="volume">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Volume </mat-header-cell>
-          <mat-cell *matCellDef="let item">
-            {{(item.volume | number:'.2-2') || 'n/a'}}
-            <font *ngIf="item.content_volume !== undefined" size="-2">
-              {{(item.content_volume | number:'.2-2') || 'pending...'}}
-            </font>
-          </mat-cell>
-        </ng-container>
-
-        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-        <mat-row *matRowDef="let row; columns: displayedColumns;" [class.mat-row-link]="row.content_id"></mat-row>
-
-      </mat-table>
-
+    <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
       <div></div>
+      <ng-container *ngFor="let node of location.route; let idx = index">
+        <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
+        <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]" fxFlexAlign="center">{{node.name}}</button>
+      </ng-container>
+    </mat-card-actions>
 
-    </div>
+  </mat-card>
 
-  </div>
+  <mat-table [dataSource]="locationItems" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>
+
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Name </mat-header-cell>
+      <mat-cell *matCellDef="let item">
+        <ng-container *ngIf="item.content_id; else nolink">
+          <a [routerLink]="['/browse',item.content_id]">{{item.name}}</a>
+        </ng-container>
+        <ng-template #nolink>
+          {{item.name}}
+        </ng-template>
+        <font *ngIf="item.comment" size="-2">
+          {{item.comment}}
+        </font>
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="quantity">
+      <mat-header-cell *matHeaderCellDef> Quantity </mat-header-cell>
+      <mat-cell *matCellDef="let item"> {{item.quantity}} </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="value">
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Value </mat-header-cell>
+      <mat-cell *matCellDef="let item"> {{item.value | currency:'':'':'.2-2':'en-US'}} </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="volume">
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Volume </mat-header-cell>
+      <mat-cell *matCellDef="let item">
+        {{(item.volume | number:'.2-2') || 'n/a'}}
+        <font *ngIf="item.content_volume !== undefined" size="-2">
+          {{(item.content_volume | number:'.2-2') || 'pending...'}}
+        </font>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: displayedColumns;" [class.mat-row-link]="row.content_id"></mat-row>
+
+  </mat-table>
+
+  <div></div>
+
+</div>
 

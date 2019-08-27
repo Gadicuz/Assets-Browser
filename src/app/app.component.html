@@ -1,8 +1,9 @@
 <div class="app-container" fxLayout="column" fxLayoutAlign="start">
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
-    <ng-container *ngIf="charData; else noCharData" >
+    <ng-container *ngIf="charData; else noCharData">
       <button fxFlex="0 0 auto" mat-button [routerLink]="['/browse']">Assets</button>
       <button fxFlex="0 0 auto" mat-button [routerLink]="['/orders']">Orders</button>
+      <button fxFlex="0 0 auto" mat-button [routerLink]="['/requests']">Requests</button>
       <div fxFlex="1 1 auto"></div>
       <div fxFlex="0 0 auto"><span>{{charData.CharacterName}}</span></div>
       <img fxFlex="0 0 auto" class="avatar" src="https://image.eveonline.com/Character/{{charData.CharacterID}}_64.jpg">
@@ -23,8 +24,10 @@
     </ng-template>
   </mat-toolbar>
 
-  <div *ngIf="charData">
-    <router-outlet></router-outlet>
+  <div *ngIf="charData" fxLayout="row" fxLayoutAlign="center">
+    <div fxFlex="80%">
+        <router-outlet></router-outlet>
+    </div>
   </div>
 
   <div class="filler" fxFlex fxFlexFill></div>
