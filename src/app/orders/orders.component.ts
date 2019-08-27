@@ -135,12 +135,12 @@ export class OrdersComponent implements OnInit {
     const typ_ids = locs.map(loc => loc.type_ids).reduce((s,a) => s.concat(a), []);
     return concat(
       merge(
-        this.esiData.loadLocationsInfo(loc_ids.map(id => [id, EsiService.getLocationType(id)])),
+        this.esiData.loadLocationsInfo(loc_ids.map(id => [id, EsiService.getAssetLocationType(id)])),
         this.esiData.loadTypeInfo(typ_ids)
       ).pipe(ignoreElements()),
       merge(
-        this.loadStationOrders(locs.filter(loc => EsiService.isStationId(loc.location_id))),
-        this.loadStructureOrders(locs.filter(loc => !EsiService.isStationId(loc.location_id)))
+        this.loadStationOrders(locs.filter(loc => EsiService.isLocationLocID(loc.location_id))),
+        this.loadStructureOrders(locs.filter(loc => !EsiService.isLocationLocID(loc.location_id)))
       )
     );
   }

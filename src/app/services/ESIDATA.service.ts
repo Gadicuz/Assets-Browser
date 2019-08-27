@@ -60,7 +60,10 @@ export class EsiDataService {
     this.max_item_id = 0;
     this.charOrders = null;
     this.charAssetsNames = new Map<number, string>();
-    this.locationsInfo = new Map<number, EsiDataLocationInfo>([[0, { name: 'Universe', type_info: 'Tranquility' }]]);
+    this.locationsInfo = new Map<number, EsiDataLocationInfo>([
+      [0, { name: 'Universe', type_info: 'Tranquility' }],
+      [EsiService.LOCATION_ID_AssetSafety, { name: 'Asset Safety', type_info: '' }]
+    ]);
   }
    
   get character_id(): number {
@@ -143,7 +146,7 @@ export class EsiDataService {
     if (ids.length == 0) return of(this.locationsInfo);
     return from(ids).pipe(
       mergeMap(sID => {
-        const type = types.get(sID) || EsiService.getLocationType(sID);
+        const type = types.get(sID) || EsiService.getAssetLocationType(sID);
         let selector;
         switch (type) {
           case 'solar_system': selector = 'systems'; break;

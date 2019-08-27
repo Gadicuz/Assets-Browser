@@ -31,13 +31,12 @@ export class LocationComponent implements OnInit {
   location$ = null;
   locationItems: MatTableDataSource<any> | null = null;
 
-  private static readonly TYPE_ID_AssetSafetyWrap = 60;
   private readonly virtualContainerTypes: number[] = [
-    LocationComponent.TYPE_ID_AssetSafetyWrap
+    EsiService.TYPE_ID_AssetSafetyWrap
   ];
 
   isVirtualContainer(type_id: number): boolean {
-    return type_id == LocationComponent.TYPE_ID_AssetSafetyWrap;
+    return type_id == EsiService.TYPE_ID_AssetSafetyWrap;
   }
 
   private imageUrl = 'https://image.eveonline.com/';
@@ -90,7 +89,7 @@ export class LocationComponent implements OnInit {
   private linkMarket(loc_id: number, orders: EsiOrder[]) {
     const market_loc_id = this.esiData.generateCharacterAssetsItemId();
     this.marketLocations.push(market_loc_id);
-    if (!this.locations.has(loc_id)) this.addLocations([loc_id], EsiService.isStationId(loc_id) ? 'station' : 'other');
+    if (!this.locations.has(loc_id)) this.addLocations([loc_id], EsiService.getAssetLocationType(loc_id));
     const market_location_type = 'other';
     this.addLocations([market_loc_id], market_location_type, loc_id);
     orders.forEach(o => {

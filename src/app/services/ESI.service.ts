@@ -192,16 +192,24 @@ export class ESI_CONFIG {
 })
 export class EsiService {
 
+  static TYPE_ID_AssetSafetyWrap: number = 60;
+  static LOCATION_ID_AssetSafety: number = 2004;
+  
   private readonly params: HttpParams;
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
-  public static isStationId(id: number) {
-    return id < Math.pow(2, 32);
+  public static getAssetLocationType(id: number): string {
+    // https://github.com/esi/esi-docs/blob/master/docs/asset_location_id.md
+    if (id == EsiService.LOCATION_ID_AssetSafety) return 'asset_safety';
+    if (id >= 30000000 && id < 32000000) return 'solar_system';
+    if (id >= 32000000 && id < 33000000) return 'solar_system'; // Abyssal
+    if (id >= 60000000 && id < 64000000) return 'station';
+    return 'other';
   }
 
-  public static getLocationType(id: number) {
-    return EsiService.isStationId(id) ? 'station' : 'other';
+  public static isLocationLocID(id: number): boolean {
+    return EsiService.getAssetLocationType(id) === 'station';
   }
 
   constructor(private httpClient: HttpClient, private config: ESI_CONFIG) {
