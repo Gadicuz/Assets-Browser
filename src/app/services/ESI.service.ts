@@ -182,6 +182,50 @@ export interface EsiWalletTransaction {
   unit_price: number;
 }
 
+export interface EsiMailRecipient {
+  id: number;
+  type: 'alliance' | 'character' | 'corporation' | 'mailing_list';
+}
+
+export interface EsiMail {
+  mail_id?: number;
+  timestamp?: string;
+  from?: number;
+  recipients?: EsiMailRecipient[];
+  labels?: number[];
+  subject?: string;
+  is_read?: boolean;
+  read?: boolean;
+  body?: string;
+}
+
+type EsiLabelColor =
+  '#0000fe' | '#006634' | '#0099ff' | '#00ff33' | '#01ffff' | '#349800' |
+  '#660066' | '#666666' | '#999999' | '#99ffff' | '#9a0000' | '#ccff9a' |
+  '#e6e6e6' | '#fe0000' | '#ff6600' | '#ffff01' | '#ffffcd' | '#ffffff';
+
+export interface EsiMailLabel {
+  color?: EsiLabelColor;
+  label_id?: number;
+  name?: string;
+  unread_count?: number;
+}
+
+export interface EsiMailLabels {
+  labels?: EsiMailLabel[];
+  total_unread_count?: number;
+}
+
+export type EsiIdCategory =
+  'alliance' | 'character' | 'constellation' | 'corporation' |
+  'inventory_type' | 'region' | 'solar_system' | 'station' | 'faction';
+
+export interface EsiIdInfo {
+  id: number;
+  category: EsiIdCategory;
+  name: string;
+}
+
 export class ESI_CONFIG {
   baseUrl: string;
   datasource?: string;
@@ -194,10 +238,26 @@ export class EsiService {
 
   static TYPE_ID_AssetSafetyWrap: number = 60;
   static LOCATION_ID_AssetSafety: number = 2004;
+
+  static STD_MAIL_LABEL_ID_Inbox: number = 1;
+  static STD_MAIL_LABEL_ID_Sent: number = 2;
+  static STD_MAIL_LABEL_ID_Corp: number = 4;
+  static STD_MAIL_LABEL_ID_Alliance: number = 8;
   
   private readonly params: HttpParams;
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
+
+  private static imageUrl = 'https://image.eveonline.com/';
+  private static getImage(type: string, id: number, size: number, ext: string ='png'): string {
+    return `${EsiService.imageUrl}${type}/${id}_${size}.${ext}`;
+  }
+  public getCharacterAvatarURI(character_id: number, size: number) {
+    return EsiService.getImage('Character', character_id, size, 'jpg');
+  }
+  public getItemIconURI(type_id: number, size: number) {
+    return EsiService.getImage('Type', type_id, size, 'png');
+  }
 
   public static getAssetLocationType(id: number): string {
     // https://github.com/esi/esi-docs/blob/master/docs/asset_location_id.md
@@ -208,12 +268,48 @@ export class EsiService {
     return 'other';
   }
 
+  public static getIdType(id: number): string {
+    // https://github.com/esi/esi-docs/blob/master/docs/id_ranges.md
+    if (id >= 2147483648) return 'other';
+    if (id < 10000) return 'special';
+    if (id >= 500000 && id < 1000000) return 'faction';
+    if (id >= 1000000 && id < 2000000) return 'corporation'; //NPC
+    if (id >= 3000000 && id < 4000000) return 'character'; //NPC
+    if (id >= 9000000 && id < 10000000) return 'universe';
+    if (id >= 10000000 && id < 11000000) return 'region';
+    if (id >= 11000000 && id < 12000000) return 'region'; //wormhole
+    if (id >= 12000000 && id < 13000000) return 'region'; //abyssal
+    if (id >= 20000000 && id < 21000000) return 'constellation';
+    if (id >= 21000000 && id < 22000000) return 'constellation'; //wormhole
+    if (id >= 22000000 && id < 23000000) return 'constellation'; //abyssal
+    if (id >= 30000000 && id < 31000000) return 'solar_system';
+    if (id >= 31000000 && id < 32000000) return 'solar_system'; //wormhole
+    if (id >= 32000000 && id < 33000000) return 'solar_system'; //abyssal
+    if (id >= 40000000 && id < 50000000) return 'celestial';
+    if (id >= 50000000 && id < 60000000) return 'stargate';
+    if (id >= 60000000 && id < 61000000) return 'station'; //CCP
+    if (id >= 61000000 && id < 64000000) return 'station'; //outpost
+    if (id >= 68000000 && id < 69000000) return 'folder_station'; //CCP
+    if (id >= 69000000 && id < 70000000) return 'folder_station'; //outpost
+    if (id >= 70000000 && id < 80000000) return 'asteroid';
+    if (id >= 80000000 && id < 80100000) return 'control_bunker';
+    if (id >= 81000000 && id < 82000000) return 'wis_promenade';
+    if (id >= 82000000 && id < 85000000) return 'planetary_district';
+    if (id >= 90000000 && id < 98000000) return 'character'; // created after 2010 - 11 - 03
+    if (id >= 98000000 && id < 99000000) return 'corporation'; // created after 2010 - 11 - 03
+    if (id >= 99000000 && id < 100000000) return 'alliance'; // created after 2010 - 11 - 03
+    if (id >= 100000000 && id < 2100000000) return 'character_corporation_alliance'; // EVE characters, corporations and alliances created before 2010 - 11 - 03
+    return 'character';    
+  }
+
   public static isLocationLocID(id: number): boolean {
     return EsiService.getAssetLocationType(id) === 'station';
   }
 
   constructor(private httpClient: HttpClient, private config: ESI_CONFIG) {
-    this.params = config.datasource ? new HttpParams().set('datasource', config.datasource) : new HttpParams();
+    //this.params = new HttpParams({ encoder: new X_WWW_FORM_UrlEncodingCodec()});
+    this.params = new HttpParams();
+    if (config.datasource) this.params = this.params.set('datasource', config.datasource);
   }
 
   private retry(count: number, timeout: number = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx) {
@@ -226,7 +322,7 @@ export class EsiService {
     )
   }
 
-  private getData<T>(route: string, params = this.params, retry = this.retry(3)) {
+  private getData<T>(route: string, params: HttpParams = this.params, retry = this.retry(3)) {
     return <Observable<T>>this.httpClient.get(this.config.baseUrl + route, { params: params }).pipe(
       retryWhen(retry)
     );
@@ -238,8 +334,8 @@ export class EsiService {
     );
   }
 
-  private getCharacterInformation<T>(character_id: number, route: string): Observable<T> {
-    return this.getData<T>(`characters/${character_id}/${route}`);
+  private getCharacterInformation<T>(character_id: number, route: string, params?: HttpParams): Observable<T> {
+    return this.getData<T>(`characters/${character_id}/${route}`, params);
   }
 
   public getCharacterOrders(character_id: number, historical: boolean = false): Observable<EsiCharOrder[]> {
@@ -254,6 +350,23 @@ export class EsiService {
     return this.getCharacterInformation<EsiWalletTransaction[]>(character_id, 'wallet/transactions/');
   }
 
+  public getCharacterMailHeaders(character_id: number, labels?: number[], last_mail_id?: number): Observable<EsiMail[]> {
+    let params = this.params;
+    if (labels != undefined && labels.length != 0)
+      params = params.set('labels', labels.map(id => id.toString(10)).join(','));
+    if (last_mail_id != undefined)
+      params = params.set('last_mail_id', last_mail_id.toString(10));
+    return this.getCharacterInformation<EsiMail[]>(character_id, 'mail/', params);
+  }
+
+  public getCharacterMail(character_id: number, mail_id: number): Observable<EsiMail> {
+    return this.getCharacterInformation<EsiMail>(character_id, `mail/${mail_id}/`);
+  }
+  
+  public getCharacterMailLabels(character_id: number): Observable<EsiMailLabels> {
+    return this.getCharacterInformation<EsiMailLabels>(character_id, 'mail/labels/');
+  }
+
   private getCharacterAssetNames_chunk(character_id: number, item_ids: number[]): Observable<EsiAssetsName[]> {
     return this.postData<EsiAssetsName[]>(`characters/${character_id}/assets/names/`, item_ids);
   }
@@ -264,6 +377,15 @@ export class EsiService {
 
   public getInformation<T>(type: string, id: number): Observable<T> {
     return this.getData<T>(`universe/${type}/${id}/`);
+  }
+
+  public getIdsInformation(item_ids: number[]): Observable<EsiIdInfo> {
+    return from(item_ids).pipe(
+      bufferCount(1000),
+      mergeMap(ids => this.postData<EsiIdInfo[]>('universe/names/', ids)),
+      map(ans => from(ans)),
+      mergeAll()
+    );
   }
 
   public getTypeInformation(type_id: number): Observable<EsiTypeIdInfo> {
@@ -299,7 +421,7 @@ export class EsiService {
     return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
   }
 
-  getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {    ;
+  getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {
     let params = this.params;
     if (type_id != undefined) {
       params = params.set('type_id', type_id.toString(10));

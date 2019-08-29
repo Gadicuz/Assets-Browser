@@ -1,0 +1,7 @@
+<div *ngIf="(demands$ | async) as demands">
+  <div class="demand-cards" fxLayout="row wrap">
+    <div *ngFor="let d of demands">
+      <app-demand-card [data]="d"></app-demand-card>
+    </div>
+  </div>
+</div>

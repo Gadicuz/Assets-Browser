@@ -3,13 +3,13 @@ import { Routes, RouterModule } from '@angular/router';
 import { AuthGuard } from "./guards/guard.auth";
 import { LocationComponent } from './location/location.component';
 import { OrdersComponent } from './orders/orders.component';
-import { RequestsComponent } from './requests/requests.component';
+import { DemandsComponent } from './demands/demands.component';
 
 const routes: Routes = [
   { path: 'browse/:id', canActivate: [AuthGuard], component: LocationComponent },
   { path: 'browse', redirectTo: 'browse/0', pathMatch: 'full' },
   { path: 'orders', component: OrdersComponent },
-  { path: 'requests', component: RequestsComponent },
+  { path: 'requests', component: DemandsComponent },
   { path: '', children: [] },
   { path: '**', redirectTo: '/', pathMatch: 'full'}
 ];

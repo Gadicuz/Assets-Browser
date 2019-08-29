@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, concat, from, throwError } from 'rxjs';
-import { map, tap, switchMap, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { Observable, Subject, of, empty, concat, from, throwError } from 'rxjs';
+import { map, expand, tap, switchMap, repeatWhen, switchMapTo, mergeMap, mergeMapTo, concatMap, takeWhile, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from './EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiWalletTransaction } from './ESI.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './ESI.service';
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
@@ -188,6 +188,20 @@ export class EsiDataService {
       toArray(),
       switchMap(ids => this.loadTypeInfo(ids)),
       mapTo(this.locationsInfo)
+    );
+  }
+
+  private getCharacterMailHeadersFromId(mail_id: number, labels: number[], up_to_date: number): Observable<EsiMail[]> {
+    return this.esi.getCharacterMailHeaders(this.character_id, labels, mail_id).pipe(
+      map(mails => mails.filter(m => up_to_date == undefined || (new Date(m.timestamp)).getTime() > up_to_date)),
+      takeWhile(mails => mails.length != 0)
+    );
+  }
+
+  public getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiMail> {
+    return this.getCharacterMailHeadersFromId(undefined, labels, up_to_date).pipe(
+      expand(mails => mails.length < 50 ? empty() : this.getCharacterMailHeadersFromId(Math.min(...mails.map(m => m.mail_id)), labels, up_to_date)),
+      mergeMap(mails => from(mails))
     );
   }
 

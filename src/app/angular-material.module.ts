@@ -10,6 +10,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatBadgeModule } from '@angular/material/badge';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatListModule } from '@angular/material/list';
 
 
 @NgModule({
@@ -25,7 +27,9 @@ import { MatBadgeModule } from '@angular/material/badge';
     MatButtonModule,
     MatTooltipModule,
     MatExpansionModule,
-    MatBadgeModule
+    MatBadgeModule,
+    MatDividerModule,
+    MatListModule
   ],
   exports: [
     MatToolbarModule,
@@ -39,7 +43,9 @@ import { MatBadgeModule } from '@angular/material/badge';
     MatButtonModule,
     MatTooltipModule,
     MatExpansionModule,
-    MatBadgeModule
+    MatBadgeModule,
+    MatDividerModule,
+    MatListModule
   ]
 })
 

@@ -10,7 +10,7 @@ export const authConfig: AuthConfig = {
   dummyClientSecret: environment.client.secret,
   oidc: false,
   disablePKCE: true,
-  scope: 'esi-assets.read_assets.v1 esi-universe.read_structures.v1 esi-markets.read_character_orders.v1 esi-markets.structure_markets.v1 esi-wallet.read_character_wallet.v1',
+  scope: 'esi-assets.read_assets.v1 esi-universe.read_structures.v1 esi-markets.read_character_orders.v1 esi-markets.structure_markets.v1 esi-wallet.read_character_wallet.v1 esi-mail.read_mail.v1',
   responseType: "code",
   useHttpBasicAuth: true,
   requestAccessToken: true,

@@ -39,8 +39,6 @@ export class LocationComponent implements OnInit {
     return type_id == EsiService.TYPE_ID_AssetSafetyWrap;
   }
 
-  private imageUrl = 'https://image.eveonline.com/';
-
   private locations: Map<number, LocationData> = null; // Map  loc_id -> LocationData
 
   private marketLocations: number[] = []; // loc_id for market location
@@ -201,7 +199,7 @@ export class LocationComponent implements OnInit {
 
   private getLocationData(loc_id: number, locItem?: EsiAssetsItem) {
     let loc = this.getNameCommentType(loc_id, locItem);
-    if (loc.type_id) loc.image = this.imageUrl + `Type/${loc.type_id}_32.png`;
+    if (loc.type_id) loc.image = this.esiData.service.getItemIconURI(loc.type_id, 32);
     return loc;
   }
 
