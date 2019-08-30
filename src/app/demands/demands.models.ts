@@ -25,3 +25,9 @@ export interface DemandInfo {
   data: DemandLocData[];
   mail_id: number;
 }
+
+export interface DemandsReport {
+  cards: DemandInfo[];
+  markets: any;
+}
+

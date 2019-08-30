@@ -8,7 +8,7 @@ import { EsiDataService } from '../services/ESIDATA.service';
 
 import { set, tuple } from '../utils/utils';
 
-import { DemandInfo, DemandLocData, DemandDataItem, DemandDataChunk } from './demands.models';
+import { DemandsReport, DemandInfo, DemandLocData, DemandDataItem, DemandDataChunk } from './demands.models';
 
 interface ReqLine {
   name: string;
@@ -69,7 +69,7 @@ export class DemandsComponent implements OnInit {
     return subj.substring(subj.indexOf(DemandsComponent.TAG) + DemandsComponent.TAG.length).trim()
   }
 
-  demands$: Observable<any>;
+  demandsReport$: Observable<DemandsReport>;
 
   constructor(private esi: EsiService, private esiData: EsiDataService) { }
 
@@ -191,9 +191,12 @@ export class DemandsComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.demands$ = concat(
-      of(<DemandInfo[]>[]),
-      this.getReports(Date.UTC(2019, 7, 1)).pipe(toArray())
+    this.demandsReport$ = concat(
+      of(<DemandsReport>{ cards: [], markets: [] }),
+      this.getReports(Date.UTC(2019, 7, 1)).pipe(
+        toArray(),
+        map(cards => ({ cards: cards, markets: [] }))
+      )
     );
   }
 

@@ -1,7 +1,10 @@
-<div *ngIf="(demands$ | async) as demands">
+<div *ngIf="(demandsReport$ | async) as report">
   <div class="demand-cards" fxLayout="row wrap">
-    <div *ngFor="let d of demands">
-      <app-demand-card [data]="d"></app-demand-card>
+    <div *ngFor="let card of report.cards">
+      <app-demand-card [data]="card"></app-demand-card>
     </div>
+  </div>
+  <div class="demand-markets">
+    {{report.markets | json}}
   </div>
 </div>
