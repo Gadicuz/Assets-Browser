@@ -3,7 +3,7 @@ import { Observable, Subject, of, empty, concat, from, throwError } from 'rxjs';
 import { map, expand, tap, switchMap, repeatWhen, switchMapTo, mergeMap, mergeMapTo, concatMap, takeWhile, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from './EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './ESI.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiOrder, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './ESI.service';
 
 import universeTypesCache from '../../assets/universe.types.cache.json';
 
@@ -19,6 +19,19 @@ export interface EsiDataLocationInfo {
   name: string;        // name
   type_id?: number;    // type_id or 0/undefined
   type_info?: string;  // type if !type_id
+}
+
+export type TypeOrders = Map<number, EsiOrder[]>
+
+export interface LocationOrdersTypes {
+  location_id: number;
+  types: number[];
+  region_id?: number;
+}
+
+export interface LocationOrders {
+  location_id: number;
+  orders: TypeOrders;
 }
 
 @Injectable({
@@ -198,10 +211,36 @@ export class EsiDataService {
     );
   }
 
-  public getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiMail> {
+  getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiMail> {
     return this.getCharacterMailHeadersFromId(undefined, labels, up_to_date).pipe(
       expand(mails => mails.length < 50 ? empty() : this.getCharacterMailHeadersFromId(Math.min(...mails.map(m => m.mail_id)), labels, up_to_date)),
       mergeMap(mails => from(mails))
+    );
+  }
+
+  loadStationOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
+    return from(set(locs.map(loc => loc.region_id).filter(region_id => !!region_id))).pipe(
+      mergeMap(region_id => this.esi.getRegionOrdersEx(region_id, set(locs.filter(loc => loc.region_id == region_id).map(loc => loc.types).reduce((s, t) => [...s, ...t])), 'sell').pipe(
+        toArray(),
+        mergeMap(region_orders => from(locs.filter(loc => loc.region_id == region_id)).pipe(
+          map(region_loc => ({
+            location_id: region_loc.location_id,
+            orders: new Map(region_orders
+              .map(([type_id, orders]) => tuple(type_id, orders.filter(o => o.location_id == region_loc.location_id)))
+              .filter(([, orders]) => orders.length)
+            )
+          }))
+        ))
+      ))
+    );
+  }
+
+  loadStructureOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
+    return from(locs).pipe(
+      mergeMap(loc => this.esi.getStructureOrdersEx(loc.location_id, loc.types, 'sell').pipe(
+        toArray(),
+        map(type_orders => ({ location_id: loc.location_id, orders: new Map(type_orders) }))
+      ))
     );
   }
 

@@ -3,6 +3,8 @@ import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http'
 import { Observable, of, from, forkJoin, concat, zip, throwError, timer } from 'rxjs';
 import { map, filter, tap, switchMap, switchMapTo, mergeMap, mergeAll, concatMap, mapTo, toArray, catchError, bufferCount, ignoreElements, retryWhen } from 'rxjs/operators';
 
+import { set, tuple } from '../utils/utils';
+
 export class EsiError extends Error {
   readonly status: number;
   readonly error: any;
@@ -243,13 +245,13 @@ export class EsiService {
   static STD_MAIL_LABEL_ID_Sent: number = 2;
   static STD_MAIL_LABEL_ID_Corp: number = 4;
   static STD_MAIL_LABEL_ID_Alliance: number = 8;
-  
+
   private readonly params: HttpParams;
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
   private static imageUrl = 'https://image.eveonline.com/';
-  private static getImage(type: string, id: number, size: number, ext: string ='png'): string {
+  private static getImage(type: string, id: number, size: number, ext: string = 'png'): string {
     return `${EsiService.imageUrl}${type}/${id}_${size}.${ext}`;
   }
   public getCharacterAvatarURI(character_id: number, size: number) {
@@ -299,7 +301,7 @@ export class EsiService {
     if (id >= 98000000 && id < 99000000) return 'corporation'; // created after 2010 - 11 - 03
     if (id >= 99000000 && id < 100000000) return 'alliance'; // created after 2010 - 11 - 03
     if (id >= 100000000 && id < 2100000000) return 'character_corporation_alliance'; // EVE characters, corporations and alliances created before 2010 - 11 - 03
-    return 'character';    
+    return 'character';
   }
 
   public static isLocationLocID(id: number): boolean {
@@ -313,7 +315,7 @@ export class EsiService {
   }
 
   private retry(count: number, timeout: number = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx) {
-    return (errors:Observable<HttpErrorResponse>) => errors.pipe(
+    return (errors: Observable<HttpErrorResponse>) => errors.pipe(
       mergeMap((error, i) => {
         const attempt = i + 1;
         if (attempt > count || noRetry(error.status)) return throwError(new EsiError(error));
@@ -362,7 +364,7 @@ export class EsiService {
   public getCharacterMail(character_id: number, mail_id: number): Observable<EsiMail> {
     return this.getCharacterInformation<EsiMail>(character_id, `mail/${mail_id}/`);
   }
-  
+
   public getCharacterMailLabels(character_id: number): Observable<EsiMailLabels> {
     return this.getCharacterInformation<EsiMailLabels>(character_id, 'mail/labels/');
   }
@@ -408,6 +410,16 @@ export class EsiService {
     return this.getData<EsiStructureOrder[]>(`markets/structures/${structure_id}/`);
   }
 
+  public getStructureOrdersEx(structure_id: number, type_ids: number[], order_type?: string): Observable<[number, EsiStructureOrder[]]> {
+    order_type = order_type || 'any';
+    return this.getStructureOrders(structure_id).pipe(
+      map(orders => orders.filter(o => order_type == 'any' || (order_type == (o.is_buy_order ? 'buy' : 'sell')))),
+      mergeMap(orders => from(type_ids).pipe(
+        map(type_id => tuple(type_id, orders.filter(o => o.type_id == type_id)))
+      ))
+    );
+  }
+
   public getCharacterAssetNames(character_id: number, item_ids: number[], chunk: number = 1000): Observable<EsiAssetsName> {
     return from(item_ids).pipe(
       bufferCount(chunk <= 1000 ? chunk : 1000),
@@ -421,7 +433,7 @@ export class EsiService {
     return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
   }
 
-  getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {
+  public getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {
     let params = this.params;
     if (type_id != undefined) {
       params = params.set('type_id', type_id.toString(10));
@@ -430,6 +442,14 @@ export class EsiService {
       }
     }
     return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, params);
+  }
+
+  public getRegionOrdersEx(region_id: number, type_ids: number[], order_type?: string): Observable<[number,EsiRegionOrder[]]> {
+    return from(type_ids).pipe(
+      mergeMap(type_id => this.getRegionOrders(region_id, type_id, order_type).pipe(
+        map(region_type_orders => tuple(type_id, region_type_orders))
+      ))
+    );
   }
 
 }

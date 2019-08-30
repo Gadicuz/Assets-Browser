@@ -1,27 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { Observable, of, merge, concat, from, zip } from 'rxjs';
-import { tap, map, mergeMap, toArray, filter, ignoreElements, catchError } from 'rxjs/operators';
+import { tap, map, reduce, mergeMap, toArray, filter, ignoreElements, catchError } from 'rxjs/operators';
 
 import { EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/ESI.service';
-import { EsiDataService } from '../services/ESIDATA.service';
+import { EsiDataService, TypeOrders, LocationOrdersTypes, LocationOrders } from '../services/ESIDATA.service';
 
 import { set, tuple } from '../utils/utils';
-
-interface LocationOrdersScheme {
-  location_id: number;
-  region_id: number;
-  type_ids: number[];
-}
-
-interface TypeOrders {
-  type_id: number;
-  orders: EsiOrder[];
-}
-
-interface LocationOrders {
-  location_id: number;
-  types: TypeOrders[];
-}
 
 interface OrderListItem {
   type_id: number;
@@ -61,91 +45,23 @@ export class OrdersComponent implements OnInit {
   private readonly depth = 30 * 24 * 60 * 60 * 1000; 
 
   constructor(private esiData: EsiDataService) { }
-
-  /*
-  private processLocationOrders([loc, orders]: LocationOrders, owned: number[]): { name: string, orders: any } {
-    return {
-      name: this.esiData.structuresInfo.get(loc).name,
-      orders: set(orders.map(o => o.type_id))
-        .map(t => {
-          return [{
-            name: this.esiData.typesInfo.get(t).name,
-            quantity: null,
-            price: null
-          }].concat(
-            orders
-              .filter(o => o.type_id == t)
-              .sort((o1, o2) => ((o1.price > o2.price) ? -1 : ((o1.price < o2.price) ? 1 : 0)))
-              .map(o => ({ name: null, quantity: o.volume_remain, price: o.price }))
-          );
-        }).flat()      
-    };
-  }
-  */
-
-  private loadRegionOrders(region_id: number, types: number[]): Observable<TypeOrders> {
-    return from(types).pipe(
-      mergeMap(type_id => this.esiData.service.getRegionOrders(region_id, type_id, "sell").pipe(
-        map(region_orders => <TypeOrders>{
-          type_id: type_id,
-          orders: region_orders
-        })
-      ))
-    );
-  }
-
-  private loadStationOrders(locs: LocationOrdersScheme[]): Observable<LocationOrders> {
-    return from(set(locs.map(loc => loc.region_id).filter(region_id => !!region_id))).pipe(
-      mergeMap(region_id => this.loadRegionOrders(region_id, set(locs.filter(loc => loc.region_id == region_id).map(loc => loc.type_ids).reduce((s, a) => s.concat(a), []))).pipe(
-        toArray(),
-        mergeMap(region_orders => from(locs.filter(loc => loc.region_id == region_id)).pipe(
-          map(loc => <LocationOrders>{
-            location_id: loc.location_id,
-            types: region_orders.map(type_orders => <TypeOrders>{
-              type_id: type_orders.type_id,
-              orders: type_orders.orders.filter(o => o.location_id == loc.location_id)
-            })
-          })
-        ))
-      ))
-    );
-  }
-
-  private loadStructureOrders(locs: LocationOrdersScheme[]): Observable<LocationOrders> {
-    return from(locs).pipe(
-      mergeMap(loc => this.esiData.service.getStructureOrders(loc.location_id).pipe(
-        map(loc_orders => loc_orders.filter(o => !o.is_buy_order)),
-        mergeMap(loc_sell_orders => from(loc.type_ids).pipe(
-          map(type_id => <TypeOrders>{
-            type_id: type_id,
-            orders: loc_sell_orders.filter(o => o.type_id == type_id)
-          }),
-          toArray(),
-          map(type_orders => <LocationOrders>{
-            location_id: loc.location_id,
-            types: type_orders
-          })
-        ))
-      ))
-    );
-  }
-
-  private loadOrders(locs: LocationOrdersScheme[]): Observable<LocationOrders> {
+    
+  private loadOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
     const loc_ids = locs.map(loc => loc.location_id);
-    const typ_ids = locs.map(loc => loc.type_ids).reduce((s,a) => s.concat(a), []);
+    const typ_ids = locs.map(loc => loc.types).reduce((s,a) => [...s, ...a]);
     return concat(
       merge(
         this.esiData.loadLocationsInfo(loc_ids.map(id => [id, EsiService.getAssetLocationType(id)])),
         this.esiData.loadTypeInfo(typ_ids)
       ).pipe(ignoreElements()),
       merge(
-        this.loadStationOrders(locs.filter(loc => EsiService.isLocationLocID(loc.location_id))),
-        this.loadStructureOrders(locs.filter(loc => !EsiService.isLocationLocID(loc.location_id)))
+        this.esiData.loadStationOrders(locs.filter(loc => EsiService.isLocationLocID(loc.location_id))),
+        this.esiData.loadStructureOrders(locs.filter(loc => !EsiService.isLocationLocID(loc.location_id)))
       )
     );
   }
 
-  private analyzeData(orders: EsiCharOrder[], trans: EsiWalletTransaction[]): [number[], LocationOrdersScheme[], SalesHistroy[]] {
+  private analyzeData(orders: EsiCharOrder[], trans: EsiWalletTransaction[]): [number[], LocationOrdersTypes[], SalesHistroy[]] {
     const sales = trans.reduce((sum: SalesHistroy[], t: EsiWalletTransaction) => {
       const s = sum.find(s => t.location_id == s.location_id && t.type_id == s.type_id);
       if (s) {
@@ -170,20 +86,20 @@ export class OrdersComponent implements OnInit {
       orders.map(o => o.order_id),
       loc_ids.map(id => ({
         location_id: id,
-        region_id: (orders.filter(o => o.location_id == id).find(o => !!o.region_id) || { region_id: null }).region_id,
-        type_ids: set(loc_id_types.filter(([location_id,]) => location_id == id).map(([, type_id]) => type_id))
+        types: set(loc_id_types.filter(([location_id,]) => location_id == id).map(([, type_id]) => type_id)),
+        region_id: (orders.filter(o => o.location_id == id).find(o => !!o.region_id) || { region_id: null }).region_id
       })),
       sales
     ];
   }
 
-  private assembleItemsInfo(type_order: TypeOrders, ids: number[], sale: SalesHistroy): OrderListItem[] {
+  private assembleItemsInfo(type_id: number, type_orders: EsiOrder[], ids: number[], sale: SalesHistroy): OrderListItem[] {
     const now = Date.now();
     const dtime = 1 * 24 * 60 * 60 * 1000;
-    const lines = type_order.orders.map(o => {
+    const lines = type_orders.map(o => {
       const duration = now - new Date(o.issued).getTime();
       return <OrderListItem>{
-        type_id: type_order.type_id,
+        type_id: type_id,
         quantity: o.volume_remain,
         price: o.price,
         duration: duration,
@@ -201,8 +117,8 @@ export class OrdersComponent implements OnInit {
     if (!has_owned && has_other) icons.push('people_outline');
     if (has_owned && !has_other) icons.push('person');
     return [<OrderListItem>{
-      type_id: type_order.type_id,
-      name: this.esiData.typesInfo.get(type_order.type_id).name,
+      type_id: type_id,
+      name: this.esiData.typesInfo.get(type_id).name,
       quantity: quantity || null,
       price: quantity ? total / quantity : (sold ? sale.value / sale.quantity : null),
       duration: sold && this.depth || null,
@@ -213,8 +129,8 @@ export class OrdersComponent implements OnInit {
   }
 
   private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistroy[]): LocationInfo {
-    const items = orders.types
-      .map(type_order => this.assembleItemsInfo(type_order, ids, sales.find(t => t.type_id == type_order.type_id && t.location_id == orders.location_id)))
+    const items = [...orders.orders]
+      .map(([type_id, type_orders]) => this.assembleItemsInfo(type_id, type_orders, ids, sales.find(t => t.type_id == type_id && t.location_id == orders.location_id)))
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
     return <LocationInfo>{
