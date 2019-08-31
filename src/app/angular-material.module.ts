@@ -12,6 +12,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
+import { MatChipsModule } from '@angular/material/chips';
 
 
 @NgModule({
@@ -29,7 +30,8 @@ import { MatListModule } from '@angular/material/list';
     MatExpansionModule,
     MatBadgeModule,
     MatDividerModule,
-    MatListModule
+    MatListModule,
+    MatChipsModule
   ],
   exports: [
     MatToolbarModule,
@@ -45,7 +47,8 @@ import { MatListModule } from '@angular/material/list';
     MatExpansionModule,
     MatBadgeModule,
     MatDividerModule,
-    MatListModule
+    MatListModule,
+    MatChipsModule
   ]
 })
 

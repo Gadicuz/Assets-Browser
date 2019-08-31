@@ -29,6 +29,7 @@ import { OrdersListComponent } from './orders.list/orders.list.component';
 import { ErrorComponent } from './error/error.component';
 import { DemandsComponent } from './demands/demands.component';
 import { DemandCard } from './demands/demand.card';
+import { DemandChips } from './demands/demand.chips';
 
 const esiServiceConfig: ESI_CONFIG = {
   baseUrl: 'https://esi.evetech.net/latest/',
@@ -52,7 +53,7 @@ const authModuleConfig: OAuthModuleConfig = {
     ScalePipe,
     DurationPipe,
     OrdersListComponent,
-    DemandsComponent, DemandCard,
+    DemandsComponent, DemandCard, DemandChips,
     ErrorComponent
   ],
   imports: [

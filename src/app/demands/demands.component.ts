@@ -1,14 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Directive, HostListener, ViewChild, ViewChildren, QueryList } from '@angular/core';
 
-import { map, tap, switchMap, delay, switchMapTo, mergeMap, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
-import { Observable, of, from, forkJoin, concat, zip, throwError, merge } from 'rxjs';
+import { map, tap, switchMap, delay, switchMapTo, mergeMap, distinctUntilChanged, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { Observable, of, from, fromEvent, empty, forkJoin, concat, zip, throwError, merge, Subject } from 'rxjs';
 
-import { EsiService, EsiIdCategory, EsiIdInfo, EsiMail } from '../services/ESI.service';
-import { EsiDataService } from '../services/ESIDATA.service';
+import { EsiService, EsiIdCategory, EsiIdInfo, EsiMail, EsiOrder } from '../services/ESI.service';
+import { EsiDataService, TypeOrders } from '../services/ESIDATA.service';
 
 import { set, tuple } from '../utils/utils';
 
-import { DemandsReport, DemandInfo, DemandLocData, DemandDataItem, DemandDataChunk } from './demands.models';
+import { DemandsReport, DemandInfo, DemandLocItems, DemandLocData, DemandDataItem, DemandDataChunk, DemandChip } from './demands.models';
+import { DemandChips } from './demand.chips';
 
 interface ReqLine {
   name: string;
@@ -30,6 +31,8 @@ interface ReqRecord {
   styleUrls: ['./demands.component.css']
 })
 export class DemandsComponent implements OnInit {
+
+  @ViewChildren('demandChips') chips$ !: QueryList<DemandChips>;
 
   static readonly marketStructureIds: number[] = [ // All tructures market module can fit to.
     35826,  // Azbel
@@ -62,14 +65,19 @@ export class DemandsComponent implements OnInit {
     1386, // CharacterVherokior
     34574 // CharacterDrifter
   ];
-  
+
+  static readonly TimeDepth: number = 45 * 24 * 60 * 60 * 1000;
   static readonly TAG: string = 'Re:'; // '[demand]'
 
   static getDemandName(subj: string): string {
     return subj.substring(subj.indexOf(DemandsComponent.TAG) + DemandsComponent.TAG.length).trim()
   }
 
-  demandsReport$: Observable<DemandsReport>;
+  demandChips$: Observable<DemandChip[]>;
+  demandReport$: Subject<DemandsReport>;
+
+  private currentDemands: DemandInfo[];
+  private marketOrders: Map<number, TypeOrders>;
 
   constructor(private esi: EsiService, private esiData: EsiDataService) { }
 
@@ -190,14 +198,118 @@ export class DemandsComponent implements OnInit {
     );
   }
 
-  ngOnInit() {
-    this.demandsReport$ = concat(
-      of(<DemandsReport>{ cards: [], markets: [] }),
-      this.getReports(Date.UTC(2019, 7, 1)).pipe(
-        toArray(),
-        map(cards => ({ cards: cards, markets: [] }))
-      )
-    );
+  private processDemandsCards(cards: DemandInfo[]): DemandLocItems[] {
+    //.map(...).reduce((s,x) => [...s, ...x])
+    //.map(...).flat();
+    //.flatMap(...);
+    return cards.map(c => c.data).reduce((s, t) => [...s, ...t], [])
+      .reduce((locItems, locData) => {
+        const locDataItems = locData.items
+          .map(item => item.chunks.map(c => ({ type_id: c.type_id, quantity: c.quantity * item.quantity })))
+          .reduce((s, t) => [...s, ...t]);
+        const item = locItems.find(i => i.id == locData.id);
+        if (item) item.items = [...item.items, ...locDataItems]; else locItems.push({ id: locData.id, items: locDataItems });
+        return locItems;
+      }, <DemandLocItems[]>[])
+      .map(x => ({
+        id: x.id,
+        items: x.items.reduce((s, i) => {
+          const item = s.find(si => si.type_id == i.type_id);
+          if (item) item.quantity += i.quantity; else s.push(i);
+          return s;
+        }, <DemandDataChunk[]>[])
+      }));
   }
 
+  private calcRatio(quantity: number, price: number, orders: EsiOrder[]): number | undefined {
+    const [m_short, m_value] = orders.sort((a, b) => {
+      if (a.price < b.price) return -1;
+      if (a.price > b.price) return 1;
+      return 0;
+    }).reduce(([q, v], ord) => {
+      if (q == 0) return tuple(q, v);
+      const ord_q = ord.volume_remain > q ? q : ord.volume_remain;
+      return tuple(q - ord_q, v + ord_q * ord.price);
+    }, tuple(quantity, 0));
+    quantity -= m_short;
+    const value = quantity * price;
+    return value ? (m_value / value) - 1 : undefined;
+  }
+
+  private buildMarkets(items: DemandLocItems[]): any {
+    if (items.length == 0) return []; // TODO
+    return items.map(locItems => ({
+      name: this.esiData.locationsInfo.get(locItems.id).name,
+      items: locItems.items.map(i => {
+        const type_id_orders = this.marketOrders.get(locItems.id).get(i.type_id);
+        const q_market = type_id_orders.reduce((s, a) => s + a.volume_remain, 0);
+        const ratio = this.calcRatio(i.quantity, this.esiData.prices.get(i.type_id), type_id_orders);
+        return {
+          id: i.type_id,
+          name: this.esiData.typesInfo.get(i.type_id).name,
+          q_demand: i.quantity,
+          q_market: q_market || undefined,
+          ratio: ratio,
+          shortage: i.quantity > q_market
+        };
+      })
+    }));
+  }
+    
+  private extractChips(cards: DemandInfo[]): DemandChip[] {
+    const issuers = cards.reduce((s, c) => {
+      if (!s.find(x => x.issuer_id == c.issuer_id)) s.push(c);
+      return s;
+    }, <DemandInfo[]>[]).map(c => ({
+      caption: c.issuer_name,
+      avatar: this.esiData.service.getCharacterAvatarURI(c.issuer_id, 32),
+      id: c.issuer_id
+    }));
+    const subjects = set(cards.map(c => c.name)).map(name => ({
+      caption: name,
+      subject: name
+    }));
+    return [...issuers, ...subjects];
+  }
+
+  ngOnInit() {
+    this.demandChips$ = concat(
+      of(null),
+      this.esiData.loadPrices().pipe(
+        mergeMap(() => this.getReports(Date.now() - DemandsComponent.TimeDepth).pipe(
+          toArray(),
+          tap(report => this.currentDemands = report),
+          map(report => this.processDemandsCards(report)),
+          mergeMap(locItems => this.esiData.loadOrders(locItems.map(i => ({ location_id: i.id, types: i.items.map(c => c.type_id) }))).pipe(
+            map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
+            toArray(),
+            tap(orders => this.marketOrders = new Map(orders))
+          ))          
+        )),
+        map(() => this.extractChips(this.currentDemands))
+      )
+    );
+    this.demandReport$ = new Subject<DemandsReport>();
+  }
+
+  ngAfterViewInit() {
+    this.chips$.changes.pipe(distinctUntilChanged()).subscribe(
+      (qList: QueryList<DemandChips>) => {
+        qList.first.selectionChanges$.subscribe(
+          f => {
+            const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 || f[1].indexOf(c.name) >= 0);
+            const report = <DemandsReport>{
+              cards: cards,
+              markets: this.buildMarkets(this.processDemandsCards(cards))
+            }
+            this.demandReport$.next(report);
+          }
+        );
+      }
+    );
+
+  }
+  
 }
+
+

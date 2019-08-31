@@ -16,6 +16,11 @@ export interface DemandLocData {
   items: DemandDataItem[];
 }
 
+export interface DemandLocItems {
+  id: number;
+  items: DemandDataChunk[];
+}
+
 export interface DemandInfo {
   name: string;
   timestamp: number;
@@ -31,3 +36,15 @@ export interface DemandsReport {
   markets: any;
 }
 
+export interface DemandIssuerChip {
+  caption: string;
+  avatar: string;
+  id: number;
+}
+
+export interface DemandSubjChip {
+  caption: string;
+  subject: string;
+}
+
+export type DemandChip = DemandIssuerChip | DemandSubjChip;

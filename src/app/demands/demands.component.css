@@ -1,0 +1,33 @@
+.shortage {
+  background-color: rgba(255,215,64,.3);
+}
+
+.mat-column-name {
+  flex: 1 1 475px;
+  justify-content: flex-start
+}
+
+.mat-column-demand {
+  flex: 0 1 100px;
+  justify-content: flex-end
+}
+
+.mat-column-market {
+  flex: 0 1 100px;
+  justify-content: flex-end
+}
+
+.mat-column-ratio {
+  flex: 0 1 100px;
+  justify-content: flex-end
+}
+
+.mat-cell.price-good {
+  color: green;
+  font-weight: bold
+}
+
+.mat-cell.price-bad {
+  color: red;
+  font-weight: bold
+}

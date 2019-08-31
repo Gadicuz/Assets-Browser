@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, Subject, of, empty, concat, from, throwError } from 'rxjs';
-import { map, expand, tap, switchMap, repeatWhen, switchMapTo, mergeMap, mergeMapTo, concatMap, takeWhile, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { Observable, Subject, of, empty, concat, merge, from, throwError } from 'rxjs';
+import { map, expand, tap, distinct, switchMap, repeatWhen, switchMapTo, mergeMap, mergeMapTo, concatMap, takeWhile, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from './EVESSO.service';
 import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiOrder, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './ESI.service';
@@ -218,11 +218,59 @@ export class EsiDataService {
     );
   }
 
+  private remapIDs(ids: number[], type: string, field: string): Observable<number[]> {
+    return from(ids).pipe(
+      mergeMap(id => this.esi.getInformation<any>(type, id)),
+      map(info => <number>info[field]),
+      distinct(),
+      toArray()
+    );
+  }
+
+  private getLocationRegions(locs: LocationOrdersTypes[]): Observable<number> {
+    return merge(
+      from(locs.map(loc => loc.region_id).filter(region_id => !!region_id)),
+      of(set(locs.filter(loc => !loc.region_id).map(loc => loc.location_id))).pipe(
+        mergeMap(loc_ids => this.remapIDs(loc_ids, 'stations', 'system_id')),
+        mergeMap(sys_ids => this.remapIDs(sys_ids, 'systems', 'constellation_id')),
+        mergeMap(con_ids => this.remapIDs(con_ids, 'constellations', 'region_id')),
+        mergeMap(reg_ids => from(reg_ids))
+      )
+    ).pipe(
+      distinct()
+    );
+  }
+
+  private resolveIDs(ids: [number, number][], type: string, fields: [string, string]): Observable<[number, number][]> {
+    return from(ids.map(([, id]) => id)).pipe(
+      distinct(),
+      mergeMap(id => this.esi.getInformation<any>(type, id)),
+      map(info => tuple(<number>info[fields[0]], <number>info[fields[1]])),
+      toArray(),
+      map(arr => new Map(arr)),
+      map(m => ids.map(([loc, id]) => [loc, m.get(id)]))
+    );
+  }
+
+  private getRegionLocations(locs: LocationOrdersTypes[]): Observable<[number, LocationOrdersTypes[]]> {
+    return of(locs.filter(loc => !loc.region_id).map(loc => tuple(loc.location_id, loc.location_id))).pipe(
+      mergeMap(loc_ids => this.resolveIDs(loc_ids, 'stations', ['station_id', 'system_id'])),
+      mergeMap(sys_ids => this.resolveIDs(sys_ids, 'systems', ['system_id', 'constellation_id'])),
+      mergeMap(con_ids => this.resolveIDs(con_ids, 'constellations', ['constellation_id', 'region_id'])),
+      map(reg_ids => new Map(reg_ids)),
+      tap(reg_map => locs.forEach(loc => loc.region_id = loc.region_id || reg_map.get(loc.location_id))),
+      mergeMap(() => from(locs.map(loc => loc.region_id)).pipe(
+        distinct(),
+        map(region_id => tuple(region_id, locs.filter(loc => loc.region_id == region_id)))
+      ))
+    );
+  }
+
   loadStationOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
-    return from(set(locs.map(loc => loc.region_id).filter(region_id => !!region_id))).pipe(
-      mergeMap(region_id => this.esi.getRegionOrdersEx(region_id, set(locs.filter(loc => loc.region_id == region_id).map(loc => loc.types).reduce((s, t) => [...s, ...t])), 'sell').pipe(
+    return this.getRegionLocations(locs).pipe(
+      mergeMap(([region_id, region_locs]) => this.esi.getRegionOrdersEx(region_id, set(region_locs.map(loc => loc.types).reduce((s, t) => [...s, ...t])), 'sell').pipe(
         toArray(),
-        mergeMap(region_orders => from(locs.filter(loc => loc.region_id == region_id)).pipe(
+        mergeMap(region_orders => from(region_locs).pipe(
           map(region_loc => ({
             location_id: region_loc.location_id,
             orders: new Map(region_orders
@@ -241,6 +289,21 @@ export class EsiDataService {
         toArray(),
         map(type_orders => ({ location_id: loc.location_id, orders: new Map(type_orders) }))
       ))
+    );
+  }
+
+  loadOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
+    const loc_ids = locs.map(loc => loc.location_id);
+    const typ_ids = locs.map(loc => loc.types).reduce((s, a) => [...s, ...a], []);
+    return concat(
+      merge(
+        this.loadLocationsInfo(loc_ids.map(id => [id, EsiService.getAssetLocationType(id)])),
+        this.loadTypeInfo(typ_ids)
+      ).pipe(ignoreElements()),
+      merge(
+        this.loadStationOrders(locs.filter(loc => EsiService.isLocationLocID(loc.location_id))),
+        this.loadStructureOrders(locs.filter(loc => !EsiService.isLocationLocID(loc.location_id)))
+      )
     );
   }
 

@@ -1,10 +1,78 @@
-<div *ngIf="(demandsReport$ | async) as report">
-  <div class="demand-cards" fxLayout="row wrap">
-    <div *ngFor="let card of report.cards">
-      <app-demand-card [data]="card"></app-demand-card>
-    </div>
-  </div>
-  <div class="demand-markets">
-    {{report.markets | json}}
-  </div>
+<div fxLayout="column" fxLayoutGap="8px" *ngLet="(demandChips$ | async) as filter">
+  <ng-container *ngLet="(demandReport$ | async) as report">
+
+    <div></div>
+
+    <ng-container *ngIf="filter; else loading">
+      <app-demand-chips #demandChips class="demand-chips" [chips]="filter"></app-demand-chips>
+
+      <mat-card fxFlex *ngIf="report && report.cards.length == 0">
+        <mat-card-header *ngIf="filter.length == 0">
+          <mat-card-title>All demands are fulfilled or expired at the moment</mat-card-title>
+          <mat-card-subtitle>Create a new demand by sending an EVE-mail!</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-header *ngIf="filter.length != 0">
+          <mat-card-title>Nothing to display</mat-card-title>
+        </mat-card-header>
+      </mat-card>
+
+      <div *ngIf="report" class="demand-cards" fxLayout="row wrap">
+        <div *ngFor="let card of report.cards">
+          <app-demand-card [data]="card"></app-demand-card>
+        </div>
+      </div>
+
+      <div *ngIf="report" class="demand-markets">
+        <mat-accordion>
+          <mat-expansion-panel *ngFor="let market of report.markets">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                {{market.name}}
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+
+
+            <mat-table [dataSource]="market.items">
+
+              <ng-container matColumnDef="name">
+                <mat-header-cell *matHeaderCellDef> Name </mat-header-cell>
+                <mat-cell *matCellDef="let item">{{item.name}}</mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="demand">
+                <mat-header-cell *matHeaderCellDef> Demand </mat-header-cell>
+                <mat-cell *matCellDef="let item">{{item.q_demand | scale:'.0-2'}}</mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="market">
+                <mat-header-cell *matHeaderCellDef> Market </mat-header-cell>
+                <mat-cell *matCellDef="let item">{{item.q_market | scale:'.0-2'}}</mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="ratio">
+                <mat-header-cell *matHeaderCellDef> Price Ratio </mat-header-cell>
+                <mat-cell *matCellDef="let item" [class.price-good]="item.ratio < -0.1" [class.price-bad]="item.ratio > 0.1"> {{item.ratio | percent}}</mat-cell>
+              </ng-container>
+
+              <mat-header-row *matHeaderRowDef="['name','demand','market','ratio']"></mat-header-row>
+              <mat-row *matRowDef="let row; columns: ['name','demand','market','ratio'];" [class.shortage]="row.shortage"></mat-row>
+
+            </mat-table>
+
+          </mat-expansion-panel>
+        </mat-accordion>
+      </div>
+
+    </ng-container>
+
+    <ng-template #loading>
+      <mat-card class="mat-elevation-z4">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      </mat-card>
+    </ng-template>
+
+    <div></div>
+
+  </ng-container>
+
 </div>

@@ -46,21 +46,6 @@ export class OrdersComponent implements OnInit {
 
   constructor(private esiData: EsiDataService) { }
     
-  private loadOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
-    const loc_ids = locs.map(loc => loc.location_id);
-    const typ_ids = locs.map(loc => loc.types).reduce((s,a) => [...s, ...a]);
-    return concat(
-      merge(
-        this.esiData.loadLocationsInfo(loc_ids.map(id => [id, EsiService.getAssetLocationType(id)])),
-        this.esiData.loadTypeInfo(typ_ids)
-      ).pipe(ignoreElements()),
-      merge(
-        this.esiData.loadStationOrders(locs.filter(loc => EsiService.isLocationLocID(loc.location_id))),
-        this.esiData.loadStructureOrders(locs.filter(loc => !EsiService.isLocationLocID(loc.location_id)))
-      )
-    );
-  }
-
   private analyzeData(orders: EsiCharOrder[], trans: EsiWalletTransaction[]): [number[], LocationOrdersTypes[], SalesHistroy[]] {
     const sales = trans.reduce((sum: SalesHistroy[], t: EsiWalletTransaction) => {
       const s = sum.find(s => t.location_id == s.location_id && t.type_id == s.type_id);
@@ -151,7 +136,7 @@ export class OrdersComponent implements OnInit {
         ),
         (orders, trans) => this.analyzeData(orders, trans)
       ).pipe(
-        mergeMap(([ids, locs, sales]) => this.loadOrders(locs).pipe(
+        mergeMap(([ids, locs, sales]) => this.esiData.loadOrders(locs).pipe(
           map(orders => this.assembleLocationInfo(orders, ids, sales))
         )),
         toArray(),
