@@ -286,7 +286,11 @@ export class DemandsComponent implements OnInit {
             tap(orders => this.marketOrders = new Map(orders))
           ))          
         )),
-        map(() => this.extractChips(this.currentDemands))
+        map(() => this.extractChips(this.currentDemands)),
+        catchError(err => {
+          console.log(err);
+          return of({ error: err });
+        })
       )
     );
     this.demandReport$ = new Subject<DemandsReport>();
@@ -295,16 +299,17 @@ export class DemandsComponent implements OnInit {
   ngAfterViewInit() {
     this.chips$.changes.pipe(distinctUntilChanged()).subscribe(
       (qList: QueryList<DemandChips>) => {
-        qList.first.selectionChanges$.subscribe(
-          f => {
-            const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 || f[1].indexOf(c.name) >= 0);
-            const report = <DemandsReport>{
-              cards: cards,
-              markets: this.buildMarkets(this.processDemandsCards(cards))
+        if (qList.length==1)
+          qList.first.selectionChanges$.subscribe(
+            f => {
+              const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 || f[1].indexOf(c.name) >= 0);
+              const report = <DemandsReport>{
+                cards: cards,
+                markets: this.buildMarkets(this.processDemandsCards(cards))
+              }
+              this.demandReport$.next(report);
             }
-            this.demandReport$.next(report);
-          }
-        );
+          );
       }
     );
 

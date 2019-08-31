@@ -4,7 +4,10 @@
     <div></div>
 
     <ng-container *ngIf="filter; else loading">
-      <app-demand-chips #demandChips class="demand-chips" [chips]="filter"></app-demand-chips>
+
+      <app-error *ngIf="filter.error" [err]="filter.error"></app-error>
+
+      <app-demand-chips #demandChips *ngIf="!filter.error" class="demand-chips" [chips]="filter"></app-demand-chips>
 
       <mat-card fxFlex *ngIf="report && report.cards.length == 0">
         <mat-card-header *ngIf="filter.length == 0">
