@@ -168,14 +168,14 @@ export class DemandsComponent implements OnInit {
     }, tuple(<DemandLocData[]>[],false))[0].filter(v => v.items.length != 0);
   }
 
-  getReports(date: number): Observable<DemandInfo> {
+  private getDemands(date: number): Observable<DemandInfo> {
     return this.esiData.getCharacterMailHeaders([], date).pipe(
       toArray(),
       map(hdrs => hdrs
         .filter(hdr => hdr.subject.indexOf(DemandsComponent.TAG) >= 0)
         .filter(hdr => hdr.labels.length != 1 || hdr.labels[0] != EsiService.STD_MAIL_LABEL_ID_Sent)
         .reduce((result, hdr) => {
-          if (!result.find(x => x.from == hdr.from && x.subject == hdr.subject)) result.push(hdr);
+          if (!result.find(x => x.from == hdr.from && !DemandsComponent.getDemandName(x.subject).localeCompare(DemandsComponent.getDemandName(hdr.subject)))) result.push(hdr);
           return result;
         }, <EsiMail[]>[])),
       mergeMap(hdrs => this.esi.getIdsInformation(set(hdrs.map(h => h.from))).pipe(
@@ -280,9 +280,9 @@ export class DemandsComponent implements OnInit {
     this.demandChips$ = concat(
       of(null),
       this.esiData.loadPrices().pipe(
-        mergeMap(() => this.getReports(Date.now() - DemandsComponent.TimeDepth).pipe(
+        mergeMap(() => this.getDemands(Date.now() - DemandsComponent.TimeDepth).pipe(
           toArray(),
-          tap(report => this.currentDemands = report.sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name))),
+          tap(demand => this.currentDemands = demand.sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name))),
           mergeMap(() => this.esiData.loadOrders(this.processDemandsCards(this.currentDemands).map(i => ({ location_id: i.id, types: i.items.map(c => c.type_id) }))).pipe(
             map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
             toArray(),
