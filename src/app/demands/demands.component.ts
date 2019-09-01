@@ -82,17 +82,17 @@ export class DemandsComponent implements OnInit {
   constructor(private esi: EsiService, private esiData: EsiDataService) { }
 
   private buildDemandRecord(lines: ReqLine[]): Observable<ReqRecord[]> {
-    const values = lines.map(l => l && l.href.match(/(?:showinfo:(?<type_id>\d+)(?:\/.*?\/(?<item_id>\d+))?)|(?:fitting:(?<ship_id>\d+):(?<fitting_data>.*))/i));
-    return this.esiData.loadTypeInfo(values.filter(v => v && v.groups.type_id != undefined).map(v => Number(v.groups.type_id))).pipe(
+    const values = lines.map(l => l && l.href.match(/(?:showinfo:(\d+)(?:\/.*?\/(\d+))?)|(?:fitting:(\d+):(.*))/i));
+    return this.esiData.loadTypeInfo(values.filter(v => v && v[1] != undefined).map(v => Number(v[1]))).pipe(
       map(() => from(lines.map((l, i) => {
         if (l == null) return <ReqRecord>{ type: 'break' };
         const v = values[i];
         const q = l.quantity && Number(l.quantity);
         if (v == null) return <ReqRecord>{ type: 'unrecognized', name: l.name, comment: l.href, quantity: q };
-        if (v.groups.type_id == null) return <ReqRecord>{ type: 'fitting', name: l.name, id: Number(v.groups.ship_id), comment: v.groups.fitting_data, quantity: q };
-        const type_id = Number(v.groups.type_id);
-        if (v.groups.item_id != undefined) {
-          const item_id = Number(v.groups.item_id);
+        if (v[1] == null) return <ReqRecord>{ type: 'fitting', name: l.name, id: Number(v[3]), comment: v[4], quantity: q };
+        const type_id = Number(v[1]);
+        if (v[2] != undefined) {
+          const item_id = Number(v[2]);
           const id_type = EsiService.getIdType(item_id);
           switch (id_type) {
             case 'station':
@@ -122,8 +122,12 @@ export class DemandsComponent implements OnInit {
         if (line.length == 0)
           result.push(null);
         else {
-          const item = line.match(/<a href="(?<href>.*?)">(?<name>.+?)<\/a>\s*x?(?<quantity>\d+)?/i);
-          if (item) result.push(<any>item.groups);
+          const item = line.match(/<a href="(.*?)">(.+?)<\/a>\s*x?(\d+)?/i);
+          if (item) result.push(<ReqLine>{
+            href: item[1],
+            name: item[2],
+            quantity: item[3]
+          });
         }
         return result;
       }, <ReqLine[]>[]);
@@ -138,11 +142,11 @@ export class DemandsComponent implements OnInit {
         { type_id: r.id, quantity: 1 },
         ...r.comment
           .split(':')
-          .map(v => v.match(/^(?<type_id>\d+);(?<quantity>\d+)$/))
+          .map(v => v.match(/^(\d+);(\d+)$/))
           .filter(v => v != null)
           .map(v => <DemandDataChunk>{
-            type_id: Number(v.groups.type_id),
-            quantity: Number(v.groups.quantity)
+            type_id: Number(v[1]),
+            quantity: Number(v[2])
           })
       ]
     }
