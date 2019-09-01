@@ -9,13 +9,10 @@
 
       <app-demand-chips #demandChips *ngIf="!filter.error" class="demand-chips" [chips]="filter"></app-demand-chips>
 
-      <mat-card fxFlex *ngIf="report && report.cards.length == 0">
-        <mat-card-header *ngIf="filter.length == 0">
-          <mat-card-title>All demands are fulfilled or expired at the moment</mat-card-title>
-          <mat-card-subtitle>Create a new demand by sending an EVE-mail!</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-header *ngIf="filter.length != 0">
-          <mat-card-title>Nothing to display</mat-card-title>
+      <mat-card fxFlex *ngIf="report && report.message">
+        <mat-card-header>
+          <mat-card-title>{{report.message}}</mat-card-title>
+          <mat-card-subtitle>{{report.comment}}</mat-card-subtitle>
         </mat-card-header>
       </mat-card>
 

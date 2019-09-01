@@ -67,7 +67,7 @@ export class DemandsComponent implements OnInit {
   ];
 
   static readonly TimeDepth: number = 45 * 24 * 60 * 60 * 1000;
-  static readonly TAG: string = 'Re:'; // '[demand]'
+  static readonly TAG: string = '[demand]'; // 'Re:'
 
   static getDemandName(subj: string): string {
     return subj.substring(subj.indexOf(DemandsComponent.TAG) + DemandsComponent.TAG.length).trim()
@@ -252,8 +252,8 @@ export class DemandsComponent implements OnInit {
           ratio: ratio,
           shortage: i.quantity > q_market
         };
-      })
-    }));
+      }).sort((a, b) => a.name.localeCompare(b.name))
+    })).sort((a, b) => a.name.localeCompare(b.name));
   }
     
   private extractChips(cards: DemandInfo[]): DemandChip[] {
@@ -264,11 +264,11 @@ export class DemandsComponent implements OnInit {
       caption: c.issuer_name,
       avatar: this.esiData.service.getCharacterAvatarURI(c.issuer_id, 32),
       id: c.issuer_id
-    }));
+    })).sort((a, b) => a.caption.localeCompare(b.caption));
     const subjects = set(cards.map(c => c.name)).map(name => ({
       caption: name,
       subject: name
-    }));
+    })).sort((a, b) => a.caption.localeCompare(b.caption));
     return [...issuers, ...subjects];
   }
 
@@ -278,9 +278,8 @@ export class DemandsComponent implements OnInit {
       this.esiData.loadPrices().pipe(
         mergeMap(() => this.getReports(Date.now() - DemandsComponent.TimeDepth).pipe(
           toArray(),
-          tap(report => this.currentDemands = report),
-          map(report => this.processDemandsCards(report)),
-          mergeMap(locItems => this.esiData.loadOrders(locItems.map(i => ({ location_id: i.id, types: i.items.map(c => c.type_id) }))).pipe(
+          tap(report => this.currentDemands = report.sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name))),
+          mergeMap(() => this.esiData.loadOrders(this.processDemandsCards(this.currentDemands).map(i => ({ location_id: i.id, types: i.items.map(c => c.type_id) }))).pipe(
             map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
             toArray(),
             tap(orders => this.marketOrders = new Map(orders))
@@ -303,10 +302,16 @@ export class DemandsComponent implements OnInit {
           qList.first.selectionChanges$.subscribe(
             f => {
               const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 || f[1].indexOf(c.name) >= 0);
-              const report = <DemandsReport>{
+              let report = <DemandsReport>{
                 cards: cards,
                 markets: this.buildMarkets(this.processDemandsCards(cards))
               }
+              if (report.cards.length == 0)
+                report = {
+                  ...report,
+                  message: this.currentDemands.length ? 'Nothing to display' : 'No demands found',
+                  comment: this.currentDemands.length ? undefined : 'Create a new demand by sending an EVE- mail!'
+                }
               this.demandReport$.next(report);
             }
           );

@@ -34,6 +34,8 @@ export interface DemandInfo {
 export interface DemandsReport {
   cards: DemandInfo[];
   markets: any;
+  message?: string;
+  comment?: string;
 }
 
 export interface DemandIssuerChip {
