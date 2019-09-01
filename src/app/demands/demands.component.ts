@@ -305,7 +305,7 @@ export class DemandsComponent implements OnInit {
         if (qList.length==1)
           qList.first.selectionChanges$.subscribe(
             f => {
-              const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 || f[1].indexOf(c.name) >= 0);
+              const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 && f[1].indexOf(c.name) >= 0);
               let report = <DemandsReport>{
                 cards: cards,
                 markets: this.buildMarkets(this.processDemandsCards(cards))
