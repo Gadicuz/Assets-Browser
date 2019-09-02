@@ -224,11 +224,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
   }
 
   private calcRatio(quantity: number, price: number, orders: EsiOrder[]): number | undefined {
-    const [m_short, m_value] = orders.sort((a, b) => {
-      if (a.price < b.price) return -1;
-      if (a.price > b.price) return 1;
-      return 0;
-    }).reduce(([q, v], ord) => {
+    const [m_short, m_value] = orders.sort((a, b) => a.price - b.price).reduce(([q, v], ord) => {
       if (q == 0) return tuple(q, v);
       const ord_q = ord.volume_remain > q ? q : ord.volume_remain;
       return tuple(q - ord_q, v + ord_q * ord.price);
