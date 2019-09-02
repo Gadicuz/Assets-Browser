@@ -92,7 +92,7 @@ export class OrdersComponent implements OnInit {
         owned: ids.indexOf(o.order_id) >= 0,
         icons: (duration < dtime) ? ['new_releases'] : []
       }
-    }).sort((l1, l2) => ((l1.price < l2.price) ? -1 : ((l1.price > l2.price) ? 1 : 0)));
+    }).sort((l1, l2) => (l1.price - l2.price) || (l2.duration - l1.duration));
     const [has_owned, has_other, best_price, expandable] = lines.reduce((s, x, i) => [s[0] || x.owned, s[1] || !x.owned, s[2] || (x.owned && i == 0), true], [false, false, false, false]);
     const [quantity, total] = lines.filter(val => val.owned).reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
     const sold = sale && sale.quantity || 0;
