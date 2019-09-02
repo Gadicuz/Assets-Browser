@@ -1,7 +1,7 @@
-import { Component, OnInit, Directive, HostListener, ViewChild, ViewChildren, QueryList } from '@angular/core';
+import { Component, OnInit, OnDestroy, Directive, HostListener, ViewChild, ViewChildren, QueryList } from '@angular/core';
 
 import { map, tap, switchMap, delay, switchMapTo, mergeMap, distinctUntilChanged, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
-import { Observable, of, from, fromEvent, empty, forkJoin, concat, zip, throwError, merge, Subject } from 'rxjs';
+import { Observable, of, from, fromEvent, empty, forkJoin, concat, zip, throwError, merge, Subject, Subscription } from 'rxjs';
 
 import { EsiService, EsiIdCategory, EsiIdInfo, EsiMail, EsiOrder } from '../services/ESI.service';
 import { EsiDataService, TypeOrders } from '../services/ESIDATA.service';
@@ -30,9 +30,7 @@ interface ReqRecord {
   templateUrl: './demands.component.html',
   styleUrls: ['./demands.component.css']
 })
-export class DemandsComponent implements OnInit {
-
-  @ViewChildren('demandChips') chips$ !: QueryList<DemandChips>;
+export class DemandsComponent implements OnInit, OnDestroy {
 
   static readonly marketStructureIds: number[] = [ // All tructures market module can fit to.
     35826,  // Azbel
@@ -299,31 +297,33 @@ export class DemandsComponent implements OnInit {
     this.demandReport$ = new Subject<DemandsReport>();
   }
 
-  ngAfterViewInit() {
-    this.chips$.changes.pipe(distinctUntilChanged()).subscribe(
-      (qList: QueryList<DemandChips>) => {
-        if (qList.length==1)
-          qList.first.selectionChanges$.subscribe(
-            f => {
-              const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 && f[1].indexOf(c.name) >= 0);
-              let report = <DemandsReport>{
-                cards: cards,
-                markets: this.buildMarkets(this.processDemandsCards(cards))
-              }
-              if (report.cards.length == 0)
-                report = {
-                  ...report,
-                  message: this.currentDemands.length ? 'Nothing to display' : 'No demands found',
-                  comment: this.currentDemands.length ? undefined : 'Create a new demand by sending an EVE- mail!'
-                }
-              this.demandReport$.next(report);
-            }
-          );
-      }
-    );
-
+  ngOnDestroy() {
+    this.chips = undefined;
   }
-  
-}
 
+  private filterDemands(f) {
+    const cards = this.currentDemands.filter(c => f[0].indexOf(c.issuer_id) >= 0 && f[1].indexOf(c.name) >= 0);
+    let report = <DemandsReport>{
+      cards: cards,
+      markets: this.buildMarkets(this.processDemandsCards(cards))
+    }
+    if (report.cards.length == 0)
+      report = {
+        ...report,
+        message: this.currentDemands.length ? 'Nothing to display' : 'No demands found',
+        comment: this.currentDemands.length ? undefined : 'Create a new demand by sending an EVE- mail!'
+      }
+    this.demandReport$.next(report);
+  }
+
+  private _chips: DemandChips = undefined;
+  private _chips_sub: Subscription = undefined;
+  @ViewChild('demandChips', { static: false }) set chips(chips: DemandChips) {
+    if (this._chips === chips) return;
+    if (this._chips_sub) this._chips_sub.unsubscribe();
+    this._chips = chips;
+    this._chips_sub = this._chips ? this._chips.selectionChanges$.subscribe(f => this.filterDemands(f)) : undefined;
+  }
+
+}
 
