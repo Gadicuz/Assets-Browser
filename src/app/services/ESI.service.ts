@@ -185,8 +185,8 @@ export interface EsiWalletTransaction {
 }
 
 export interface EsiMailRecipient {
-  id: number;
-  type: 'alliance' | 'character' | 'corporation' | 'mailing_list';
+  recipient_id: number;
+  recipient_type: 'alliance' | 'character' | 'corporation' | 'mailing_list';
 }
 
 export interface EsiMail {
