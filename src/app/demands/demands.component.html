@@ -16,12 +16,6 @@
         </mat-card-header>
       </mat-card>
 
-      <div *ngIf="report" class="demand-cards" fxLayout="row wrap">
-        <div *ngFor="let card of report.cards">
-          <app-demand-card [data]="card"></app-demand-card>
-        </div>
-      </div>
-
       <div *ngIf="report" class="demand-markets">
         <mat-accordion>
           <mat-expansion-panel *ngFor="let market of report.markets">
@@ -61,6 +55,12 @@
 
           </mat-expansion-panel>
         </mat-accordion>
+      </div>
+
+      <div *ngIf="report" class="demand-cards" fxLayout="row wrap">
+        <div *ngFor="let card of report.cards">
+          <app-demand-card [data]="card"></app-demand-card>
+        </div>
       </div>
 
     </ng-container>

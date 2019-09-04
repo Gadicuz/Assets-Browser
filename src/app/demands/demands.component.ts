@@ -126,6 +126,14 @@ export class DemandsComponent implements OnInit, OnDestroy {
             name: item[2],
             quantity: item[3]
           });
+          else {
+            const mailing = line.match(/^mailing list\s+(.+?)\s*$/i);
+            if (mailing) result.push(<ReqLine>{
+              href: 'mailingList',
+              name: mailing[1],
+              quantity: undefined
+            });
+          }
         }
         return result;
       }, <ReqLine[]>[]);
@@ -135,7 +143,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
     return <DemandDataItem>{
       icon: (r.type == 'fitting') ? 'build' : 'category',
       name: r.name,
-      quantity: r.quantity || 1,
+      quantity: r.quantity,
       chunks: [
         { type_id: r.id, quantity: 1 },
         ...r.comment
@@ -150,52 +158,92 @@ export class DemandsComponent implements OnInit, OnDestroy {
     }
   }
 
-  private static assembleItems(records: ReqRecord[]): DemandLocData[] {
-    return records.reduce(([res,s], r) => {
+  private static assembleItems(records: ReqRecord[], loc?: DemandLocData): DemandLocData[] {
+    const init = loc ? tuple([{ id: loc.id, name: loc.name, items: [] }], true)
+      : tuple(<DemandLocData[]>[], false);
+    return records.reduce(([res, s], r) => {
       if (s) {
         if (r.type == 'item' || r.type == 'fitting') {
           res[res.length - 1].items.push(DemandsComponent.assembleChunk(r));
-          return tuple(res,true);
+          return tuple(res, true);
+        }
+        if (r.type == 'unrecognized' && r.comment == 'mailingList') {
+          res[res.length - 1].items.push(<DemandDataItem>{
+            icon: 'list',
+            name: r.name,
+            quantity: r.quantity,
+            chunks: []
+          });
+          return tuple(res, true);
         }
       }
       if (r.type == 'structure' || r.type == 'station') {
         res.push(<DemandLocData>{ id: r.id, name: r.name, items: [] });
         return tuple(res, true);
       }
-      return tuple(res, false);
-    }, tuple(<DemandLocData[]>[],false))[0].filter(v => v.items.length != 0);
+      return tuple(res, s);
+    }, init)[0].filter(v => v.items.length != 0);
+  }
+
+  private assembleDemands(hdrs: EsiMail[], mailList?: string, loc?: DemandLocData): Observable<DemandInfo> {
+    return this.esi.getIdsInformation(set(hdrs.map(h => h.from))).pipe(
+      toArray(),
+      map(info => new Map<number, string>(info.map(v => [v.id, v.name]))),
+      mergeMap(names => from(hdrs).pipe(
+        mergeMap(hdr => this.esi.getCharacterMail(this.esiData.character_id, hdr.mail_id).pipe(
+          mergeMap(mail => this.buildDemandRecord(DemandsComponent.parseBody(mail.body))),
+          map(records => DemandsComponent.assembleItems(records, loc)),
+          //filter(data => data.length != 0),
+          map(data => <DemandInfo>{
+            name: mailList || DemandsComponent.getDemandName(hdr.subject),
+            timestamp: new Date(hdr.timestamp).getTime(),
+            issuer_id: hdr.from,
+            issuer_name: names.get(hdr.from),
+            avatar: this.esi.getCharacterAvatarURI(hdr.from, 64),
+            data: data,
+            mail_id: hdr.mail_id
+          })
+        ))
+      ))      
+    );
+  }
+
+  private getMailingLists(hdrs: EsiMail[], demand: DemandInfo): Observable<DemandInfo> {
+    const mailingLists = demand.data
+      .map(loc => loc.items.filter(item => item.icon == 'list').map(item => tuple(item.name, loc)))
+      .filter(v => v.length != 0)
+      .reduce((s,t) => [...s, ...t], []);
+    return from(mailingLists).pipe(
+      mergeMap(([listName, loc]) => {
+        return this.esiData.service.getCharacterMailingLists(this.esiData.character_id).pipe(
+          map(lists => lists.find(list => list.name.localeCompare(listName) == 0)),
+          map(list => list && hdrs.filter(h => h.recipients.find(r => r.recipient_id == list.mailing_list_id && r.recipient_type == 'mailing_list'))),
+          mergeMap(hdr => this.assembleDemands(hdr, listName, loc))
+        );
+      })
+    );
   }
 
   private getDemands(date: number): Observable<DemandInfo> {
     return this.esiData.getCharacterMailHeaders([], date).pipe(
       toArray(),
-      map(hdrs => hdrs
-        .filter(hdr => hdr.subject.indexOf(DemandsComponent.TAG) >= 0)
-        .filter(hdr => hdr.labels.length != 1 || hdr.labels[0] != EsiService.STD_MAIL_LABEL_ID_Sent)
-        .reduce((result, hdr) => {
-          if (!result.find(x => x.from == hdr.from && !DemandsComponent.getDemandName(x.subject).localeCompare(DemandsComponent.getDemandName(hdr.subject)))) result.push(hdr);
-          return result;
-        }, <EsiMail[]>[])),
-      mergeMap(hdrs => this.esi.getIdsInformation(set(hdrs.map(h => h.from))).pipe(
-        toArray(),
-        map(info => new Map<number, string>(info.map(v => [v.id, v.name]))),
-        mergeMap(names => from(hdrs).pipe(
-          mergeMap(hdr => this.esi.getCharacterMail(this.esiData.character_id, hdr.mail_id).pipe(
-            mergeMap(mail => this.buildDemandRecord(DemandsComponent.parseBody(mail.body))),
-            map(records => DemandsComponent.assembleItems(records)),
-            filter(data => data.length != 0),
-            map(data => <DemandInfo>{
-              name: DemandsComponent.getDemandName(hdr.subject),
-              timestamp: new Date(hdr.timestamp).getTime(),
-              issuer_id: hdr.from,
-              issuer_name: names.get(hdr.from),
-              avatar: this.esi.getCharacterAvatarURI(hdr.from, 64),
-              data: data,
-              mail_id: hdr.mail_id
-            })
-          ))
-        ))
-      ))
+      mergeMap(hdrs => {
+        const h = hdrs
+          .filter(hdr => hdr.subject.indexOf(DemandsComponent.TAG) >= 0)
+          .filter(hdr => hdr.labels.length != 1 || hdr.labels[0] != EsiService.STD_MAIL_LABEL_ID_Sent)
+          .reduce((result, hdr) => {
+            if (!result.find(x => x.from == hdr.from && !DemandsComponent.getDemandName(x.subject).localeCompare(DemandsComponent.getDemandName(hdr.subject)))) result.push(hdr);
+            return result;
+          }, <EsiMail[]>[]);
+        return this.assembleDemands(h).pipe(
+          mergeMap(demand => merge(of(demand), this.getMailingLists(hdrs, demand))),
+        );
+      }),
+      tap(demand => {
+        demand.data.forEach(loc => loc.items = loc.items.filter(item => item.icon != 'list'));
+        demand.data = demand.data.filter(loc => loc.items.length != 0);
+      }),
+      filter(demand => demand.data.length != 0)
       //tap(r => console.log(r))
     );
   }
@@ -208,7 +256,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
       .reduce((locItems, locData) => {
         const locDataItems = locData.items
           .map(item => item.chunks.map(c => ({ type_id: c.type_id, quantity: c.quantity * item.quantity })))
-          .reduce((s, t) => [...s, ...t]);
+          .reduce((s, t) => [...s, ...t], []);
         const item = locItems.find(i => i.id == locData.id);
         if (item) item.items = [...item.items, ...locDataItems]; else locItems.push({ id: locData.id, items: locDataItems });
         return locItems;
@@ -245,7 +293,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
         return {
           id: i.type_id,
           name: this.esiData.typesInfo.get(i.type_id).name,
-          q_demand: i.quantity,
+          q_demand: i.quantity || undefined,
           q_market: q_market || undefined,
           ratio: ratio,
           shortage: i.quantity > q_market
@@ -276,7 +324,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
       this.esiData.loadPrices().pipe(
         mergeMap(() => this.getDemands(Date.now() - DemandsComponent.TimeDepth).pipe(
           toArray(),
-          tap(demand => this.currentDemands = demand.sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name))),
+          tap(demand => this.currentDemands = demand.sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name) || a.timestamp - b.timestamp)),
           mergeMap(() => this.esiData.loadOrders(this.processDemandsCards(this.currentDemands).map(i => ({ location_id: i.id, types: i.items.map(c => c.type_id) }))).pipe(
             map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
             toArray(),
