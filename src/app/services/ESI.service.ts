@@ -201,6 +201,11 @@ export interface EsiMail {
   body?: string;
 }
 
+export interface EsiMailMailingList {
+  mailing_list_id: number;
+  name: string;
+}
+
 type EsiLabelColor =
   '#0000fe' | '#006634' | '#0099ff' | '#00ff33' | '#01ffff' | '#349800' |
   '#660066' | '#666666' | '#999999' | '#99ffff' | '#9a0000' | '#ccff9a' |
@@ -369,6 +374,10 @@ export class EsiService {
     return this.getCharacterInformation<EsiMailLabels>(character_id, 'mail/labels/');
   }
 
+  public getCharacterMailingLists(character_id: number): Observable<EsiMailMailingList[]> {
+    return this.getCharacterInformation<EsiMailMailingList[]>(character_id, 'mail/lists/');
+  }
+  
   private getCharacterAssetNames_chunk(character_id: number, item_ids: number[]): Observable<EsiAssetsName[]> {
     return this.postData<EsiAssetsName[]>(`characters/${character_id}/assets/names/`, item_ids);
   }
