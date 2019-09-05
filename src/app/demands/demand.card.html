@@ -2,17 +2,17 @@
   <mat-card-header>
     <img mat-card-avatar class="demand-card-avatar" [src]="data.avatar">
     <mat-card-title>{{data.name}}</mat-card-title>
-    <mat-card-subtitle>{{data.issuer_name}} @ {{data.timestamp | date}}</mat-card-subtitle>
+    <mat-card-subtitle>{{data.issuer_name}}<span *ngIf="data.timestamp">&nbsp;@&nbsp;{{data.timestamp | date}}</span></mat-card-subtitle>
   </mat-card-header>
   <mat-card-content class="demand-card-content">
     <mat-list dense>
       <ng-container *ngFor="let loc of data.data; let i = index">
         <!--- <mat-divider *ngIf="i"></mat-divider> --->
-        <h3 mat-subheader>{{loc.name}}</h3>
+        <h3 mat-subheader>{{loc.name}}<span *ngIf="loc.timestamp">&nbsp;@&nbsp;{{loc.timestamp | date}}</span></h3>
         <mat-list-item *ngFor="let item of loc.items" class="demand-item">
           <mat-icon mat-list-icon>{{item.icon}}</mat-icon>
           <h4 mat-line>{{item.name}}</h4>
-          <p mat-line> Quantity: {{item.quantity}} </p>
+          <p mat-line *ngIf="item.quantity">Quantity: {{item.quantity}}</p>
         </mat-list-item>
       </ng-container>
     </mat-list>

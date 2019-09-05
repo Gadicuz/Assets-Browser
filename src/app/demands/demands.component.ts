@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, Directive, HostListener, ViewChild, ViewChildren, QueryList } from '@angular/core';
 
-import { map, tap, switchMap, delay, switchMapTo, mergeMap, distinctUntilChanged, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { map, tap, switchMap, delay, switchMapTo, mergeMap, distinctUntilChanged, distinct, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 import { Observable, of, from, fromEvent, empty, forkJoin, concat, zip, throwError, merge, Subject, Subscription } from 'rxjs';
 
 import { EsiService, EsiIdCategory, EsiIdInfo, EsiMail, EsiOrder } from '../services/ESI.service';
@@ -214,6 +214,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
       .filter(v => v.length != 0)
       .reduce((s,t) => [...s, ...t], []);
     return from(mailingLists).pipe(
+      distinct(([listName, loc]) => `${listName}/${loc.name}`),
       mergeMap(([listName, loc]) => {
         return this.esiData.service.getCharacterMailingLists(this.esiData.character_id).pipe(
           map(lists => lists.find(list => list.name.localeCompare(listName) == 0)),
@@ -296,7 +297,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
           q_demand: i.quantity || undefined,
           q_market: q_market || undefined,
           ratio: ratio,
-          shortage: i.quantity > q_market
+          shortage: !q_market || i.quantity > q_market
         };
       }).sort((a, b) => a.name.localeCompare(b.name))
     })).sort((a, b) => a.name.localeCompare(b.name));
@@ -324,7 +325,24 @@ export class DemandsComponent implements OnInit, OnDestroy {
       this.esiData.loadPrices().pipe(
         mergeMap(() => this.getDemands(Date.now() - DemandsComponent.TimeDepth).pipe(
           toArray(),
-          tap(demand => this.currentDemands = demand.sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name) || a.timestamp - b.timestamp)),
+          tap(demand => this.currentDemands = demand
+            .sort((a, b) => a.name.localeCompare(b.name) || a.issuer_name.localeCompare(b.issuer_name) || a.timestamp - b.timestamp)
+            .reduce((r, d) => {
+              const cnt = r.length;
+              if (cnt == 0) return [d];
+              const v = r[cnt - 1];
+              if (v.issuer_id == d.issuer_id && v.name == d.name) {
+                d.data[0].timestamp = d.timestamp;
+                if (v.timestamp) v.data[0].timestamp = v.timestamp;
+                v.timestamp = undefined;
+                v.data = [...d.data, ...v.data];
+                v.mail_id = undefined;
+              }
+              else
+                r.push(d);
+              return r;
+            }, <DemandInfo[]>[])
+          ),
           mergeMap(() => this.esiData.loadOrders(this.processDemandsCards(this.currentDemands).map(i => ({ location_id: i.id, types: i.items.map(c => c.type_id) }))).pipe(
             map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
             toArray(),

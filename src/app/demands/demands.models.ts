@@ -14,6 +14,7 @@ export interface DemandLocData {
   id: number;
   name: string;
   items: DemandDataItem[];
+  timestamp?: number;
 }
 
 export interface DemandLocItems {

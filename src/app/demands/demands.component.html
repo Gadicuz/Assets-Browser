@@ -57,7 +57,7 @@
         </mat-accordion>
       </div>
 
-      <div *ngIf="report" class="demand-cards" fxLayout="row wrap">
+      <div *ngIf="report" class="demand-cards" fxLayout="row wrap" fxLayoutAlign="start none">
         <div *ngFor="let card of report.cards">
           <app-demand-card [data]="card"></app-demand-card>
         </div>
