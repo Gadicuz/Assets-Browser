@@ -4,7 +4,7 @@
 
 .demand-card-content {
   height: 160px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 .demand-card-content .mat-list-base[dense] .mat-subheader {
