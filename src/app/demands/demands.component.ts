@@ -114,7 +114,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
 
   private static parseBody(body: string): ReqLine[] {
     return body
-      .replace(/<font.*?>|<\/font>/gi, '')
+      .replace(/<\/?font.*?>|<\/?loc.*?>/gi, '')
       .split('<br>')
       .reduce((result, line) => {
         if (line.length == 0)
