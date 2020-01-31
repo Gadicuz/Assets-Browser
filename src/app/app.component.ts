@@ -22,6 +22,10 @@ export class AppComponent {
     return this.sso.charData;
   }
 
+  get loginError() {
+    return this.sso.error;
+  }
+
   constructor(private sso: EVESSOService) {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);

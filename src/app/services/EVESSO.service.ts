@@ -48,6 +48,7 @@ export interface EVESSOVerifyResponse {
 })
 export class EVESSOService {
   public charData: EVESSOVerifyResponse;
+  public error;
 
   constructor(private oauth: OAuthService) { }
 
@@ -73,6 +74,8 @@ export class EVESSOService {
           );
         }
       }
+    ).catch(
+      err => this.error = err
     );
   }
 

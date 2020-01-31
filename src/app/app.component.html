@@ -26,11 +26,13 @@
 
   <div *ngIf="charData" fxLayout="row" fxLayoutAlign="center">
     <div fxFlex="80%">
-        <router-outlet></router-outlet>
+      <router-outlet></router-outlet>
     </div>
   </div>
 
   <div class="filler" fxFlex fxFlexFill></div>
+
+  <app-error *ngIf="loginError" [err]="loginError"></app-error>
 
   <div fxFlex class="footer">
     <p class="mat-small">{{copyright}}</p>
