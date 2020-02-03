@@ -2,19 +2,27 @@ import { Injectable } from '@angular/core';
 import { OAuthService, JwksValidationHandler, AuthConfig } from 'angular-oauth2-oidc';
 import { environment } from '../../environments/environment'
 
+import {
+  HttpClient,
+  HttpRequest,
+  HttpHandler,
+  HttpEvent,
+  HttpInterceptor
+} from '@angular/common/http';
+import { Observable } from 'rxjs/Observable';
+
 export const authConfig: AuthConfig = {
-  issuer: 'https://login.eveonline.com/',
+  issuer: 'https://login.eveonline.com',
   skipIssuerCheck: true,
   redirectUri: window.location.origin,
-  clientId: environment.client.id,
-  dummyClientSecret: environment.client.secret,
-  oidc: false,
-  disablePKCE: true,
+  clientId: environment.client_id,
+//  dummyClientSecret: environment.client_secret,
   scope: 'esi-assets.read_assets.v1 esi-universe.read_structures.v1 esi-markets.read_character_orders.v1 esi-markets.structure_markets.v1 esi-wallet.read_character_wallet.v1 esi-mail.read_mail.v1',
-  responseType: "code",
-  useHttpBasicAuth: true,
-  requestAccessToken: true,
-  userinfoEndpoint: 'https://esi.evetech.net/verify', // will be overwritten by Discovery doc
+  oidc: false,
+  responseType: 'code',
+//  disablePKCE: true,
+  useHttpBasicAuth: false,
+  requestAccessToken: true
   //showDebugInformation: true,  
 };
 
@@ -46,11 +54,11 @@ export interface EVESSOVerifyResponse {
 @Injectable({
   providedIn: 'root'
 })
-export class EVESSOService {
+export class EVESSOService implements HttpInterceptor {
   public charData: EVESSOVerifyResponse;
   public error;
 
-  constructor(private oauth: OAuthService) { }
+  constructor(private oauth: OAuthService, private http: HttpClient) { }
 
   public configure() {
     this.oauth.configure(authConfig);
@@ -62,14 +70,12 @@ export class EVESSOService {
     this.oauth.loadDiscoveryDocumentAndTryLogin().then(
       () => {
         if (this.oauth.hasValidAccessToken()) {
-          //this.oauth.timeoutFactor = 0.1;
-          this.oauth.setupAutomaticSilentRefresh();
-          this.oauth.userinfoEndpoint = 'https://esi.evetech.net/verify'; // reset by discovery doc
-          this.oauth.loadUserProfile().then(
-            profile => {
-              this.charData = <EVESSOVerifyResponse>profile;
-              // this.oauth.getIdentityClaims() returns EVESSOVerifyResponse
-              //console.log(profile);  profile['Scopes'] is granted scopes for the token
+          this.http.get('https://esi.evetech.net/verify').subscribe(
+            resp => {
+              //console.log(resp);  resp['Scopes'] is granted scopes for the token
+              this.charData = <EVESSOVerifyResponse>resp;
+              this.oauth.timeoutFactor = 0.1;
+              this.oauth.setupAutomaticSilentRefresh();
             }
           );
         }
@@ -91,4 +97,14 @@ export class EVESSOService {
   isLoggedIn(): boolean {
     return this.oauth.hasValidAccessToken();
   }
+
+  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    const param_name = 'code_verifier';
+    if (request.url === this.oauth.tokenEndpoint && request.method === 'POST' && request.body.has(param_name))
+      request = request.clone({
+        body: request.body.set(param_name, btoa(request.body.get(param_name)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''))
+      });
+    return next.handle(request);
+  }
+
 }
