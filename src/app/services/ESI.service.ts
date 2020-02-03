@@ -235,6 +235,7 @@ export interface EsiIdInfo {
 
 export class ESI_CONFIG {
   baseUrl: string;
+  version: string;
   datasource?: string;
 }
 
@@ -329,14 +330,18 @@ export class EsiService {
     )
   }
 
+  private getUrl(route: string) {
+    return this.config.baseUrl + this.config.version + '/' + route;
+  }
+
   private getData<T>(route: string, params: HttpParams = this.params, retry = this.retry(3)) {
-    return <Observable<T>>this.httpClient.get(this.config.baseUrl + route, { params: params }).pipe(
+    return <Observable<T>>this.httpClient.get(this.getUrl(route), { params: params }).pipe(
       retryWhen(retry)
     );
   }
 
   private postData<T>(route: string, data: any, retry = this.retry(3)) {
-    return <Observable<T>>this.httpClient.post(this.config.baseUrl + route, data, { params: this.params }).pipe(
+    return <Observable<T>>this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(
       retryWhen(retry)
     );
   }

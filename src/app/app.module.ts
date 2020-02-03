@@ -32,7 +32,8 @@ import { DemandCard } from './demands/demand.card';
 import { DemandChips } from './demands/demand.chips';
 
 const esiServiceConfig: ESI_CONFIG = {
-  baseUrl: 'https://esi.evetech.net/latest/',
+  baseUrl: 'https://esi.evetech.net',
+  version: '/latest',
   datasource: 'tranquility'
 };
 
