@@ -74,7 +74,7 @@ export class EVESSOService implements HttpInterceptor {
             resp => {
               //console.log(resp);  resp['Scopes'] is granted scopes for the token
               this.charData = <EVESSOVerifyResponse>resp;
-              this.oauth.timeoutFactor = 0.1;
+              //this.oauth.timeoutFactor = 0.1;
               this.oauth.setupAutomaticSilentRefresh();
             }
           );
