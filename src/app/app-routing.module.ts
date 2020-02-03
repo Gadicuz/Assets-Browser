@@ -8,8 +8,8 @@ import { DemandsComponent } from './demands/demands.component';
 const routes: Routes = [
   { path: 'browse/:id', canActivate: [AuthGuard], component: LocationComponent },
   { path: 'browse', redirectTo: 'browse/0', pathMatch: 'full' },
-  { path: 'orders', component: OrdersComponent },
-  { path: 'demands', component: DemandsComponent },
+  { path: 'orders', canActivate: [AuthGuard], component: OrdersComponent },
+  { path: 'demands', canActivate: [AuthGuard], component: DemandsComponent },
   { path: '', children: [] },
   { path: '**', redirectTo: '/', pathMatch: 'full'}
 ];
