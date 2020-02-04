@@ -45,7 +45,7 @@ export class LocationComponent implements OnInit {
 
   @ViewChild(MatSort, { static: false }) sort: MatSort;
 
-  constructor(private route: ActivatedRoute, private esiData: EsiDataService) { }
+  constructor(private route: ActivatedRoute, private esi: EsiService, private esiData: EsiDataService) { }
 
   private buildLocations() {
     this.locations = new Map( [[0, <LocationData>{ items: [], volume: undefined, value: 0, type: 'other' }]] ); // root location
@@ -197,7 +197,7 @@ export class LocationComponent implements OnInit {
 
   private getLocationData(loc_id: number, locItem?: EsiAssetsItem) {
     let loc = this.getNameCommentType(loc_id, locItem);
-    if (loc.type_id) loc.image = this.esiData.service.getItemIconURI(loc.type_id, 32);
+    if (loc.type_id) loc.image = this.esi.getItemIconURI(loc.type_id, 32);
     return loc;
   }
 

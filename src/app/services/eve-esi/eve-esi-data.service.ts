@@ -60,8 +60,6 @@ export class EsiDataService {
   // MAP: (station_id|structure_id) -> {name, type_id, err}
   public locationsInfo: Map<number, EsiDataLocationInfo>;
 
-  public get service(): EsiService { return this.esi; }
-
   private missedIDs(ids: number[], map: Map<number, any>): number[] {
     let knownIDs = [...map.keys()];
     return set(ids).filter(id => knownIDs.indexOf(id) < 0);

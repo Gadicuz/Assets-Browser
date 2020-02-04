@@ -215,7 +215,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
     return from(mailingLists).pipe(
       distinct(([listName, loc]) => `${listName}/${loc.name}`),
       mergeMap(([listName, loc]) => {
-        return this.esiData.service.getCharacterMailingLists(this.esiData.character_id).pipe(
+        return this.esi.getCharacterMailingLists(this.esiData.character_id).pipe(
           map(lists => lists.find(list => list.name.localeCompare(listName) == 0)),
           map(list => list && hdrs.filter(h => h.recipients.find(r => r.recipient_id == list.mailing_list_id && r.recipient_type == 'mailing_list'))),
           mergeMap(hdr => this.assembleDemands(hdr, listName, loc))
@@ -308,7 +308,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
       return s;
     }, <DemandInfo[]>[]).map(c => ({
       caption: c.issuer_name,
-      avatar: this.esiData.service.getCharacterAvatarURI(c.issuer_id, 32),
+      avatar: this.esi.getCharacterAvatarURI(c.issuer_id, 32),
       id: c.issuer_id
     })).sort((a, b) => a.caption.localeCompare(b.caption));
     const subjects = set(cards.map(c => c.name)).map(name => ({
