@@ -1,12 +1,11 @@
 import { Injectable } from '@angular/core';
-import { Observable, Subject, of, empty, concat, merge, from, throwError } from 'rxjs';
-import { map, expand, tap, distinct, switchMap, repeatWhen, switchMapTo, mergeMap, mergeMapTo, concatMap, takeWhile, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
+import { Observable, Subject, of, empty, concat, merge, iif, from, throwError } from 'rxjs';
+import { map, expand, tap, distinct, switchMap, repeatWhen, switchMapTo, mergeMap, reduce, mergeMapTo, concatMap, takeWhile, filter, mapTo, defaultIfEmpty, takeLast, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
 import { EVESSOService } from '../eve-sso/eve-sso.module';
 import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiOrder, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './eve-esi.module';
 export * from './eve-esi.module';
-
-import universeTypesCache from '../../../assets/universe.types.cache.json';
 
 import { set, tuple } from '../../utils/utils';
 
@@ -65,8 +64,8 @@ export class EsiDataService {
     return set(ids).filter(id => knownIDs.indexOf(id) < 0);
   }
 
-  constructor(private esi: EsiService, private sso: EVESSOService) {
-    this.typesInfo = new Map<number, EsiDataTypeInfo>(<([number, EsiDataTypeInfo])[]>universeTypesCache);
+  constructor(private http: HttpClient, private esi: EsiService, private sso: EVESSOService) {
+    this.typesInfo = null;
     this.prices = null;
     this.charAssets = null;
     this.max_item_id = 0;
@@ -87,14 +86,18 @@ export class EsiDataService {
   }
 
   loadTypeInfo(ids: number[]): Observable<Map<number, EsiDataTypeInfo>> {
-    ids = this.missedIDs(ids, this.typesInfo);
-    if (ids.length == 0) return of(this.typesInfo);
-    return concat(
-      from(ids).pipe(
-        mergeMap(type_id => this.esi.getTypeInformation(type_id)),
-        tap(type_info => this.typesInfo.set(type_info.type_id, { name: type_info.name, volume: type_info.volume, packaged_volume: type_info.packaged_volume })),
-        ignoreElements()),
+    return iif(
+      () => !this.typesInfo,
+      from(this.http.get('/assets/sde/universe-types.json')).pipe(
+        map(obj => this.typesInfo = new Map<number, EsiDataTypeInfo>(<([number, EsiDataTypeInfo])[]>obj))
+      ),
       of(this.typesInfo)
+    ).pipe(      
+      switchMap(typesInfo => from(this.missedIDs(ids, typesInfo)).pipe(
+          mergeMap(type_id => this.esi.getTypeInformation(type_id)),
+          map(type_info => typesInfo.set(type_info.type_id, { name: type_info.name, volume: type_info.volume, packaged_volume: type_info.packaged_volume })),
+          reduce(acc => acc, typesInfo)
+      ))
     );
   }
 
