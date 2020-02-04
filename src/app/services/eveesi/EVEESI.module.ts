@@ -1,9 +1,16 @@
-import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
+import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
+import { HttpClient, HttpParams, HttpErrorResponse, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { Observable, of, from, forkJoin, concat, zip, throwError, timer } from 'rxjs';
 import { map, filter, tap, switchMap, switchMapTo, mergeMap, mergeAll, concatMap, mapTo, toArray, catchError, bufferCount, ignoreElements, retryWhen } from 'rxjs/operators';
 
-import { set, tuple } from '../utils/utils';
+import { set, tuple } from '../../utils/utils';
+
+import { EVEESIConfig } from './EVEESI.config';
+import { NostoreInterceptorService } from './nostore.interceptor.service';
+import { NoauthInterceptorService } from './noauth.interceptor.service';
+import { XpageInterceptorService } from './xpage.interceptor.service';
+
+export { EVEESIConfig } from './EVEESI.config';
 
 export class EsiError extends Error {
   readonly status: number;
@@ -233,12 +240,6 @@ export interface EsiIdInfo {
   name: string;
 }
 
-export class ESI_CONFIG {
-  baseUrl: string;
-  version: string;
-  datasource?: string;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -314,7 +315,7 @@ export class EsiService {
     return EsiService.getAssetLocationType(id) === 'station';
   }
 
-  constructor(private httpClient: HttpClient, private config: ESI_CONFIG) {
+  constructor(private httpClient: HttpClient, private config: EVEESIConfig) {
     //this.params = new HttpParams({ encoder: new X_WWW_FORM_UrlEncodingCodec()});
     this.params = new HttpParams();
     if (config.datasource) this.params = this.params.set('datasource', config.datasource);
@@ -466,4 +467,19 @@ export class EsiService {
     );
   }
 
+}
+
+@NgModule()
+export class EVEESIModule {
+  static forRoot(cfg: EVEESIConfig): ModuleWithProviders {
+    return {
+      ngModule: EVEESIModule,
+      providers: [
+        { provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
+        { provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
+        { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
+        { provide: EVEESIConfig, useValue: cfg }
+      ]
+    };
+  }
 }

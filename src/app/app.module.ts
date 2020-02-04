@@ -11,39 +11,47 @@ import { AngularMaterialModule } from './angular-material.module';
 
 import { HttpClientModule } from '@angular/common/http';
 import { OAuthModule, OAuthModuleConfig } from 'angular-oauth2-oidc';
+import { EVESSOModule, EVESSOConfig } from './services/evesso/EVESSO.module';
+import { EVEESIModule, EVEESIConfig } from './services/eveesi/EVEESI.module';
 
 import { LocationComponent } from './location/location.component';
 import { OrdersComponent } from './orders/orders.component';
 
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
-import { XpageInterceptorService } from './xpage.interceptor.service';
-import { NostoreInterceptorService } from './nostore.interceptor.service';
-import { EVESSOService } from './services/EVESSO.service';
-
-import { NgLetDirective } from "./ng-let.directive";
+import { NgLetDirective } from "./utils/ng-let.directive";
 
 import { ScalePipe } from './pipes/scale.pipe';
 import { DurationPipe } from './pipes/duration.pipe';
 
-import { ESI_CONFIG } from './services/ESI.service';
 import { OrdersListComponent } from './orders.list/orders.list.component';
 import { ErrorComponent } from './error/error.component';
 import { DemandsComponent } from './demands/demands.component';
 import { DemandCard } from './demands/demand.card';
 import { DemandChips } from './demands/demand.chips';
 
-const esiServiceConfig: ESI_CONFIG = {
+import { environment } from '../environments/environment';
+
+const esiConfig: EVEESIConfig = {
   baseUrl: 'https://esi.evetech.net',
   version: '/latest',
   datasource: 'tranquility'
 };
 
-const authModuleConfig: OAuthModuleConfig = {
+const authConfig: OAuthModuleConfig = {
   // Inject "Authorization: Bearer ..." header for these APIs:
   resourceServer: {
-    allowedUrls: [esiServiceConfig.baseUrl],
+    allowedUrls: [esiConfig.baseUrl],
     sendAccessToken: true,
   },
+};
+
+const ssoConfig: EVESSOConfig = {
+  client_id: environment.client_id,
+  scopes: ['esi-assets.read_assets.v1',
+           'esi-universe.read_structures.v1',
+           'esi-markets.read_character_orders.v1',
+           'esi-markets.structure_markets.v1',
+           'esi-wallet.read_character_wallet.v1',
+           'esi-mail.read_mail.v1']  
 };
 
 @NgModule({
@@ -65,14 +73,9 @@ const authModuleConfig: OAuthModuleConfig = {
     BrowserAnimationsModule,
     AngularMaterialModule,
     HttpClientModule,
-    OAuthModule.forRoot(authModuleConfig)
-  ],
-  providers: [
-    { provide: HTTP_INTERCEPTORS, useClass: EVESSOService, multi: true },
-    { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
-    { provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
-    { provide: OAuthModuleConfig, useValue: authModuleConfig },
-    { provide: ESI_CONFIG, useValue: esiServiceConfig }
+    OAuthModule.forRoot(authConfig),
+    EVESSOModule.forRoot(ssoConfig),
+    EVEESIModule.forRoot(esiConfig)
   ],
   bootstrap: [AppComponent],
   exports: [NgLetDirective]

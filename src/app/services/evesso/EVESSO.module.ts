@@ -1,30 +1,8 @@
-import { Injectable } from '@angular/core';
-import { OAuthService, JwksValidationHandler, AuthConfig } from 'angular-oauth2-oidc';
-import { environment } from '../../environments/environment'
+import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
+import { HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { OAuthService, JwksValidationHandler } from 'angular-oauth2-oidc';
 
-import {
-  HttpClient,
-  HttpRequest,
-  HttpHandler,
-  HttpEvent,
-  HttpInterceptor
-} from '@angular/common/http';
-import { Observable } from 'rxjs/Observable';
-
-export const authConfig: AuthConfig = {
-  issuer: 'https://login.eveonline.com',
-  skipIssuerCheck: true,
-  redirectUri: window.location.origin,
-  clientId: environment.client_id,
-//  dummyClientSecret: environment.client_secret,
-  scope: 'esi-assets.read_assets.v1 esi-universe.read_structures.v1 esi-markets.read_character_orders.v1 esi-markets.structure_markets.v1 esi-wallet.read_character_wallet.v1 esi-mail.read_mail.v1',
-  oidc: false,
-  responseType: 'code',
-//  disablePKCE: true,
-  useHttpBasicAuth: false,
-  requestAccessToken: true
-  //showDebugInformation: true,  
-};
+import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
 
 /*
 {
@@ -41,6 +19,12 @@ export const authConfig: AuthConfig = {
 }
 */
 
+export class EVESSOConfig {
+  client_id: string;
+  client_secret?: string;
+  scopes: string[];
+}
+
 export interface EVESSOVerifyResponse {
   CharacterID: number;
   CharacterName?: string;
@@ -54,14 +38,27 @@ export interface EVESSOVerifyResponse {
 @Injectable({
   providedIn: 'root'
 })
-export class EVESSOService implements HttpInterceptor {
+export class EVESSOService {
   public charData: EVESSOVerifyResponse;
-  public error;
+  public error: any;
 
-  constructor(private oauth: OAuthService, private http: HttpClient) { }
+  constructor(private oauth: OAuthService, private http: HttpClient, private cfg: EVESSOConfig) { }
 
   public configure() {
-    this.oauth.configure(authConfig);
+    this.oauth.configure({
+      issuer: 'https://login.eveonline.com',
+      skipIssuerCheck: true,
+      redirectUri: window.location.origin,
+      clientId: this.cfg.client_id,
+      //dummyClientSecret: this.config.client_secret,
+      scope: this.cfg.scopes.join(' '),
+      oidc: false,
+      responseType: 'code',
+      //disablePKCE: true,
+      useHttpBasicAuth: false,
+      requestAccessToken: true
+      //showDebugInformation: true,  
+    });
     this.oauth.tokenValidationHandler = new JwksValidationHandler();
   }
 
@@ -70,7 +67,7 @@ export class EVESSOService implements HttpInterceptor {
     this.oauth.loadDiscoveryDocumentAndTryLogin().then(
       () => {
         if (this.oauth.hasValidAccessToken()) {
-          this.http.get('https://esi.evetech.net/verify').subscribe(
+          this.http.get('https://esi.evetech.net/verify/').subscribe(
             resp => {
               //console.log(resp);  resp['Scopes'] is granted scopes for the token
               this.charData = <EVESSOVerifyResponse>resp;
@@ -98,13 +95,17 @@ export class EVESSOService implements HttpInterceptor {
     return this.oauth.hasValidAccessToken();
   }
 
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    const param_name = 'code_verifier';
-    if (request.url === this.oauth.tokenEndpoint && request.method === 'POST' && request.body.has(param_name))
-      request = request.clone({
-        body: request.body.set(param_name, btoa(request.body.get(param_name)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''))
-      });
-    return next.handle(request);
-  }
+}
 
+@NgModule()
+export class EVESSOModule {
+  static forRoot(cfg: EVESSOConfig): ModuleWithProviders {
+    return {
+      ngModule: EVESSOModule,
+      providers: [
+        { provide: HTTP_INTERCEPTORS, useClass: CodeVerifierInterceptorService, multi: true },
+        { provide: EVESSOConfig, useValue: cfg }
+      ]
+    };
+  }
 }

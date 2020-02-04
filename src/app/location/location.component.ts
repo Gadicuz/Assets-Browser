@@ -3,9 +3,8 @@ import { ActivatedRoute, ParamMap } from '@angular/router';
 import { map, tap, switchMap, delay, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 import { Observable, of, from, forkJoin, concat, zip, throwError } from 'rxjs';
 
-import { EVESSOService } from '../services/EVESSO.service';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiOrder } from '../services/ESI.service';
-import { EsiDataService, EsiDataTypeInfo, EsiDataLocationInfo } from '../services/ESIDATA.service';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiOrder } from '../services/eveesi/EVEESI.module';
+import { EsiDataService, EsiDataTypeInfo, EsiDataLocationInfo } from '../services/eveesi/ESIDATA.service';
 
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';

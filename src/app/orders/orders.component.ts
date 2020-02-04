@@ -2,8 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { Observable, of, merge, concat, from, zip } from 'rxjs';
 import { tap, map, reduce, mergeMap, toArray, filter, ignoreElements, catchError } from 'rxjs/operators';
 
-import { EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/ESI.service';
-import { EsiDataService, TypeOrders, LocationOrdersTypes, LocationOrders } from '../services/ESIDATA.service';
+import { EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/eveesi/EVEESI.module';
+import { EsiDataService, TypeOrders, LocationOrdersTypes, LocationOrders } from '../services/eveesi/ESIDATA.service';
 
 import { set, tuple } from '../utils/utils';
 

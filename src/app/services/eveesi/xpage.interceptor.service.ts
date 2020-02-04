@@ -1,25 +1,23 @@
 import { Injectable } from '@angular/core';
-
-import {
-  HttpRequest,
-  HttpHandler,
-  HttpEvent,
-  HttpInterceptor,
-  HttpResponse
-} from '@angular/common/http';
+import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 import { of, range, forkJoin } from 'rxjs';
 import { tap, filter, map, mergeMap, toArray } from 'rxjs/operators';
+import { EVEESIConfig } from './EVEESI.config';
 
 @Injectable()
 export class XpageInterceptorService implements HttpInterceptor {
 
-  constructor() { }
+  private readonly host: string;
+
+  constructor(cfg: EVEESIConfig) {
+    this.host = cfg.baseUrl + '/';
+  }
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     return next.handle(request).pipe(
       mergeMap((event: HttpEvent<any>) => {
-        if (request.params.has('page') || !request.url.startsWith('https://esi.evetech.net')) return of(event);
+        if (request.params.has('page') || !request.url.startsWith(this.host)) return of(event);
         let response = event as HttpResponse<any>;
         if (response.headers == null) return of(event);
         let maxPage = +response.headers.get('X-Pages'); // null converts to 0

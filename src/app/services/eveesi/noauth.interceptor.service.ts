@@ -1,16 +1,7 @@
 import { Injectable } from '@angular/core';
-
-import {
-  HttpRequest,
-  HttpHandler,
-  HttpParams,
-  HttpEvent,
-  HttpInterceptor,
-  HttpResponse
-} from '@angular/common/http';
+import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
-import { of, range, forkJoin } from 'rxjs';
-import { tap, filter, map, mergeMap, toArray } from 'rxjs/operators';
+import { EVEESIConfig } from './EVEESI.config';
 
 const publicRoutes: string =
   '(alliances/)|' +
@@ -108,28 +99,25 @@ const noAuthRoutes: string =
   ')$'
   ;
 
+/**
+ * Remove unnecessary Authorization header for selected ESI endpoints.
+ */
 @Injectable()
-export class NostoreInterceptorService implements HttpInterceptor {
+export class NoauthInterceptorService implements HttpInterceptor {
 
+  private readonly host: string;
   private readonly r: RegExp;
 
-  constructor() {
+  constructor(cfg: EVEESIConfig) {
+    this.host = cfg.baseUrl + '/';
     this.r = new RegExp(noAuthRoutes);
   }
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    const host = 'https://esi.evetech.net/';
-    if (request.url.startsWith(host)) {
-      const route = request.url.substring(host.length);
-      if (this.r.test(route)) {
+    if (request.url.startsWith(this.host)) {
+      if (this.r.test(request.url.substring(this.host.length))) {
         request = request.clone({
           headers: request.headers.delete('Authorization')
-        });
-      }
-      if (request.method == 'GET' && route == 'verify') {
-        request = request.clone({
-          //params: request.params.set('access_token', (new Date()).getTime().toString())
-          headers: request.headers.set('If-None-Match', '"Just a random text to force ETAG validation"')
         });
       }
     }
