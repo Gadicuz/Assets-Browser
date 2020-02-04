@@ -6,7 +6,7 @@ import { X_WWW_FORM_UrlEncodingCodec } from './x-www-form-codec';
 
 import ru from '@angular/common/locales/ru';
 
-import ccpCopyright from '../assets/ccp.copyright.json';
+import ccpCopyright from './ccp.copyright.json';
 
 @Component({
   selector: 'app-root',
