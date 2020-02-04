@@ -4,6 +4,7 @@ import { map, expand, tap, distinct, switchMap, repeatWhen, switchMapTo, mergeMa
 
 import { EVESSOService } from '../eve-sso/eve-sso.module';
 import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiOrder, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './eve-esi.module';
+export * from './eve-esi.module';
 
 import universeTypesCache from '../../../assets/universe.types.cache.json';
 

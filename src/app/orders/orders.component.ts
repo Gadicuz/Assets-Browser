@@ -2,8 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Observable, of, merge, concat, from, zip } from 'rxjs';
 import { tap, map, reduce, mergeMap, toArray, filter, ignoreElements, catchError } from 'rxjs/operators';
 
-import { EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/eve-esi/eve-esi.module';
-import { EsiDataService, TypeOrders, LocationOrdersTypes, LocationOrders } from '../services/eve-esi/eve-esi-data.service';
+import { EsiDataService, TypeOrders, LocationOrdersTypes, LocationOrders, EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/eve-esi/eve-esi-data.service';
 
 import { set, tuple } from '../utils/utils';
 
