@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, of, empty, concat, merge, from, throwError } from 'rxjs';
 import { map, expand, tap, distinct, switchMap, repeatWhen, switchMapTo, mergeMap, mergeMapTo, concatMap, takeWhile, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 
-import { EVESSOService } from '../evesso/EVESSO.module';
-import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiOrder, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './EVEESI.module';
+import { EVESSOService } from '../eve-sso/eve-sso.module';
+import { EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiSystemInfo, EsiStructureInfo, EsiStationInfo, EsiOrder, EsiCharOrder, EsiStructureOrder, EsiRegionOrder, EsiMail, EsiWalletTransaction } from './eve-esi.module';
 
 import universeTypesCache from '../../../assets/universe.types.cache.json';
 

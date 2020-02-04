@@ -1,7 +1,7 @@
 
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { EVESSOService } from '../services/evesso/EVESSO.module';
+import { EVESSOService } from '../services/eve-sso/eve-sso.module';
 import { Router, CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
 
 @Injectable({

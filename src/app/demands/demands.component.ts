@@ -3,8 +3,8 @@ import { Component, OnInit, OnDestroy, Directive, HostListener, ViewChild, ViewC
 import { map, tap, switchMap, delay, switchMapTo, mergeMap, distinctUntilChanged, distinct, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
 import { Observable, of, from, fromEvent, empty, forkJoin, concat, zip, throwError, merge, Subject, Subscription } from 'rxjs';
 
-import { EsiService, EsiIdCategory, EsiIdInfo, EsiMail, EsiOrder } from '../services/eveesi/EVEESI.module';
-import { EsiDataService, TypeOrders } from '../services/eveesi/ESIDATA.service';
+import { EsiService, EsiIdCategory, EsiIdInfo, EsiMail, EsiOrder } from '../services/eve-esi/eve-esi.module';
+import { EsiDataService, TypeOrders } from '../services/eve-esi/eve-esi-data.service';
 
 import { set, tuple } from '../utils/utils';
 

@@ -3,7 +3,7 @@ import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor, HttpResponse } fr
 import { Observable } from 'rxjs/Observable';
 import { of, range, forkJoin } from 'rxjs';
 import { tap, filter, map, mergeMap, toArray } from 'rxjs/operators';
-import { EVEESIConfig } from './EVEESI.config';
+import { EVEESIConfig } from './eve-esi.config';
 
 @Injectable()
 export class XpageInterceptorService implements HttpInterceptor {

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
-import { EVESSOService } from './services/evesso/EVESSO.module';
+import { EVESSOService } from './services/eve-sso/eve-sso.module';
 
 import { X_WWW_FORM_UrlEncodingCodec } from './x-www-form-codec';
 

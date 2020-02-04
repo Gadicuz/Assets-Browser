@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
-import { EVEESIConfig } from './EVEESI.config';
+import { EVEESIConfig } from './eve-esi.config';
 
 const publicRoutes: string =
   '(alliances/)|' +

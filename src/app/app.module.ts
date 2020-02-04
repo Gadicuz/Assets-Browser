@@ -11,8 +11,8 @@ import { AngularMaterialModule } from './angular-material.module';
 
 import { HttpClientModule } from '@angular/common/http';
 import { OAuthModule, OAuthModuleConfig } from 'angular-oauth2-oidc';
-import { EVESSOModule, EVESSOConfig } from './services/evesso/EVESSO.module';
-import { EVEESIModule, EVEESIConfig } from './services/eveesi/EVEESI.module';
+import { EVESSOModule, EVESSOConfig } from './services/eve-sso/eve-sso.module';
+import { EVEESIModule, EVEESIConfig } from './services/eve-esi/eve-esi.module';
 
 import { LocationComponent } from './location/location.component';
 import { OrdersComponent } from './orders/orders.component';
