@@ -10,7 +10,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { AngularMaterialModule } from './angular-material.module';
 
 import { HttpClientModule } from '@angular/common/http';
-import { OAuthModule, OAuthModuleConfig } from 'angular-oauth2-oidc';
+import { OAuthModule, OAuthModuleConfig, JwksValidationHandler } from 'angular-oauth2-oidc';
 import { EVESSOModule, EVESSOConfig } from './services/eve-sso/eve-sso.module';
 import { EVEESIModule, EVEESIConfig } from './services/eve-esi/eve-esi.module';
 
@@ -73,7 +73,7 @@ const ssoConfig: EVESSOConfig = {
     BrowserAnimationsModule,
     AngularMaterialModule,
     HttpClientModule,
-    OAuthModule.forRoot(authConfig),
+    OAuthModule.forRoot(authConfig, JwksValidationHandler),
     EVESSOModule.forRoot(ssoConfig),
     EVEESIModule.forRoot(esiConfig)
   ],

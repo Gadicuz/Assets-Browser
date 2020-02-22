@@ -78,7 +78,7 @@ export class EsiDataService {
   }
    
   get character_id(): number {
-    return this.sso.charData.CharacterID;
+    return this.sso.charId;
   }
 
   findCharAssetsItem(item_id: number): EsiAssetsItem {

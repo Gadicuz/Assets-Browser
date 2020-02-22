@@ -20,18 +20,21 @@ export class AppComponent {
 
   get charData()
   {
-    if (this.sso.charData)
+    if (this.sso.atp)
+    {
+      const id = this.sso.charId;
       return {
-        id: this.sso.charData.CharacterID,
-        name: this.sso.charData.CharacterName,
-        avatar: this.esi.getCharacterAvatarURI(this.sso.charData.CharacterID, 64)
+        id: id,
+        name: this.sso.charName,
+        avatar: this.esi.getCharacterAvatarURI(id, 64)
       };
+    }
     else
       return null;
   }
 
   get loginError() {
-    return this.sso.error;
+    return this.sso.err;
   }
 
   constructor(private sso: EVESSOService, private esi: EsiService) {

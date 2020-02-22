@@ -4,6 +4,8 @@ import { OAuthService, JwksValidationHandler } from 'angular-oauth2-oidc';
 
 import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
 
+import { b64urlDecode } from '@waiting/base64'
+
 /*
 {
  "issuer":"login.eveonline.com",
@@ -25,22 +27,32 @@ export class EVESSOConfig {
   scopes: string[];
 }
 
-export interface EVESSOVerifyResponse {
-  CharacterID: number;
-  CharacterName?: string;
-  CharacterOwnerHash?: string;
-  ExpiresOn?: string;
-  IntellectualProperty?: string;
-  Scopes?: string;
-  TokenType?: string;
+export interface EVESSOAccessTokenPayload {
+  kid: string;    // "JWT-Signature-Key"
+  jti: string;    // "998e12c7-3241-43c5-8355-2c48822e0a1b"
+  sub: string;    // "CHARACTER:EVE:123123"
+  iss: string;    // "login.eveonline.com"
+  exp: number;    // 1534412504
+  azp: string;    // "my3rdpartyclientid"
+  name: string;   // "Some Bloke"
+  owner: string;  // "8PmzCeTKb4VFUDrHLc/AeZXDSWM="
+  scp: string []; // [ "esi-skills.read_skills.v1", "esi-skills.read_skillqueue.v1" ]
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class EVESSOService {
-  public charData: EVESSOVerifyResponse;
-  public error: any;
+  public atp: EVESSOAccessTokenPayload;
+  public err: any;
+
+  get charId() : number {
+    return this.atp ? +this.atp.sub.split(':').pop() : null;
+  }
+
+  get charName() : string {
+    return this.atp ? this.atp.name : null;
+  }
 
   constructor(private oauth: OAuthService, private http: HttpClient, private cfg: EVESSOConfig) { }
 
@@ -58,8 +70,7 @@ export class EVESSOService {
       useHttpBasicAuth: false,
       requestAccessToken: true
       //showDebugInformation: true,  
-    });
-    this.oauth.tokenValidationHandler = new JwksValidationHandler();
+    });    
   }
 
   public tryLogin() {
@@ -67,10 +78,17 @@ export class EVESSOService {
     this.oauth.loadDiscoveryDocumentAndTryLogin().then(
       () => {
         if (this.oauth.hasValidAccessToken()) {
-          this.http.get('https://esi.evetech.net/verify/').subscribe(
-            resp => {
-              //console.log(resp);  resp['Scopes'] is granted scopes for the token
-              this.charData = <EVESSOVerifyResponse>resp;
+          let at = this.oauth.getAccessToken();
+          let parts = at.split('.').slice(0,2).map(s => JSON.parse(b64urlDecode(s)));
+          this.oauth.tokenValidationHandler.validateSignature({
+            idToken: at,
+            idTokenHeader: parts[0],
+            idTokenClaims: parts[1],
+            accessToken: null,
+            jwks: this.oauth.jwks,
+            loadKeys: null,
+          }).then(_ => {
+              this.atp = parts[1];
               //this.oauth.timeoutFactor = 0.1;
               this.oauth.setupAutomaticSilentRefresh();
             }
@@ -78,7 +96,7 @@ export class EVESSOService {
         }
       }
     ).catch(
-      err => this.error = err
+      err => this.err = err
     );
   }
 
@@ -87,7 +105,7 @@ export class EVESSOService {
   }
 
   logout() {
-    this.charData = null;
+    this.atp = null;
     this.oauth.logOut();
   }
 
