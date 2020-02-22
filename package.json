@@ -22,6 +22,7 @@
     "@angular/platform-browser": "^8.2.14",
     "@angular/platform-browser-dynamic": "^8.2.14",
     "@angular/router": "^8.2.14",
+    "@waiting/base64": "^4.2.9",
     "angular-oauth2-oidc": "^8.0.4",
     "hammerjs": "^2.0.8",
     "rxjs": "~6.5.4",
