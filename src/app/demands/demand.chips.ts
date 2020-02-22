@@ -15,7 +15,7 @@ import { set, tuple } from '../utils/utils';
 })
 export class DemandChips implements OnInit {
 
-  @ViewChild('chipList', { static: false }) chipList !: MatChipList;
+  @ViewChild('chipList') chipList !: MatChipList;
 //  @ViewChildren(MatChip) chips !: QueryList<MatChip>;
 
   private getSelectedChips(): [number[], string[]] {

@@ -43,7 +43,7 @@ export class LocationComponent implements OnInit {
   private marketAssets: EsiAssetsItem[] = [];
   private marketAssetsNames: Map<number, string> = new Map();
 
-  @ViewChild(MatSort, { static: false }) sort: MatSort;
+  @ViewChild(MatSort) sort: MatSort;
 
   constructor(private route: ActivatedRoute, private esi: EsiService, private esiData: EsiDataService) { }
 

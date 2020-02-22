@@ -480,7 +480,7 @@ export class EsiService {
 
 @NgModule()
 export class EVEESIModule {
-  static forRoot(cfg: EVEESIConfig): ModuleWithProviders {
+  static forRoot(cfg: EVEESIConfig): ModuleWithProviders<EVEESIModule> {
     return {
       ngModule: EVEESIModule,
       providers: [

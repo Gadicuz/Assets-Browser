@@ -379,7 +379,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
 
   private _chips: DemandChips = undefined;
   private _chips_sub: Subscription = undefined;
-  @ViewChild('demandChips', { static: false }) set chips(chips: DemandChips) {
+  @ViewChild('demandChips') set chips(chips: DemandChips) {
     if (this._chips === chips) return;
     if (this._chips_sub) this._chips_sub.unsubscribe();
     this._chips = chips;

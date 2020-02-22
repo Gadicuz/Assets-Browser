@@ -117,7 +117,7 @@ export class EVESSOService {
 
 @NgModule()
 export class EVESSOModule {
-  static forRoot(cfg: EVESSOConfig): ModuleWithProviders {
+  static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
     return {
       ngModule: EVESSOModule,
       providers: [
