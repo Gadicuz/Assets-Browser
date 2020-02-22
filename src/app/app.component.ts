@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import { EVESSOService } from './services/eve-sso/eve-sso.module';
+import { EsiService } from './services/eve-esi/eve-esi.module';
 
 import { X_WWW_FORM_UrlEncodingCodec } from './x-www-form-codec';
 
@@ -19,14 +20,21 @@ export class AppComponent {
 
   get charData()
   {
-    return this.sso.charData;
+    if (this.sso.charData)
+      return {
+        id: this.sso.charData.CharacterID,
+        name: this.sso.charData.CharacterName,
+        avatar: this.esi.getCharacterAvatarURI(this.sso.charData.CharacterID, 64)
+      };
+    else
+      return null;
   }
 
   get loginError() {
     return this.sso.error;
   }
 
-  constructor(private sso: EVESSOService) {
+  constructor(private sso: EVESSOService, private esi: EsiService) {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);
     this.sso.configure();

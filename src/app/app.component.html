@@ -1,14 +1,14 @@
-<div class="app-container" fxLayout="column" fxLayoutAlign="start">
+<div class="app-container" fxLayout="column" fxLayoutAlign="start" *ngLet="charData as character">
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
-    <ng-container *ngIf="charData; else noCharData">
+    <ng-container *ngIf="character; else nochar">
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/browse']">Assets</a>
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/orders']">Orders</a>
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/demands']">Demands</a>
       <div fxFlex="1 1 auto"></div>
-      <div fxFlex="0 0 auto"><span>{{charData.CharacterName}}</span></div>
-      <img fxFlex="0 0 auto" class="avatar" src="https://image.eveonline.com/Character/{{charData.CharacterID}}_64.jpg">
+      <div fxFlex="0 0 auto"><span>{{character.name}}</span></div>
+      <img fxFlex="0 0 auto" class="avatar" src={{character.avatar}}>
     </ng-container>
-    <ng-template #noCharData>
+    <ng-template #nochar>
       <div fxFlex="1 1 auto"></div>
     </ng-template>
     <div *ngIf="isLoggedIn(); then loggedIn; else loggedOut"></div>
@@ -24,7 +24,7 @@
     </ng-template>
   </mat-toolbar>
 
-  <div *ngIf="charData" fxLayout="row" fxLayoutAlign="center">
+  <div *ngIf="character" fxLayout="row" fxLayoutAlign="center">
     <div fxFlex="80%">
       <router-outlet></router-outlet>
     </div>

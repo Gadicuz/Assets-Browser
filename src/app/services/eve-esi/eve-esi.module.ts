@@ -257,15 +257,24 @@ export class EsiService {
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
-  private static imageUrl = 'https://image.eveonline.com/';
-  private static getImage(type: string, id: number, size: number, ext: string = 'png'): string {
-    return `${EsiService.imageUrl}${type}/${id}_${size}.${ext}`;
+  private static imageUrl = 'https://images.evetech.net/';
+  private static imageResources = {
+    'alliance.logo': 'alliances/{}/logo',
+    'char.portrait': 'characters/{}/portrait',
+    'corporation.logo': 'corporations/{}/logo',
+    'type.icon': 'types/{}/icon',
+    'type.render': 'types/{}/render'
+  };
+  private static getImage(resource: string, id: number, size?: number): string {
+    let uri = EsiService.imageResources[resource].replace('{}', id);
+    if (size) uri += `?size=${size}`;
+    return EsiService.imageUrl + uri;
   }
   public getCharacterAvatarURI(character_id: number, size: number) {
-    return EsiService.getImage('Character', character_id, size, 'jpg');
+    return EsiService.getImage('char.portrait', character_id, size);
   }
   public getItemIconURI(type_id: number, size: number) {
-    return EsiService.getImage('Type', type_id, size, 'png');
+    return EsiService.getImage('type.icon', type_id, size);
   }
 
   public static getAssetLocationType(id: number): string {
