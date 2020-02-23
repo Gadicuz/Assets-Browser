@@ -5,6 +5,7 @@ import { map, mergeMap, mergeAll, toArray, bufferCount, retryWhen } from 'rxjs/o
 
 import { tuple } from '../../utils/utils';
 
+import { OAuthModuleConfig } from 'angular-oauth2-oidc';
 import { EVEESIConfig } from './eve-esi.config';
 //import { NostoreInterceptorService } from './nostore.interceptor.service';
 import { NoauthInterceptorService } from './noauth.interceptor.service';
@@ -487,6 +488,8 @@ export class EVEESIModule {
         { provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
         //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
+        // OAuth service injects "Authorization: Bearer ..." header for these APIs:
+        { provide: OAuthModuleConfig, useValue: { resourceServer: { allowedUrls: [cfg.baseUrl], sendAccessToken: true } } },  
         { provide: EVEESIConfig, useValue: cfg }
       ]
     };

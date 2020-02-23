@@ -47,7 +47,7 @@ export class AppComponent {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);
     this.sso.configure();
-    this.sso.tryLogin();
+    this.sso.authorize();
   }
 
   ngOnInit(): void {

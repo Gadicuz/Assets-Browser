@@ -1,5 +1,6 @@
 import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
 import { HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { OAuthModule, JwksValidationHandler } from 'angular-oauth2-oidc';
 import { OAuthService } from 'angular-oauth2-oidc';
 
 import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
@@ -73,7 +74,7 @@ export class EVESSOService {
     });    
   }
 
-  public tryLogin(): void {
+  public authorize(): void {
     // Load Discovery Document and then try to login the user
     this.oauth.loadDiscoveryDocumentAndTryLogin().then(
       () => {
@@ -115,7 +116,11 @@ export class EVESSOService {
 
 }
 
-@NgModule()
+@NgModule({
+  imports: [
+    OAuthModule.forRoot(null, JwksValidationHandler)
+  ]
+})
 export class EVESSOModule {
   static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
     return {

@@ -10,7 +10,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { AngularMaterialModule } from './angular-material.module';
 
 import { HttpClientModule } from '@angular/common/http';
-import { OAuthModule, OAuthModuleConfig, JwksValidationHandler } from 'angular-oauth2-oidc';
 import { EVESSOModule, EVESSOConfig } from './services/eve-sso/eve-sso.module';
 import { EVEESIModule, EVEESIConfig } from './services/eve-esi/eve-esi.module';
 
@@ -34,14 +33,6 @@ const esiConfig: EVEESIConfig = {
   baseUrl: 'https://esi.evetech.net',
   version: '/latest',
   datasource: 'tranquility'
-};
-
-const authConfig: OAuthModuleConfig = {
-  // Inject "Authorization: Bearer ..." header for these APIs:
-  resourceServer: {
-    allowedUrls: [esiConfig.baseUrl],
-    sendAccessToken: true,
-  },
 };
 
 const ssoConfig: EVESSOConfig = {
@@ -73,7 +64,6 @@ const ssoConfig: EVESSOConfig = {
     BrowserAnimationsModule,
     AngularMaterialModule,
     HttpClientModule,
-    OAuthModule.forRoot(authConfig, JwksValidationHandler),
     EVESSOModule.forRoot(ssoConfig),
     EVEESIModule.forRoot(esiConfig)
   ],
