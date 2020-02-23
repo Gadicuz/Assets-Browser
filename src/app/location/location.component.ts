@@ -292,7 +292,7 @@ export class LocationComponent implements OnInit {
         const locItem = this.getAssetsItem(loc_id); // location item or null for top/root level location locID
         return {
           item: this.getItemInfo(locItem || loc_id),
-          route: route.map(item_id => this.getItemInfo(item_id)),
+          route: route.map(item_id => this.getItemInfo(this.getAssetsItem(item_id) || item_id)),
           stat: [
             { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
             { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
