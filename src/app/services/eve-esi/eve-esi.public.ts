@@ -86,7 +86,9 @@ export const metaRoutes: string = '(headers/)|' +
   '(status.json)|' +
   '(versions/)';
 
-export const noAuthRoutes: string = '^(' +
-  `(latest/(${publicRoutes}))|` +
+export function noAuthRoutes(ver: string): string {
+ return '^(' +
+  `(${ver}(${publicRoutes}))|` +
   `(${metaRoutes})` +
   ')$';
+}

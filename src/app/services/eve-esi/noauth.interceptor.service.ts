@@ -13,7 +13,7 @@ export class NoauthInterceptorService implements HttpInterceptor {
   private readonly r: RegExp;
 
   constructor(private cfg: EVEESIConfig) {
-    this.r = new RegExp(noAuthRoutes);
+    this.r = new RegExp(noAuthRoutes(cfg.ver));
   }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
