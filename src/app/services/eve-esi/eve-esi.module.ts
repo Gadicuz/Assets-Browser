@@ -6,7 +6,7 @@ import { map, mergeMap, mergeAll, toArray, bufferCount, retryWhen } from 'rxjs/o
 import { tuple } from '../../utils/utils';
 
 import { EVEESIConfig } from './eve-esi.config';
-import { NostoreInterceptorService } from './nostore.interceptor.service';
+//import { NostoreInterceptorService } from './nostore.interceptor.service';
 import { NoauthInterceptorService } from './noauth.interceptor.service';
 import { XpageInterceptorService } from './xpage.interceptor.service';
 
@@ -245,13 +245,13 @@ export interface EsiIdInfo {
 })
 export class EsiService {
 
-  static TYPE_ID_AssetSafetyWrap: number = 60;
-  static LOCATION_ID_AssetSafety: number = 2004;
+  static TYPE_ID_AssetSafetyWrap = 60;
+  static LOCATION_ID_AssetSafety = 2004;
 
-  static STD_MAIL_LABEL_ID_Inbox: number = 1;
-  static STD_MAIL_LABEL_ID_Sent: number = 2;
-  static STD_MAIL_LABEL_ID_Corp: number = 4;
-  static STD_MAIL_LABEL_ID_Alliance: number = 8;
+  static STD_MAIL_LABEL_ID_Inbox = 1;
+  static STD_MAIL_LABEL_ID_Sent = 2;
+  static STD_MAIL_LABEL_ID_Corp = 4;
+  static STD_MAIL_LABEL_ID_Alliance = 8;
 
   private readonly params: HttpParams;
   private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
@@ -330,8 +330,8 @@ export class EsiService {
     if (config.datasource) this.params = this.params.set('datasource', config.datasource);
   }
 
-  private retry(count: number, timeout = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx) {
-    return (errors: Observable<HttpErrorResponse>) => errors.pipe(
+  private static retry(count = 3, timeout = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx.bind(EsiService)) {
+    return (errors: Observable<HttpErrorResponse>): Observable<number> => errors.pipe(
       mergeMap((error, i) => {
         const attempt = i + 1;
         if (attempt > count || noRetry(error.status)) return throwError(new EsiError(error));
@@ -344,13 +344,13 @@ export class EsiService {
     return this.config.baseUrl + this.config.version + '/' + route;
   }
 
-  private getData<T>(route: string, params: HttpParams = this.params, retry = this.retry(3)): Observable<T> {
+  private getData<T>(route: string, params: HttpParams = this.params, retry = EsiService.retry()): Observable<T> {
     return this.httpClient.get(this.getUrl(route), { params: params }).pipe(
       retryWhen(retry)
     ) as Observable<T>;
   }
 
-  private postData<T>(route: string, data: unknown, retry = this.retry(3)): Observable<T> {
+  private postData<T>(route: string, data: unknown, retry = EsiService.retry()): Observable<T> {
     return this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(
       retryWhen(retry)
     ) as Observable<T>;
@@ -485,7 +485,7 @@ export class EVEESIModule {
       ngModule: EVEESIModule,
       providers: [
         { provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
-        { provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
+        //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
         { provide: EVEESIConfig, useValue: cfg }
       ]

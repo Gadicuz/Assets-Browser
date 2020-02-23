@@ -113,7 +113,7 @@ export class NoauthInterceptorService implements HttpInterceptor {
     this.r = new RegExp(noAuthRoutes);
   }
 
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+  intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     if (request.url.startsWith(this.host)) {
       if (this.r.test(request.url.substring(this.host.length))) {
         request = request.clone({

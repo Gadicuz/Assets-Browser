@@ -15,7 +15,7 @@ export class NostoreInterceptorService implements HttpInterceptor {
     this.host = cfg.baseUrl + '/';
   }
 
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+  intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     if (request.url === this.host + 'verify/') {
       request = request.clone({
         //params: request.params.set('access_token', (new Date()).getTime().toString())
