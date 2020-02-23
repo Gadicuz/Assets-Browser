@@ -1,5 +1,5 @@
-
-export const publicRoutes: string = '(alliances/)|' +
+export const publicRoutes: string =
+  '(alliances/)|' +
   '(alliances/\\d+/)|' +
   '(alliances/\\d+/corporations/)|' +
   '(alliances/\\d+/icons/)|' +
@@ -80,15 +80,8 @@ export const publicRoutes: string = '(alliances/)|' +
   '(wars/\\d+/)|' +
   '(wars/\\d+/killmails/)';
 
-export const metaRoutes: string = '(headers/)|' +
-  '(ping)|' +
-  '(status/)|' +
-  '(status.json)|' +
-  '(versions/)';
+export const metaRoutes = '(headers/)|(ping)|(status/)|(status.json)|(versions/)';
 
 export function noAuthRoutes(ver: string): string {
- return '^(' +
-  `(${ver}(${publicRoutes}))|` +
-  `(${metaRoutes})` +
-  ')$';
+  return `^((${ver}(${publicRoutes}))|(${metaRoutes}))$`;
 }

@@ -7,14 +7,13 @@ import { EVEESIConfig } from './eve-esi.config';
 
 @Injectable()
 export class XpageInterceptorService implements HttpInterceptor {
-
-  constructor(private cfg: EVEESIConfig) {
-  }
+  constructor(private cfg: EVEESIConfig) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     return next.handle(request).pipe(
       mergeMap(event => {
-        if (!(event instanceof HttpResponse) || request.params.has('page') || !request.url.startsWith(this.cfg.url)) return of(event);
+        if (!(event instanceof HttpResponse) || request.params.has('page') || !request.url.startsWith(this.cfg.url))
+          return of(event);
         const response: HttpResponse<unknown[]> = event;
         if (response.headers == null) return of(event);
         const maxPage = +response.headers.get('X-Pages'); // null converts to 0

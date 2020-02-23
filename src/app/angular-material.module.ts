@@ -15,7 +15,6 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { MatChipsModule } from '@angular/material/chips';
 
-
 @NgModule({
   imports: [
     MatToolbarModule,
@@ -52,5 +51,4 @@ import { MatChipsModule } from '@angular/material/chips';
     MatChipsModule
   ]
 })
-
 export class AngularMaterialModule {}

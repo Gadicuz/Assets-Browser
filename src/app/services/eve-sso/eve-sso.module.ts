@@ -5,7 +5,7 @@ import { OAuthService } from 'angular-oauth2-oidc';
 
 import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
 
-import { b64urlDecode } from '@waiting/base64'
+import { b64urlDecode } from '@waiting/base64';
 
 /*
 {
@@ -29,15 +29,15 @@ export class EVESSOConfig {
 }
 
 export interface EVESSOAccessTokenPayload {
-  kid: string;    // "JWT-Signature-Key"
-  jti: string;    // "998e12c7-3241-43c5-8355-2c48822e0a1b"
-  sub: string;    // "CHARACTER:EVE:123123"
-  iss: string;    // "login.eveonline.com"
-  exp: number;    // 1534412504
-  azp: string;    // "my3rdpartyclientid"
-  name: string;   // "Some Bloke"
-  owner: string;  // "8PmzCeTKb4VFUDrHLc/AeZXDSWM="
-  scp: string []; // [ "esi-skills.read_skills.v1", "esi-skills.read_skillqueue.v1" ]
+  kid: string; // "JWT-Signature-Key"
+  jti: string; // "998e12c7-3241-43c5-8355-2c48822e0a1b"
+  sub: string; // "CHARACTER:EVE:123123"
+  iss: string; // "login.eveonline.com"
+  exp: number; // 1534412504
+  azp: string; // "my3rdpartyclientid"
+  name: string; // "Some Bloke"
+  owner: string; // "8PmzCeTKb4VFUDrHLc/AeZXDSWM="
+  scp: string[]; // [ "esi-skills.read_skills.v1", "esi-skills.read_skillqueue.v1" ]
 }
 
 @Injectable({
@@ -55,7 +55,7 @@ export class EVESSOService {
     return this.atp && this.atp.name;
   }
 
-  constructor(private oauth: OAuthService, private http: HttpClient, private cfg: EVESSOConfig) { }
+  constructor(private oauth: OAuthService, private cfg: EVESSOConfig) {}
 
   public configure(): void {
     this.oauth.configure({
@@ -70,35 +70,38 @@ export class EVESSOService {
       //disablePKCE: true,
       useHttpBasicAuth: false,
       requestAccessToken: true
-      //showDebugInformation: true,  
-    });    
+      //showDebugInformation: true,
+    });
   }
 
   public authorize(): void {
     // Load Discovery Document and then try to login the user
-    this.oauth.loadDiscoveryDocumentAndTryLogin().then(
-      () => {
+    this.oauth
+      .loadDiscoveryDocumentAndTryLogin()
+      .then(() => {
         if (this.oauth.hasValidAccessToken()) {
           const at = this.oauth.getAccessToken();
-          const parts = at.split('.').slice(0,2).map(s => JSON.parse(b64urlDecode(s)));
-          this.oauth.tokenValidationHandler.validateSignature({
-            idToken: at,
-            idTokenHeader: parts[0],
-            idTokenClaims: parts[1],
-            accessToken: null,
-            jwks: this.oauth.jwks,
-            loadKeys: null,
-          }).then(() => {
+          const parts = at
+            .split('.')
+            .slice(0, 2)
+            .map(s => JSON.parse(b64urlDecode(s)));
+          this.oauth.tokenValidationHandler
+            .validateSignature({
+              idToken: at,
+              idTokenHeader: parts[0],
+              idTokenClaims: parts[1],
+              accessToken: null,
+              jwks: this.oauth.jwks,
+              loadKeys: null
+            })
+            .then(() => {
               this.atp = parts[1];
               //this.oauth.timeoutFactor = 0.1;
               this.oauth.setupAutomaticSilentRefresh();
-            }
-          );
+            });
         }
-      }
-    ).catch(
-      err => this.err = err
-    );
+      })
+      .catch(err => (this.err = err));
   }
 
   login(): void {
@@ -113,20 +116,21 @@ export class EVESSOService {
   isLoggedIn(): boolean {
     return this.oauth.hasValidAccessToken();
   }
-
 }
 
 @NgModule({
-  imports: [
-    OAuthModule.forRoot(null, JwksValidationHandler)
-  ]
+  imports: [OAuthModule.forRoot(null, JwksValidationHandler)]
 })
 export class EVESSOModule {
   static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
     return {
       ngModule: EVESSOModule,
       providers: [
-        { provide: HTTP_INTERCEPTORS, useClass: CodeVerifierInterceptorService, multi: true },
+        {
+          provide: HTTP_INTERCEPTORS,
+          useClass: CodeVerifierInterceptorService,
+          multi: true
+        },
         { provide: EVESSOConfig, useValue: cfg }
       ]
     };

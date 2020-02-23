@@ -1,10 +1,9 @@
 import { Pipe, PipeTransform, Inject } from '@angular/core';
-import { DecimalPipe } from "@angular/common";
+import { DecimalPipe } from '@angular/common';
 import { LOCALE_ID } from '@angular/core';
 
-@Pipe({name: 'scale'})
+@Pipe({ name: 'scale' })
 export class ScalePipe implements PipeTransform {
-
   constructor(@Inject(LOCALE_ID) private locale: string) {}
 
   transform(value: unknown, digitsInfo?: string, locale?: string): string {
@@ -19,5 +18,4 @@ export class ScalePipe implements PipeTransform {
     }
     return new DecimalPipe(this.locale).transform(v, digitsInfo, locale) + letter[index];
   }
-
 }

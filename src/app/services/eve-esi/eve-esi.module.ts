@@ -29,20 +29,22 @@ export class EsiError extends Error {
 export interface EsiErrorData {
   error: string;
 }
-export interface /*400*/ EsiErrorData_BadRequest extends EsiErrorData {
-}
-export interface /*401*/ EsiErrorData_Unauthorized extends EsiErrorData {
-}
-export interface /*403*/ EsiErrorData_Forbidden extends EsiErrorData {
+/*400*/
+export type EsiBadRequestErrorData = EsiErrorData;
+/*401*/
+export type EsiUnauthorizedErrorData = EsiErrorData;
+/*403*/
+export interface EsiForbiddenErrorData extends EsiErrorData {
   sso_status?: number;
 }
-export interface /*420*/ EsiErrorData_ErrorLimited extends EsiErrorData {
-}
-export interface /*500*/ EsiErrorData_InternalServerError extends EsiErrorData {
-}
-export interface /*503*/ EsiErrorData_ServiceUnavailable extends EsiErrorData {
-}
-export interface /*504*/ EsiErrorData_GatewayTimeout extends EsiErrorData {
+/*420*/
+export type EsiErrorLimitedErrorData_ = EsiErrorData;
+/*500*/
+export type EsiInternalServerErrorErrorData = EsiErrorData;
+/*503*/
+export type EsiServiceUnavailableErrorData = EsiErrorData;
+/*504*/
+export interface EsiGatewayTimeoutErrorData extends EsiErrorData {
   timeout?: number;
 }
 
@@ -216,9 +218,24 @@ export interface EsiMailMailingList {
 }
 
 type EsiLabelColor =
-  '#0000fe' | '#006634' | '#0099ff' | '#00ff33' | '#01ffff' | '#349800' |
-  '#660066' | '#666666' | '#999999' | '#99ffff' | '#9a0000' | '#ccff9a' |
-  '#e6e6e6' | '#fe0000' | '#ff6600' | '#ffff01' | '#ffffcd' | '#ffffff';
+  | '#0000fe'
+  | '#006634'
+  | '#0099ff'
+  | '#00ff33'
+  | '#01ffff'
+  | '#349800'
+  | '#660066'
+  | '#666666'
+  | '#999999'
+  | '#99ffff'
+  | '#9a0000'
+  | '#ccff9a'
+  | '#e6e6e6'
+  | '#fe0000'
+  | '#ff6600'
+  | '#ffff01'
+  | '#ffffcd'
+  | '#ffffff';
 
 export interface EsiMailLabel {
   color?: EsiLabelColor;
@@ -233,8 +250,15 @@ export interface EsiMailLabels {
 }
 
 export type EsiIdCategory =
-  'alliance' | 'character' | 'constellation' | 'corporation' |
-  'inventory_type' | 'region' | 'solar_system' | 'station' | 'faction';
+  | 'alliance'
+  | 'character'
+  | 'constellation'
+  | 'corporation'
+  | 'inventory_type'
+  | 'region'
+  | 'solar_system'
+  | 'station'
+  | 'faction';
 
 export interface EsiIdInfo {
   id: number;
@@ -246,7 +270,6 @@ export interface EsiIdInfo {
   providedIn: 'root'
 })
 export class EsiService {
-
   static TYPE_ID_AssetSafetyWrap = 60;
   static LOCATION_ID_AssetSafety = 2004;
 
@@ -256,7 +279,9 @@ export class EsiService {
   static STD_MAIL_LABEL_ID_Alliance = 8;
 
   private readonly params: HttpParams;
-  private static status_is_4xx(status: number): boolean { return status >= 400 && status < 500; }
+  private static status_is_4xx(status: number): boolean {
+    return status >= 400 && status < 500;
+  }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
   private static imageUrl = 'https://images.evetech.net/';
@@ -332,14 +357,19 @@ export class EsiService {
     if (config.datasource) this.params = this.params.set('datasource', config.datasource);
   }
 
-  private static retry(count = 3, timeout = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx.bind(EsiService)) {
-    return (errors: Observable<HttpErrorResponse>): Observable<number> => errors.pipe(
-      mergeMap((error, i) => {
-        const attempt = i + 1;
-        if (attempt > count || noRetry(error.status)) return throwError(new EsiError(error));
-        return timer(attempt * timeout);
-      })
-    )
+  private static retry(
+    count = 3,
+    timeout = 1000,
+    noRetry: (status: number) => boolean = EsiService.status_is_4xx.bind(EsiService)
+  ) {
+    return (errors: Observable<HttpErrorResponse>): Observable<number> =>
+      errors.pipe(
+        mergeMap((error, i) => {
+          const attempt = i + 1;
+          if (attempt > count || noRetry(error.status)) return throwError(new EsiError(error));
+          return timer(attempt * timeout);
+        })
+      );
   }
 
   private getUrl(route: string): string {
@@ -347,15 +377,11 @@ export class EsiService {
   }
 
   private getData<T>(route: string, params: HttpParams = this.params, retry = EsiService.retry()): Observable<T> {
-    return this.httpClient.get(this.getUrl(route), { params: params }).pipe(
-      retryWhen(retry)
-    ) as Observable<T>;
+    return this.httpClient.get(this.getUrl(route), { params: params }).pipe(retryWhen<T>(retry));
   }
 
   private postData<T>(route: string, data: unknown, retry = EsiService.retry()): Observable<T> {
-    return this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(
-      retryWhen(retry)
-    ) as Observable<T>;
+    return this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(retryWhen<T>(retry));
   }
 
   private getCharacterInformation<T>(character_id: number, route: string, params?: HttpParams): Observable<T> {
@@ -374,12 +400,15 @@ export class EsiService {
     return this.getCharacterInformation<EsiWalletTransaction[]>(character_id, 'wallet/transactions/');
   }
 
-  public getCharacterMailHeaders(character_id: number, labels?: number[], last_mail_id?: number): Observable<EsiMail[]> {
+  public getCharacterMailHeaders(
+    character_id: number,
+    labels?: number[],
+    last_mail_id?: number
+  ): Observable<EsiMail[]> {
     let params = this.params;
     if (labels != undefined && labels.length != 0)
       params = params.set('labels', labels.map(id => id.toString(10)).join(','));
-    if (last_mail_id != undefined)
-      params = params.set('last_mail_id', last_mail_id.toString(10));
+    if (last_mail_id != undefined) params = params.set('last_mail_id', last_mail_id.toString(10));
     return this.getCharacterInformation<EsiMail[]>(character_id, 'mail/', params);
   }
 
@@ -394,7 +423,7 @@ export class EsiService {
   public getCharacterMailingLists(character_id: number): Observable<EsiMailMailingList[]> {
     return this.getCharacterInformation<EsiMailMailingList[]>(character_id, 'mail/lists/');
   }
-  
+
   private getCharacterAssetNames_chunk(character_id: number, item_ids: number[]): Observable<EsiAssetsName[]> {
     return this.postData<EsiAssetsName[]>(`characters/${character_id}/assets/names/`, item_ids);
   }
@@ -436,13 +465,24 @@ export class EsiService {
     return this.getData<EsiStructureOrder[]>(`markets/structures/${structure_id}/`);
   }
 
-  public getStructureOrdersEx(structure_id: number, type_ids: number[], order_type?: string): Observable<[number, EsiStructureOrder[]]> {
+  public getStructureOrdersEx(
+    structure_id: number,
+    type_ids: number[],
+    order_type?: string
+  ): Observable<[number, EsiStructureOrder[]]> {
     order_type = order_type || 'any';
     return this.getStructureOrders(structure_id).pipe(
-      map(orders => orders.filter(o => order_type == 'any' || (order_type == (o.is_buy_order ? 'buy' : 'sell')))),
-      mergeMap(orders => from(type_ids).pipe(
-        map(type_id => tuple(type_id, orders.filter(o => o.type_id == type_id)))
-      ))
+      map(orders => orders.filter(o => order_type == 'any' || order_type == (o.is_buy_order ? 'buy' : 'sell'))),
+      mergeMap(orders =>
+        from(type_ids).pipe(
+          map(type_id =>
+            tuple(
+              type_id,
+              orders.filter(o => o.type_id == type_id)
+            )
+          )
+        )
+      )
     );
   }
 
@@ -455,7 +495,11 @@ export class EsiService {
     );
   }
 
-  public getCharacterAssetNamesArray(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiAssetsName[]> {
+  public getCharacterAssetNamesArray(
+    character_id: number,
+    item_ids: number[],
+    chunk = 1000
+  ): Observable<EsiAssetsName[]> {
     return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
   }
 
@@ -470,24 +514,30 @@ export class EsiService {
     return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, params);
   }
 
-  public getRegionOrdersEx(region_id: number, type_ids: number[], order_type?: string): Observable<[number,EsiRegionOrder[]]> {
+  public getRegionOrdersEx(
+    region_id: number,
+    type_ids: number[],
+    order_type?: string
+  ): Observable<[number, EsiRegionOrder[]]> {
     return from(type_ids).pipe(
-      mergeMap(type_id => this.getRegionOrders(region_id, type_id, order_type).pipe(
-        map(region_type_orders => tuple(type_id, region_type_orders))
-      ))
+      mergeMap(type_id =>
+        this.getRegionOrders(region_id, type_id, order_type).pipe(
+          map(region_type_orders => tuple(type_id, region_type_orders))
+        )
+      )
     );
   }
-
 }
 
 // OAuth service injects "Authorization: Bearer ..." header for these APIs
 function oauthCfg(serviceUrl: string, routes: RegExp): OAuthModuleConfig {
-  return { 
-    resourceServer: { 
+  return {
+    resourceServer: {
       allowedUrls: [],
-      customUrlValidation: (url: string): boolean => url.startsWith(serviceUrl) && !routes.test(url.substring(serviceUrl.length)),
+      customUrlValidation: (url: string): boolean =>
+        url.startsWith(serviceUrl) && !routes.test(url.substring(serviceUrl.length)),
       sendAccessToken: true
-    } 
+    }
   };
 }
 
@@ -499,8 +549,8 @@ export class EVEESIModule {
       providers: [
         //{ provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
         //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
-        { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },        
-        { provide: OAuthModuleConfig, useValue: oauthCfg(cfg.url, new RegExp(noAuthRoutes(cfg.ver))) },  
+        { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
+        { provide: OAuthModuleConfig, useValue: oauthCfg(cfg.url, new RegExp(noAuthRoutes(cfg.ver))) },
         { provide: EVEESIConfig, useValue: cfg }
       ]
     };

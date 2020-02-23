@@ -9,7 +9,6 @@ import { noAuthRoutes } from './eve-esi.public';
  */
 @Injectable()
 export class NoauthInterceptorService implements HttpInterceptor {
-
   private readonly r: RegExp;
 
   constructor(private cfg: EVEESIConfig) {

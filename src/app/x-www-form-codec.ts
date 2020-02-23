@@ -1,7 +1,6 @@
 import { HttpUrlEncodingCodec, HttpParameterCodec } from '@angular/common/http';
 
 export class X_WWW_FORM_UrlEncodingCodec implements HttpParameterCodec {
-
   static hook(): void {
     HttpUrlEncodingCodec.prototype.decodeKey = X_WWW_FORM_UrlEncodingCodec.prototype.decodeKey;
     HttpUrlEncodingCodec.prototype.encodeKey = X_WWW_FORM_UrlEncodingCodec.prototype.encodeKey;
@@ -30,4 +29,3 @@ export class X_WWW_FORM_UrlEncodingCodec implements HttpParameterCodec {
     return X_WWW_FORM_UrlEncodingCodec.decode(value);
   }
 }
-

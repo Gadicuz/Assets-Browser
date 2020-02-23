@@ -3,7 +3,7 @@ import { Component, Input } from '@angular/core';
 @Component({
   selector: 'app-orders-list',
   templateUrl: './orders.list.component.html',
-  styleUrls: ['./orders.list.component.css'],
+  styleUrls: ['./orders.list.component.css']
   /*
   animations: [
     trigger('orderExpand', [
@@ -15,12 +15,10 @@ import { Component, Input } from '@angular/core';
   */
 })
 export class OrdersListComponent {
-
   @Input() orders: any;
 
   readonly displayedColumns: string[] = ['name', 'icon', 'quantity', 'price', 'duration', 'sold'];
 
   isOrderRow = (_index, item): boolean => !item.name;
   expandedType: any;
-
 }

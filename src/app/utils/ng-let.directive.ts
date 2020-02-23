@@ -1,11 +1,11 @@
-import { Directive, Input, TemplateRef, ViewContainerRef } from "@angular/core";
+import { Directive, Input, TemplateRef, ViewContainerRef } from '@angular/core';
 
 interface NgLetContext<T> {
   ngLet: T | null;
 }
 
 @Directive({
-  selector: "[ngLet]"
+  selector: '[ngLet]'
 })
 export class NgLetDirective<T> {
   private context: NgLetContext<T> = { ngLet: null };

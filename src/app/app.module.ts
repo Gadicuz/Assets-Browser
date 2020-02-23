@@ -16,7 +16,7 @@ import { EVEESIModule, EVEESIConfig } from './services/eve-esi/eve-esi.module';
 import { LocationComponent } from './location/location.component';
 import { OrdersComponent } from './orders/orders.component';
 
-import { NgLetDirective } from "./utils/ng-let.directive";
+import { NgLetDirective } from './utils/ng-let.directive';
 
 import { ScalePipe } from './pipes/scale.pipe';
 import { DurationPipe } from './pipes/duration.pipe';
@@ -37,12 +37,14 @@ const esiConfig: EVEESIConfig = {
 
 const ssoConfig: EVESSOConfig = {
   client_id: environment.client_id,
-  scopes: ['esi-assets.read_assets.v1',
-           'esi-universe.read_structures.v1',
-           'esi-markets.read_character_orders.v1',
-           'esi-markets.structure_markets.v1',
-           'esi-wallet.read_character_wallet.v1',
-           'esi-mail.read_mail.v1']  
+  scopes: [
+    'esi-assets.read_assets.v1',
+    'esi-universe.read_structures.v1',
+    'esi-markets.read_character_orders.v1',
+    'esi-markets.structure_markets.v1',
+    'esi-wallet.read_character_wallet.v1',
+    'esi-mail.read_mail.v1'
+  ]
 };
 
 @NgModule({
@@ -54,7 +56,9 @@ const ssoConfig: EVESSOConfig = {
     ScalePipe,
     DurationPipe,
     OrdersListComponent,
-    DemandsComponent, DemandCard, DemandChips,
+    DemandsComponent,
+    DemandCard,
+    DemandChips,
     ErrorComponent
   ],
   imports: [
@@ -70,4 +74,4 @@ const ssoConfig: EVESSOConfig = {
   bootstrap: [AppComponent],
   exports: [NgLetDirective]
 })
-export class AppModule { }
+export class AppModule {}

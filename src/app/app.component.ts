@@ -18,25 +18,20 @@ export interface CharacterData {
 @Component({
   selector: 'app-root',
   styleUrls: ['./app.component.css'],
-  templateUrl: './app.component.html',
+  templateUrl: './app.component.html'
 })
 export class AppComponent {
-
   public readonly copyright: string;
 
-  get charData(): CharacterData
-  {
-    if (this.sso.atp)
-    {
+  get charData(): CharacterData {
+    if (this.sso.atp) {
       const id = this.sso.charId;
       return {
         id: id,
         name: this.sso.charName,
         avatar: this.esi.getCharacterAvatarURI(id, 64)
       };
-    }
-    else
-      return null;
+    } else return null;
   }
 
   get loginError(): unknown {
@@ -52,7 +47,7 @@ export class AppComponent {
 
   ngOnInit(): void {
     registerLocaleData(ru);
-  }  
+  }
 
   login(): void {
     this.sso.login();
@@ -61,9 +56,8 @@ export class AppComponent {
   logoff(): void {
     this.sso.logout();
   }
- 
+
   isLoggedIn(): boolean {
     return this.sso.isLoggedIn();
-  }  
-  
+  }
 }

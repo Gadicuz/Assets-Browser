@@ -8,9 +8,7 @@ import { EVEESIConfig } from './eve-esi.config';
  */
 @Injectable()
 export class NostoreInterceptorService implements HttpInterceptor {
-
-  constructor(private cfg: EVEESIConfig) {
-  }
+  constructor(private cfg: EVEESIConfig) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     if (request.url === this.cfg.url + 'verify/') {

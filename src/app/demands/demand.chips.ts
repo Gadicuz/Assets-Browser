@@ -12,9 +12,8 @@ import { tuple } from '../utils/utils';
   styleUrls: ['./demand.chips.css']
 })
 export class DemandChips {
-
-  @ViewChild('chipList') chipList !: MatChipList;
-//  @ViewChildren(MatChip) chips !: QueryList<MatChip>;
+  @ViewChild('chipList') chipList!: MatChipList;
+  //  @ViewChildren(MatChip) chips !: QueryList<MatChip>;
 
   private getSelectedChips(): [number[], string[]] {
     return this.chipList.chips.reduce((s, c) => {
@@ -23,22 +22,19 @@ export class DemandChips {
         if (c.value.subject) s[1].push(c.value.subject);
       }
       return s;
-    }, tuple([],[]))
+    }, tuple([], []));
   }
 
   get selectionChanges$(): Observable<[number[], string[]]> {
     return concat(
       of(this.getSelectedChips()),
-      this.chipList.chipSelectionChanges.pipe(
-        map(() => this.getSelectedChips())
-      )
-    )
+      this.chipList.chipSelectionChanges.pipe(map(() => this.getSelectedChips()))
+    );
   }
 
   @Input() chips: any[];
-    
+
   onChipClick(i): void {
     this.chipList.chips.find((_, index) => index == i).toggleSelected();
   }
-
 }
