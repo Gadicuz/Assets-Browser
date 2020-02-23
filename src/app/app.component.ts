@@ -9,6 +9,12 @@ import ru from '@angular/common/locales/ru';
 
 import ccpCopyright from './ccp.copyright.json';
 
+export interface CharacterData {
+  id: number;
+  name: string;
+  avatar: string;
+}
+
 @Component({
   selector: 'app-root',
   styleUrls: ['./app.component.css'],
@@ -18,7 +24,7 @@ export class AppComponent {
 
   public readonly copyright: string;
 
-  get charData()
+  get charData(): CharacterData
   {
     if (this.sso.atp)
     {
@@ -33,7 +39,7 @@ export class AppComponent {
       return null;
   }
 
-  get loginError() {
+  get loginError(): unknown {
     return this.sso.err;
   }
 
@@ -44,18 +50,15 @@ export class AppComponent {
     this.sso.tryLogin();
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     registerLocaleData(ru);
   }  
 
-  ngAfterViewInit() {
-  }
-
-  login() {
+  login(): void {
     this.sso.login();
   }
 
-  logoff() {
+  logoff(): void {
     this.sso.logout();
   }
  

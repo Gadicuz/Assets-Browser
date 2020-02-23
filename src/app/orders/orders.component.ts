@@ -1,22 +1,26 @@
 import { Component, OnInit } from '@angular/core';
-import { Observable, of, merge, concat, from, zip } from 'rxjs';
-import { tap, map, reduce, mergeMap, toArray, filter, ignoreElements, catchError } from 'rxjs/operators';
+import { Observable, of, concat, zip } from 'rxjs';
+import { map, mergeMap, toArray, catchError } from 'rxjs/operators';
 
-import { EsiDataService, TypeOrders, LocationOrdersTypes, LocationOrders, EsiService, EsiOrder, EsiStructureOrder, EsiCharOrder, EsiCharCorpOrder, EsiRegionOrder, EsiWalletTransaction } from '../services/eve-esi/eve-esi-data.service';
+import { EsiDataService, LocationOrdersTypes, LocationOrders, EsiOrder, EsiCharOrder, EsiWalletTransaction } from '../services/eve-esi/eve-esi-data.service';
 
 import { set, tuple } from '../utils/utils';
 
 interface OrderListItem {
   type_id: number;
-  name: string;
+  name?: string;        // main line only
   quantity: number;
   price: number;
   duration: number;
   sold: number;
-  owned: boolean;
-  time: number;
+  owned?: boolean;      // child line only
   icons: string[];
-  cls: any;
+  cls?: {               // main line only
+    has_owned: boolean;
+    has_other: boolean;
+    best_price: boolean;
+    expandable: boolean;
+  };
 }
 
 interface LocationInfo {
@@ -54,7 +58,7 @@ export class OrdersComponent implements OnInit {
         if (s.date < new Date(t.date).getTime()) s.date = new Date(t.date).getTime();
       }
       else {
-        sum.push(<SalesHistroy>{
+        sum.push({
           location_id: t.location_id,
           type_id: t.type_id,
           quantity: t.quantity,
@@ -80,27 +84,27 @@ export class OrdersComponent implements OnInit {
   private assembleItemsInfo(type_id: number, type_orders: EsiOrder[], ids: number[], sale: SalesHistroy): OrderListItem[] {
     const now = Date.now();
     const dtime = 1 * 24 * 60 * 60 * 1000;
-    const lines = type_orders.map(o => {
+    const lines: OrderListItem[] = type_orders.map(o => {
       const duration = now - new Date(o.issued).getTime();
-      return <OrderListItem>{
+      return {
         type_id: type_id,
         quantity: o.volume_remain,
         price: o.price,
         duration: duration,
         sold: o.volume_total - o.volume_remain,
-        owned: ids.indexOf(o.order_id) >= 0,
+        owned: ids.includes(o.order_id),
         icons: (duration < dtime) ? ['new_releases'] : []
       }
     }).sort((l1, l2) => (l1.price - l2.price) || (l2.duration - l1.duration));
     const [has_owned, has_other, best_price, expandable] = lines.reduce((s, x, i) => [s[0] || x.owned, s[1] || !x.owned, s[2] || (x.owned && i == 0), true], [false, false, false, false]);
     const [quantity, total] = lines.filter(val => val.owned).reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
     const sold = sale && sale.quantity || 0;
-    let icons = [];
+    const icons = [];
     if (sold && (now - sale.date) < dtime) icons.push('attach_money');
     if (lines.find(x => x.icons.length)) icons.push('new_releases');
     if (!has_owned && has_other) icons.push('people_outline');
     if (has_owned && !has_other) icons.push('person');
-    return [<OrderListItem>{
+    return [{
       type_id: type_id,
       name: this.esiData.typesInfo.get(type_id).name,
       quantity: quantity || null,
@@ -109,7 +113,7 @@ export class OrdersComponent implements OnInit {
       sold: sold || null,
       icons: icons,
       cls: { has_owned, has_other, best_price, expandable }
-    }].concat(lines);
+    } as OrderListItem].concat(lines);
   }
 
   private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistroy[]): LocationInfo {
@@ -117,13 +121,13 @@ export class OrdersComponent implements OnInit {
       .map(([type_id, type_orders]) => this.assembleItemsInfo(type_id, type_orders, ids, sales.find(t => t.type_id == type_id && t.location_id == orders.location_id)))
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
-    return <LocationInfo>{
+    return {
       name: this.esiData.locationsInfo.get(orders.location_id).name,
       items: items
     };
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.orders$ = concat(
       of(null),
       zip(

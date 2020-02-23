@@ -1,14 +1,14 @@
-import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
-import { ActivatedRoute, ParamMap } from '@angular/router';
-import { map, tap, switchMap, delay, switchMapTo, mergeMap, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
-import { Observable, of, from, forkJoin, concat, zip, throwError } from 'rxjs';
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { map, tap, switchMap, delay, mergeMap, catchError } from 'rxjs/operators';
+import { Observable, of, forkJoin, concat, zip, throwError } from 'rxjs';
 
-import { EsiDataService, EsiDataTypeInfo, EsiDataLocationInfo, EsiService, EsiError, EsiAssetsItem, EsiMarketPrice, EsiStructureInfo, EsiStationInfo, EsiOrder } from '../services/eve-esi/eve-esi-data.service';
+import { EsiDataService, EsiDataLocationInfo, EsiService, EsiAssetsItem, EsiOrder } from '../services/eve-esi/eve-esi-data.service';
 
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 
-import { set, tuple } from '../utils/utils';
+import { set } from '../utils/utils';
 
 interface LocationData {
   items: number[];                 // content item_id's
@@ -16,6 +16,31 @@ interface LocationData {
   volume: number | null;           // content volume
   parent?: number;                 // parent location_id
   type: string | null;             // "station" | "solar_system" | "other"
+}
+
+interface ItemInfo {
+  id: number;
+  name: string;
+  comment: string;
+  type_id: number; 
+  image: string;
+}
+
+interface ItemData {
+  info: ItemInfo;
+  quantity: number;
+  value: number;
+  volume: number;
+  content_volume: number;
+  content_id: number;
+}
+
+interface ContData {
+  error?: unknown;
+  item: ItemInfo;
+  route?: ItemInfo[];
+  items?: ItemData[];
+  stat?: { title: string; content: number }[];
 }
 
 @Component({
@@ -26,8 +51,8 @@ interface LocationData {
 export class LocationComponent implements OnInit {
 
   displayedColumns: string[] = ['name', 'quantity', 'value', 'volume'];
-  location$ = null;
-  locationItems: MatTableDataSource<any> | null = null;
+  location$: Observable<ContData> = null;
+  locationItems: MatTableDataSource<ItemData> = null;
 
   private readonly virtualContainerTypes: number[] = [
     EsiService.TYPE_ID_AssetSafetyWrap
@@ -47,23 +72,23 @@ export class LocationComponent implements OnInit {
 
   constructor(private route: ActivatedRoute, private esi: EsiService, private esiData: EsiDataService) { }
 
-  private buildLocations() {
-    this.locations = new Map( [[0, <LocationData>{ items: [], volume: undefined, value: 0, type: 'other' }]] ); // root location
+  private buildLocations(): Observable<Map<number, EsiDataLocationInfo>> {
+    this.locations = new Map( [[0, { items: [], volume: undefined, value: 0, type: 'other' }]] ); // root location
     this.linkAssetsItemsData();
     this.linkMarketOrdersData();
     this.linkChildren();
     return this.esiData.loadLocationsInfo(this.locations.get(0).items.map(id => [id, this.locations.get(id).type]));
   }
 
-  private addLocations(loc_ids: number[], type: string = null, parent: number = 0) {
-    loc_ids.forEach(loc_id => this.locations.set(loc_id, <LocationData>{ items: [], volume: undefined, value: 0, parent: parent, type: type }));
+  private addLocations(loc_ids: number[], type: string = null, parent = 0): void {
+    loc_ids.forEach(loc_id => this.locations.set(loc_id, { items: [], volume: undefined, value: 0, parent: parent, type: type }));
   }
 
-  private linkChildren() {
+  private linkChildren(): void {
     [...this.locations.entries()].forEach(([loc_id, data]) => { if (data.parent != null) this.locations.get(data.parent).items.push(loc_id); });
   }
 
-  private processItems(items: EsiAssetsItem[]) {
+  private processItems(items: EsiAssetsItem[]): void {
     items.forEach(item => {
       if (!this.locations.has(item.item_id))
         this.locations.get(item.location_id).items.push(item.item_id); // add item_id to location items
@@ -72,7 +97,7 @@ export class LocationComponent implements OnInit {
     });
   }
 
-  private linkAssetsItemsData() {
+  private linkAssetsItemsData(): void {
     const items = this.esiData.charAssets;
     this.addLocations(set(items.map(item => item.location_id))); // link all to the root
     items.forEach(item => { 
@@ -82,7 +107,7 @@ export class LocationComponent implements OnInit {
     this.processItems(items);
   }
 
-  private linkMarket(loc_id: number, orders: EsiOrder[]) {
+  private linkMarket(loc_id: number, orders: EsiOrder[]): void {
     const market_loc_id = this.esiData.generateCharacterAssetsItemId();
     this.marketLocations.push(market_loc_id);
     if (!this.locations.has(loc_id)) this.addLocations([loc_id], EsiService.getAssetLocationType(loc_id));
@@ -90,7 +115,7 @@ export class LocationComponent implements OnInit {
     this.addLocations([market_loc_id], market_location_type, loc_id);
     orders.forEach(o => {
       const item_id = this.esiData.generateCharacterAssetsItemId();
-      this.marketAssets.push(<EsiAssetsItem>{
+      this.marketAssets.push({
         is_singleton: true,
         item_id: item_id,
         location_flag: 'MarketHangar',
@@ -105,7 +130,7 @@ export class LocationComponent implements OnInit {
     });
   }
 
-  private linkMarketOrdersData() {
+  private linkMarketOrdersData(): void {
     const orders = this.esiData.charOrders.filter(o => !o.is_buy_order);
     const loc_ids = set(orders.map(o => o.location_id)); // all markets
     loc_ids.forEach(loc_id => this.linkMarket(loc_id, orders.filter(o => o.location_id == loc_id)));
@@ -113,19 +138,15 @@ export class LocationComponent implements OnInit {
   }
 
 
-  private getLocationInfo(item_id: number): EsiDataLocationInfo {
-    return this.esiData.locationsInfo.get(item_id) || (() => {
-      if (this.marketLocations.indexOf(item_id) >= 0)
-        return <EsiDataLocationInfo>{
+  private getEsiLocationInfo(item_id: number): EsiDataLocationInfo {
+    return this.esiData.locationsInfo.get(item_id) || (
+      this.marketLocations.includes(item_id) ? {
           name: '*** Market hangar ***', // ${this.esiData.locationsInfo.get(this.locations.get(item_id).parent).name}
           type_info: 'Sell orders'
-        }
-      else
-        return <EsiDataLocationInfo>{
+        } : {
           name: 'Unknown location',
           type_info: `ID = ${item_id}`
-        };
-    })();
+        });   
   }  
 
   private getAssetsItem(item_id: number): EsiAssetsItem | null {
@@ -138,15 +159,11 @@ export class LocationComponent implements OnInit {
 
   private loadAssetsItemNames(ids: number[]): Observable<null> {
     const marketIds = this.marketAssets.map(item => item.item_id);
-    return this.esiData.loadCharacterAssetsNames(ids.filter(id => marketIds.indexOf(id) < 0));
+    return this.esiData.loadCharacterAssetsNames(ids.filter(id => !marketIds.includes(id)));
   }
-   
-  private getAssetsFast(locID: number): Observable<any> {
-    return of(this.getLocationData(locID));
-  }
-
+  
   // get assets info for loc_id
-  private getAssets(loc_id: number): Observable<any> {
+  private getAssets(loc_id: number): Observable<ContData> {
     if (this.locations) return this.getLocation(loc_id);
     return zip(
       this.esiData.loadPrices(),
@@ -159,16 +176,22 @@ export class LocationComponent implements OnInit {
     );
   }
 
-  ngOnInit() {
-    this.locationItems = new MatTableDataSource<any>();
+  ngOnInit(): void {
+    this.locationItems = new MatTableDataSource<ItemData>();
+    this.locationItems.sortingDataAccessor = (item: ItemData, property): string | number => {
+      switch(property) {
+        case 'name': return item.info.name + '\0' + item.info.comment;
+        default: return item[property];
+      }
+    };
     this.location$ = this.route.paramMap.pipe(
-      map((params: ParamMap) => +params.get('id')),
-      switchMap(id => concat(
-        this.getAssetsFast(id),
+      map(params => +params.get('id')),
+      switchMap((id): Observable<ContData> => concat(
+        of({ item: this.getItemInfo(id) }),
         this.getAssets(id)).pipe(
           catchError(err => {
             console.log(err);
-            return of({ ...this.getLocationData(id), error: err });
+            return of({ error: err, item: this.getItemInfo(id) });
           })
         )
       ),
@@ -176,29 +199,33 @@ export class LocationComponent implements OnInit {
     );
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this.locationItems.sort = this.sort;
   }
 
-  private getNameCommentType(itemID: number, item: EsiAssetsItem = this.getAssetsItem(itemID)): any {
-    if (item)
+  private getItemInfo(item: number | EsiAssetsItem): ItemInfo {
+    if (typeof item !== 'number')
       return {
+        id: item.item_id,
         name: this.getItemName(item),
-        comment: this.getAssetsItemName(itemID),
-        type_id: item.type_id
+        comment: this.getAssetsItemName(item.item_id),
+        type_id: item.type_id,
+        image: this.esi.getItemIconURI(item.type_id, 32)
       };
-    const locInfo = this.getLocationInfo(itemID);
-    return {
+    const locInfo = this.getEsiLocationInfo(item);
+    return locInfo.type_id ? {
+      id: item,
       name: locInfo.name,
-      comment: locInfo.type_id ? this.esiData.typesInfo.get(locInfo.type_id).name : locInfo.type_info,
-      type_id: locInfo.type_id
+      comment: this.esiData.typesInfo.get(locInfo.type_id).name,
+      type_id: locInfo.type_id,
+      image: this.esi.getItemIconURI(locInfo.type_id, 32)
+    } : {
+      id: item,
+      name: locInfo.name,
+      comment: locInfo.type_info,
+      type_id: null,
+      image: null
     };
-  }
-
-  private getLocationData(loc_id: number, locItem?: EsiAssetsItem) {
-    let loc = this.getNameCommentType(loc_id, locItem);
-    if (loc.type_id) loc.image = this.esi.getItemIconURI(loc.type_id, 32);
-    return loc;
   }
 
   getItemName(item: EsiAssetsItem): string {
@@ -239,7 +266,7 @@ export class LocationComponent implements OnInit {
     return route;
   }
 
-  private getLocation(loc_id: number): Observable<any> {
+  private getLocation(loc_id: number): Observable<ContData> {
     const locData = this.locations.get(loc_id);
     if (locData == null) return throwError(new Error(`Unknown location '${loc_id}'`));
     const route = this.getLocationRoute(loc_id);
@@ -249,31 +276,31 @@ export class LocationComponent implements OnInit {
       this.esiData.loadTypeInfo(usedItem.map(item => item.type_id)) // ... typeInfo
     ]).pipe(
       map(() => {
-        const contentIDs = locData.items; // might be top level location_id (for root) or item_id (else)
-        const locItems = contentIDs.map(item_id => {
+        // might be top level location_id (for root) or item_id (else)
+        const locItems = locData.items.map(item_id => {
           const itemLocData = this.locations.get(item_id);
           const itemItem = this.getAssetsItem(item_id);
           return {
-            ...this.getNameCommentType(item_id, itemItem),
+            info: this.getItemInfo(itemItem || item_id),
             quantity: itemItem && itemItem.quantity,
             value: (this.getItemPrice(itemItem) || 0) + (itemLocData && itemLocData.value || 0),
             volume: this.getItemVol(itemItem),
             content_volume: this.getLocationContentVol(itemLocData),
             content_id: itemLocData && item_id
-          }
+          } as ItemData;
         });
         const locItem = this.getAssetsItem(loc_id); // location item or null for top/root level location locID
         return {
-          ...this.getLocationData(loc_id, locItem),
-          route: route.map(item_id => { return { ...this.getLocationData(item_id), id: item_id }; }),
-          info: [
+          item: this.getItemInfo(locItem || loc_id),
+          route: route.map(item_id => this.getItemInfo(item_id)),
+          stat: [
             { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
             { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
             { title: 'Content Value (ISK)', content: locData.value },
             { title: 'Content Volume (m3)', content: this.getLocationContentVol(locData) }
           ],
           items: locItems
-        }
+        } as ContData
       }));
   }
 

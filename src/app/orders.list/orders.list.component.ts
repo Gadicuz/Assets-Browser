@@ -21,7 +21,7 @@ export class OrdersListComponent implements OnInit {
 
   readonly displayedColumns: string[] = ['name', 'icon', 'quantity', 'price', 'duration', 'sold'];
 
-  isOrderRow = (index, item) => !item.name;
+  isOrderRow = (_index, item) => !item.name;
   expandedType: any;
 
   constructor() { }

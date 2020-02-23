@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, Input } from '@angular/core';
 
 import { DemandInfo } from './demands.models';
 
@@ -7,10 +7,8 @@ import { DemandInfo } from './demands.models';
   templateUrl: './demand.card.html',
   styleUrls: ['./demand.card.css']
 })
-export class DemandCard implements OnInit {
+export class DemandCard {
 
   @Input() data: DemandInfo;
-
-  ngOnInit() {}
 
 }

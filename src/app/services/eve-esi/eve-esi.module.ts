@@ -1,9 +1,9 @@
 import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse, HTTP_INTERCEPTORS } from '@angular/common/http';
-import { Observable, of, from, forkJoin, concat, zip, throwError, timer } from 'rxjs';
-import { map, filter, tap, switchMap, switchMapTo, mergeMap, mergeAll, concatMap, mapTo, toArray, catchError, bufferCount, ignoreElements, retryWhen } from 'rxjs/operators';
+import { Observable, from, throwError, timer } from 'rxjs';
+import { map, mergeMap, mergeAll, toArray, bufferCount, retryWhen } from 'rxjs/operators';
 
-import { set, tuple } from '../../utils/utils';
+import { tuple } from '../../utils/utils';
 
 import { EVEESIConfig } from './eve-esi.config';
 import { NostoreInterceptorService } from './nostore.interceptor.service';
@@ -270,10 +270,10 @@ export class EsiService {
     if (size) uri += `?size=${size}`;
     return EsiService.imageUrl + uri;
   }
-  public getCharacterAvatarURI(character_id: number, size: number) {
+  public getCharacterAvatarURI(character_id: number, size: number): string {
     return EsiService.getImage('char.portrait', character_id, size);
   }
-  public getItemIconURI(type_id: number, size: number) {
+  public getItemIconURI(type_id: number, size: number): string {
     return EsiService.getImage('type.icon', type_id, size);
   }
 
@@ -330,7 +330,7 @@ export class EsiService {
     if (config.datasource) this.params = this.params.set('datasource', config.datasource);
   }
 
-  private retry(count: number, timeout: number = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx) {
+  private retry(count: number, timeout = 1000, noRetry: (status: number) => boolean = EsiService.status_is_4xx) {
     return (errors: Observable<HttpErrorResponse>) => errors.pipe(
       mergeMap((error, i) => {
         const attempt = i + 1;
@@ -340,27 +340,27 @@ export class EsiService {
     )
   }
 
-  private getUrl(route: string) {
+  private getUrl(route: string): string {
     return this.config.baseUrl + this.config.version + '/' + route;
   }
 
-  private getData<T>(route: string, params: HttpParams = this.params, retry = this.retry(3)) {
-    return <Observable<T>>this.httpClient.get(this.getUrl(route), { params: params }).pipe(
+  private getData<T>(route: string, params: HttpParams = this.params, retry = this.retry(3)): Observable<T> {
+    return this.httpClient.get(this.getUrl(route), { params: params }).pipe(
       retryWhen(retry)
-    );
+    ) as Observable<T>;
   }
 
-  private postData<T>(route: string, data: any, retry = this.retry(3)) {
-    return <Observable<T>>this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(
+  private postData<T>(route: string, data: unknown, retry = this.retry(3)): Observable<T> {
+    return this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(
       retryWhen(retry)
-    );
+    ) as Observable<T>;
   }
 
   private getCharacterInformation<T>(character_id: number, route: string, params?: HttpParams): Observable<T> {
     return this.getData<T>(`characters/${character_id}/${route}`, params);
   }
 
-  public getCharacterOrders(character_id: number, historical: boolean = false): Observable<EsiCharOrder[]> {
+  public getCharacterOrders(character_id: number, historical = false): Observable<EsiCharOrder[]> {
     return this.getCharacterInformation<EsiCharOrder[]>(character_id, historical ? 'orders/history/' : 'orders/');
   }
 
@@ -444,7 +444,7 @@ export class EsiService {
     );
   }
 
-  public getCharacterAssetNames(character_id: number, item_ids: number[], chunk: number = 1000): Observable<EsiAssetsName> {
+  public getCharacterAssetNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiAssetsName> {
     return from(item_ids).pipe(
       bufferCount(chunk <= 1000 ? chunk : 1000),
       mergeMap(ids => this.getCharacterAssetNames_chunk(character_id, ids)),
@@ -453,7 +453,7 @@ export class EsiService {
     );
   }
 
-  public getCharacterAssetNamesArray(character_id: number, item_ids: number[], chunk: number = 1000): Observable<EsiAssetsName[]> {
+  public getCharacterAssetNamesArray(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiAssetsName[]> {
     return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
   }
 

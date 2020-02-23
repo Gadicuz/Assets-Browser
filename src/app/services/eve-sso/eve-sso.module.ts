@@ -1,6 +1,6 @@
 import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
 import { HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
-import { OAuthService, JwksValidationHandler } from 'angular-oauth2-oidc';
+import { OAuthService } from 'angular-oauth2-oidc';
 
 import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
 
@@ -44,19 +44,19 @@ export interface EVESSOAccessTokenPayload {
 })
 export class EVESSOService {
   public atp: EVESSOAccessTokenPayload;
-  public err: any;
+  public err: unknown;
 
-  get charId() : number {
-    return this.atp ? +this.atp.sub.split(':').pop() : null;
+  get charId(): number {
+    return this.atp && +this.atp.sub.split(':').pop();
   }
 
-  get charName() : string {
-    return this.atp ? this.atp.name : null;
+  get charName(): string {
+    return this.atp && this.atp.name;
   }
 
   constructor(private oauth: OAuthService, private http: HttpClient, private cfg: EVESSOConfig) { }
 
-  public configure() {
+  public configure(): void {
     this.oauth.configure({
       issuer: 'https://login.eveonline.com',
       skipIssuerCheck: true,
@@ -73,13 +73,13 @@ export class EVESSOService {
     });    
   }
 
-  public tryLogin() {
+  public tryLogin(): void {
     // Load Discovery Document and then try to login the user
     this.oauth.loadDiscoveryDocumentAndTryLogin().then(
       () => {
         if (this.oauth.hasValidAccessToken()) {
-          let at = this.oauth.getAccessToken();
-          let parts = at.split('.').slice(0,2).map(s => JSON.parse(b64urlDecode(s)));
+          const at = this.oauth.getAccessToken();
+          const parts = at.split('.').slice(0,2).map(s => JSON.parse(b64urlDecode(s)));
           this.oauth.tokenValidationHandler.validateSignature({
             idToken: at,
             idTokenHeader: parts[0],
@@ -87,7 +87,7 @@ export class EVESSOService {
             accessToken: null,
             jwks: this.oauth.jwks,
             loadKeys: null,
-          }).then(_ => {
+          }).then(() => {
               this.atp = parts[1];
               //this.oauth.timeoutFactor = 0.1;
               this.oauth.setupAutomaticSilentRefresh();
@@ -100,11 +100,11 @@ export class EVESSOService {
     );
   }
 
-  login() {
+  login(): void {
     this.oauth.initLoginFlow();
   }
 
-  logout() {
+  logout(): void {
     this.atp = null;
     this.oauth.logOut();
   }
