@@ -1,5 +1,5 @@
 import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
-import { HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { OAuthModule, JwksValidationHandler } from 'angular-oauth2-oidc';
 import { OAuthService } from 'angular-oauth2-oidc';
 

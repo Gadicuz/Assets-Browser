@@ -86,7 +86,7 @@ export class OrdersComponent implements OnInit {
       orders.map(o => o.order_id),
       loc_ids.map(id => ({
         location_id: id,
-        types: set(loc_id_types.filter(([location_id, ]) => location_id == id).map(([, type_id]) => type_id)),
+        types: set(loc_id_types.filter(([location_id]) => location_id == id).map(([, type_id]) => type_id)),
         region_id: (orders.filter(o => o.location_id == id).find(o => !!o.region_id) || { region_id: null }).region_id
       })),
       sales

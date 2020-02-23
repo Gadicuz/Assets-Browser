@@ -14,9 +14,13 @@ import { XpageInterceptorService } from './xpage.interceptor.service';
 export { EVEESIConfig } from './eve-esi.config';
 import { noAuthRoutes } from './eve-esi.public';
 
+export interface EsiErrorData {
+  error: string;
+}
+
 export class EsiError extends Error {
   readonly status: number;
-  readonly error: any;
+  readonly error: EsiErrorData | Error;
   constructor(e: HttpErrorResponse) {
     super(e.message);
     Object.setPrototypeOf(this, EsiError.prototype);
@@ -26,9 +30,6 @@ export class EsiError extends Error {
   }
 }
 
-export interface EsiErrorData {
-  error: string;
-}
 /*400*/
 export type EsiBadRequestErrorData = EsiErrorData;
 /*401*/
