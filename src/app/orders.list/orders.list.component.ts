@@ -1,5 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
-import { animate, state, style, transition, trigger } from '@angular/animations';
+import { Component, Input } from '@angular/core';
 
 @Component({
   selector: 'app-orders-list',
@@ -15,18 +14,13 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
   ],
   */
 })
-export class OrdersListComponent implements OnInit {
+export class OrdersListComponent {
 
   @Input() orders: any;
 
   readonly displayedColumns: string[] = ['name', 'icon', 'quantity', 'price', 'duration', 'sold'];
 
-  isOrderRow = (_index, item) => !item.name;
+  isOrderRow = (_index, item): boolean => !item.name;
   expandedType: any;
-
-  constructor() { }
-
-  ngOnInit() {
-  }
 
 }

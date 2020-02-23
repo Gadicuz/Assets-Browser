@@ -1,19 +1,17 @@
-import { Component, OnInit, Input, ViewChild, ViewChildren, QueryList } from '@angular/core';
-import { Observable, of, from, fromEvent, empty, forkJoin, concat, zip, throwError, merge } from 'rxjs';
-import { map, tap, switchMap, delay, switchMapTo, mergeMap, mergeAll, mergeMapTo, concatMap, filter, mapTo, toArray, catchError, bufferCount, ignoreElements } from 'rxjs/operators';
+import { Component, Input, ViewChild } from '@angular/core';
+import { Observable, of, concat } from 'rxjs';
+import { map } from 'rxjs/operators';
 
-import { MatChipList, MatChip } from '@angular/material/chips';
+import { MatChipList } from '@angular/material/chips';
 
-import { DemandInfo } from './demands.models';
-
-import { set, tuple } from '../utils/utils';
+import { tuple } from '../utils/utils';
 
 @Component({
   selector: 'app-demand-chips',
   templateUrl: './demand.chips.html',
   styleUrls: ['./demand.chips.css']
 })
-export class DemandChips implements OnInit {
+export class DemandChips {
 
   @ViewChild('chipList') chipList !: MatChipList;
 //  @ViewChildren(MatChip) chips !: QueryList<MatChip>;
@@ -38,10 +36,8 @@ export class DemandChips implements OnInit {
   }
 
   @Input() chips: any[];
-
-  ngOnInit() {}
     
-  onChipClick(i) {
+  onChipClick(i): void {
     this.chipList.chips.find((_, index) => index == i).toggleSelected();
   }
 

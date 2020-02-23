@@ -1,3 +1,17 @@
+export interface MarketItem {
+  id: number;
+  name: string;
+  q_demand?: number;
+  q_market?: number;
+  ratio: number;
+  shortage: boolean;
+}
+
+export interface MarketData {
+  name: string;
+  items: MarketItem[];
+}
+
 export interface DemandDataChunk {
   type_id: number;
   quantity: number;
@@ -34,7 +48,7 @@ export interface DemandInfo {
 
 export interface DemandsReport {
   cards: DemandInfo[];
-  markets: any;
+  markets: MarketData[];
   message?: string;
   comment?: string;
 }
