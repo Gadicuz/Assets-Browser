@@ -28,6 +28,6 @@
     },
     "rules": {
         "@typescript-eslint/camelcase": "off",
-        "prettier/prettier": "error"
+        "prettier/prettier": ["error", {"singleQuote": true, "parser": "typescript"}]
     }
 }
