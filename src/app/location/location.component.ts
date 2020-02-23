@@ -187,11 +187,11 @@ export class LocationComponent implements OnInit {
     this.location$ = this.route.paramMap.pipe(
       map(params => +params.get('id')),
       switchMap((id): Observable<ContData> => concat(
-        of({ item: this.getItemInfo(id) }),
+        of({ item: this.getItemInfoForId(id) }),
         this.getAssets(id)).pipe(
           catchError(err => {
             console.log(err);
-            return of({ error: err, item: this.getItemInfo(id) });
+            return of({ error: err, item: this.getItemInfoForId(id) });
           })
         )
       ),
@@ -203,7 +203,7 @@ export class LocationComponent implements OnInit {
     this.locationItems.sort = this.sort;
   }
 
-  private getItemInfo(item: number | EsiAssetsItem): ItemInfo {
+  private getItemInfo(item: EsiAssetsItem | number): ItemInfo {
     if (typeof item !== 'number')
       return {
         id: item.item_id,
@@ -211,7 +211,7 @@ export class LocationComponent implements OnInit {
         comment: this.getAssetsItemName(item.item_id),
         type_id: item.type_id,
         image: this.esi.getItemIconURI(item.type_id, 32)
-      };
+      };    
     const locInfo = this.getEsiLocationInfo(item);
     return locInfo.type_id ? {
       id: item,
@@ -228,6 +228,10 @@ export class LocationComponent implements OnInit {
     };
   }
 
+  private getItemInfoForId(itemId: number): ItemInfo {
+    return this.getItemInfo(this.getAssetsItem(itemId) || itemId);
+  }
+  
   getItemName(item: EsiAssetsItem): string {
     const name = this.esiData.typesInfo.get(item.type_id).name;
     return item.is_blueprint_copy ? name + ' (Copy)' : name;
@@ -292,7 +296,7 @@ export class LocationComponent implements OnInit {
         const locItem = this.getAssetsItem(loc_id); // location item or null for top/root level location locID
         return {
           item: this.getItemInfo(locItem || loc_id),
-          route: route.map(item_id => this.getItemInfo(this.getAssetsItem(item_id) || item_id)),
+          route: route.map(item_id => this.getItemInfoForId(item_id)),
           stat: [
             { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
             { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
