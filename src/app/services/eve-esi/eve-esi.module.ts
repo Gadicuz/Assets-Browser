@@ -8,10 +8,11 @@ import { tuple } from '../../utils/utils';
 import { OAuthModuleConfig } from 'angular-oauth2-oidc';
 import { EVEESIConfig } from './eve-esi.config';
 //import { NostoreInterceptorService } from './nostore.interceptor.service';
-import { NoauthInterceptorService } from './noauth.interceptor.service';
+//import { NoauthInterceptorService } from './noauth.interceptor.service';
 import { XpageInterceptorService } from './xpage.interceptor.service';
 
 export { EVEESIConfig } from './eve-esi.config';
+import { noAuthRoutes } from './eve-esi.public';
 
 export class EsiError extends Error {
   readonly status: number;
@@ -480,13 +481,11 @@ export class EsiService {
 }
 
 // OAuth service injects "Authorization: Bearer ..." header for these APIs
-function oauthCfg(cfg: EVEESIConfig): OAuthModuleConfig {
+function oauthCfg(serviceUrl: string, routes: RegExp): OAuthModuleConfig {
   return { 
     resourceServer: { 
       allowedUrls: [],
-      customUrlValidation: (url: string): boolean => {
-        return url.startsWith(cfg.url);
-      },
+      customUrlValidation: (url: string): boolean => url.startsWith(serviceUrl) && !routes.test(url.substring(serviceUrl.length)),
       sendAccessToken: true
     } 
   };
@@ -498,10 +497,10 @@ export class EVEESIModule {
     return {
       ngModule: EVEESIModule,
       providers: [
-        { provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
+        //{ provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
         //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },        
-        { provide: OAuthModuleConfig, useValue: oauthCfg(cfg) },  
+        { provide: OAuthModuleConfig, useValue: oauthCfg(cfg.url, new RegExp(noAuthRoutes(cfg.ver))) },  
         { provide: EVEESIConfig, useValue: cfg }
       ]
     };
