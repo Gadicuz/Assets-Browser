@@ -1,5 +1,5 @@
 export class EVEESIConfig {
-  baseUrl: string;
-  version: string;
+  url: string;
+  ver: string;
   datasource?: string;
 }

@@ -30,8 +30,8 @@ import { DemandChips } from './demands/demand.chips';
 import { environment } from '../environments/environment';
 
 const esiConfig: EVEESIConfig = {
-  baseUrl: 'https://esi.evetech.net',
-  version: '/latest',
+  url: 'https://esi.evetech.net/',
+  ver: 'latest/',
   datasource: 'tranquility'
 };
 

@@ -342,7 +342,7 @@ export class EsiService {
   }
 
   private getUrl(route: string): string {
-    return this.config.baseUrl + this.config.version + '/' + route;
+    return this.config.url + this.config.ver + route;
   }
 
   private getData<T>(route: string, params: HttpParams = this.params, retry = EsiService.retry()): Observable<T> {
@@ -485,7 +485,7 @@ function oauthCfg(cfg: EVEESIConfig): OAuthModuleConfig {
     resourceServer: { 
       allowedUrls: [],
       customUrlValidation: (url: string): boolean => {
-        return url.startsWith(cfg.baseUrl);
+        return url.startsWith(cfg.url);
       },
       sendAccessToken: true
     } 

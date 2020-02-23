@@ -10,17 +10,15 @@ import { noAuthRoutes } from './eve-esi.public';
 @Injectable()
 export class NoauthInterceptorService implements HttpInterceptor {
 
-  private readonly host: string;
   private readonly r: RegExp;
 
-  constructor(cfg: EVEESIConfig) {
-    this.host = cfg.baseUrl + '/';
+  constructor(private cfg: EVEESIConfig) {
     this.r = new RegExp(noAuthRoutes);
   }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    if (request.url.startsWith(this.host)) {
-      if (this.r.test(request.url.substring(this.host.length))) {
+    if (request.url.startsWith(this.cfg.url)) {
+      if (this.r.test(request.url.substring(this.cfg.url.length))) {
         request = request.clone({
           headers: request.headers.delete('Authorization')
         });

@@ -9,14 +9,11 @@ import { EVEESIConfig } from './eve-esi.config';
 @Injectable()
 export class NostoreInterceptorService implements HttpInterceptor {
 
-  private readonly host: string;
-
-  constructor(cfg: EVEESIConfig) {
-    this.host = cfg.baseUrl + '/';
+  constructor(private cfg: EVEESIConfig) {
   }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    if (request.url === this.host + 'verify/') {
+    if (request.url === this.cfg.url + 'verify/') {
       request = request.clone({
         //params: request.params.set('access_token', (new Date()).getTime().toString())
         headers: request.headers.set('If-None-Match', '"Just a random text to force ETAG validation"')
