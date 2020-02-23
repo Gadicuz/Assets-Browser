@@ -479,6 +479,19 @@ export class EsiService {
 
 }
 
+// OAuth service injects "Authorization: Bearer ..." header for these APIs
+function oauthCfg(cfg: EVEESIConfig): OAuthModuleConfig {
+  return { 
+    resourceServer: { 
+      allowedUrls: [],
+      customUrlValidation: (url: string): boolean => {
+        return url.startsWith(cfg.baseUrl);
+      },
+      sendAccessToken: true
+    } 
+  };
+}
+
 @NgModule()
 export class EVEESIModule {
   static forRoot(cfg: EVEESIConfig): ModuleWithProviders<EVEESIModule> {
@@ -487,9 +500,8 @@ export class EVEESIModule {
       providers: [
         { provide: HTTP_INTERCEPTORS, useClass: NoauthInterceptorService, multi: true },
         //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
-        { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
-        // OAuth service injects "Authorization: Bearer ..." header for these APIs:
-        { provide: OAuthModuleConfig, useValue: { resourceServer: { allowedUrls: [cfg.baseUrl], sendAccessToken: true } } },  
+        { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },        
+        { provide: OAuthModuleConfig, useValue: oauthCfg(cfg) },  
         { provide: EVEESIConfig, useValue: cfg }
       ]
     };
