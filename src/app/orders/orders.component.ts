@@ -13,7 +13,7 @@ import {
 
 import { set, tuple } from '../utils/utils';
 
-interface OrderListItem {
+export interface OrderListItem {
   type_id: number;
   name?: string; // main line only
   quantity: number;
@@ -50,7 +50,7 @@ interface SalesHistroy {
   styleUrls: ['./orders.component.css']
 })
 export class OrdersComponent implements OnInit {
-  orders$: Observable<LocationInfo[]>;
+  orders$: Observable<{ data?: LocationInfo[]; error?: unknown }>;
 
   private readonly depth = 30 * 24 * 60 * 60 * 1000;
 

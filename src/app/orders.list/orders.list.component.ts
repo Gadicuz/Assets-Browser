@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core';
+import { OrderListItem } from '../orders/orders.component';
 
 @Component({
   selector: 'app-orders-list',
@@ -15,10 +16,10 @@ import { Component, Input } from '@angular/core';
   */
 })
 export class OrdersListComponent {
-  @Input() orders: any;
+  @Input() orders: OrderListItem[];
 
   readonly displayedColumns: string[] = ['name', 'icon', 'quantity', 'price', 'duration', 'sold'];
 
-  isOrderRow = (_index, item): boolean => !item.name;
-  expandedType: any;
+  isOrderRow = (_index: number, item: OrderListItem): boolean => !item.name;
+  expandedType: number;
 }

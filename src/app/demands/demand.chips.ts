@@ -4,6 +4,8 @@ import { map } from 'rxjs/operators';
 
 import { MatChipList } from '@angular/material/chips';
 
+import { DemandChip } from './demands.models';
+
 import { tuple } from '../utils/utils';
 
 @Component({
@@ -32,9 +34,9 @@ export class DemandChips {
     );
   }
 
-  @Input() chips: any[];
+  @Input() chips: DemandChip[];
 
-  onChipClick(i): void {
+  onChipClick(i: number): void {
     this.chipList.chips.find((_, index) => index == i).toggleSelected();
   }
 }
