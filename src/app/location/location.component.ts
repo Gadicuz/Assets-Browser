@@ -218,14 +218,17 @@ export class LocationComponent implements OnInit {
   }
 
   private getItemInfo(item: EsiAssetsItem | number): ItemInfo {
-    if (typeof item !== 'number')
+    if (typeof item !== 'number') {
+      const assetName = this.getAssetsItemName(item.item_id);
+      const itemName = this.getItemName(item);
       return {
         id: item.item_id,
-        name: this.getItemName(item),
-        comment: this.getAssetsItemName(item.item_id),
+        name: assetName || itemName,
+        comment: assetName && itemName,
         type_id: item.type_id,
         image: this.esi.getItemIconURI(item.type_id, 32)
       };
+    }
     const locInfo = this.getEsiLocationInfo(item);
     return locInfo.type_id
       ? {
