@@ -36,7 +36,7 @@ interface LocationInfo {
   items: OrderListItem[];
 }
 
-interface SalesHistroy {
+interface SalesHistory {
   location_id: number;
   type_id: number;
   quantity: number;
@@ -59,8 +59,8 @@ export class OrdersComponent implements OnInit {
   private analyzeData(
     orders: EsiCharOrder[],
     trans: EsiWalletTransaction[]
-  ): [number[], LocationOrdersTypes[], SalesHistroy[]] {
-    const sales = trans.reduce((sum: SalesHistroy[], t: EsiWalletTransaction) => {
+  ): [number[], LocationOrdersTypes[], SalesHistory[]] {
+    const sales = trans.reduce((sum: SalesHistory[], t: EsiWalletTransaction) => {
       const s = sum.find(s => t.location_id == s.location_id && t.type_id == s.type_id);
       if (s) {
         s.quantity += t.quantity;
@@ -97,7 +97,7 @@ export class OrdersComponent implements OnInit {
     type_id: number,
     type_orders: EsiOrder[],
     ids: number[],
-    sale: SalesHistroy
+    sale: SalesHistory
   ): OrderListItem[] {
     const now = Date.now();
     const dtime = 1 * 24 * 60 * 60 * 1000;
@@ -142,7 +142,7 @@ export class OrdersComponent implements OnInit {
     ].concat(lines);
   }
 
-  private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistroy[]): LocationInfo {
+  private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistory[]): LocationInfo {
     const items = [...orders.orders]
       .map(([type_id, type_orders]) =>
         this.assembleItemsInfo(
