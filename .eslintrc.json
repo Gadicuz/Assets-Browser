@@ -22,12 +22,14 @@
     },
     "plugins": [
         "@typescript-eslint",
-        "prettier"
+        "prettier",
+        "no-null"
     ],
     "settings": {
     },
     "rules": {
         "@typescript-eslint/camelcase": "off",
-        "prettier/prettier": ["error", {"singleQuote": true, "printWidth": 120, "parser": "typescript"}]
+        "prettier/prettier": ["error", {"singleQuote": true, "printWidth": 120, "parser": "typescript"}],
+        "no-null/no-null": 2
     }
 }
