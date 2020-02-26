@@ -30,7 +30,7 @@
             "scripts": []
           },
           "configurations": {
-            "production": {  // --prod, --configuration=production
+            "production": {
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -58,33 +58,16 @@
                 }
               ]
             },
-            "fancyrigs": {  // --configuration=fancyrigs
+            "fancyrigs": {
               "fileReplacements": [
                 {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.fancyrigs.ts"
-                }
-              ],
-              "optimization": true,
-              "outputHashing": "all",
-              "sourceMap": false,
-              "extractCss": true,
-              "namedChunks": false,
-              "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "2mb",
-                  "maximumError": "5mb"
-                },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "6kb",
-                  "maximumError": "10kb"
+                  "replace": "src/environments/sso.client.ts",
+                  "with": "src/environments/sso.client.fancyrigs.ts"
                 }
               ]
+                },
+            "nostrict": {
+              "tsConfig": "./tsconfig.app.nostrict.json"
             }
           }
         },

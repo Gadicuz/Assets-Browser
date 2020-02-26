@@ -27,7 +27,7 @@ import { DemandsComponent } from './demands/demands.component';
 import { DemandCard } from './demands/demand.card';
 import { DemandChips } from './demands/demand.chips';
 
-import { environment } from '../environments/environment';
+import { ssoClientId } from '../environments/sso.client';
 
 const esiConfig: EVEESIConfig = {
   url: 'https://esi.evetech.net/',
@@ -36,7 +36,7 @@ const esiConfig: EVEESIConfig = {
 };
 
 const ssoConfig: EVESSOConfig = {
-  client_id: environment.client_id,
+  client_id: ssoClientId,
   scopes: [
     'esi-assets.read_assets.v1',
     'esi-universe.read_structures.v1',

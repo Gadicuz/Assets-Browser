@@ -3,8 +3,7 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: false,
-  client_id: '709a4161dabb4747bf2f5a57e7d92ed2' // callback: http://localhost:4200, scopes: all
+  production: false
 };
 
 /*
