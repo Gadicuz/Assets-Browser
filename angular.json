@@ -74,7 +74,7 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "assets-browser:build"
+            "browserTarget": "assets-browser:build:nostrict"
           },
           "configurations": {
             "production": {
