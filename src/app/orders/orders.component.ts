@@ -61,15 +61,18 @@ export class OrdersComponent {
         this.esiData
           .loadCharacterWalletTransactions()
           .pipe(
-            map(trans =>
-              trans.filter(t => t.is_personal && !t.is_buy && Date.now() - new Date(t.date).getTime() < this.depth)
+            map(wts =>
+              wts.filter(wt => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth)
             )
           ),
         (orders, trans) => this.analyzeData(orders, trans)
       ).pipe(
-        mergeMap(([ids, locs, sales]) =>
-          this.esiData.loadOrders(locs).pipe(map(orders => this.assembleLocationInfo(orders, ids, sales)))
-        ),
+        mergeMap(([locs, orders, sales]) => {
+          const o_ids = orders.map(o => o.order_id);
+          return this.esiData
+            .loadOrders(locs)
+            .pipe(map(loc_orders => this.assembleLocationInfo(loc_orders, o_ids, sales)));
+        }),
         toArray(),
         map(data => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
         catchError(err => {
@@ -83,7 +86,7 @@ export class OrdersComponent {
   private analyzeData(
     orders: EsiCharOrder[],
     trans: EsiWalletTransaction[]
-  ): [number[], LocationOrdersTypes[], SalesHistory] {
+  ): [LocationOrdersTypes[], EsiCharOrder[], SalesHistory] {
     const loc_id_types = [
       ...orders.map(o => tuple(o.location_id, o.type_id)),
       ...trans.map(t => tuple(t.location_id, t.type_id))
@@ -117,11 +120,12 @@ export class OrdersComponent {
       return sales;
     }, new Map());
 
-    return [orders.map(o => o.order_id), types, sales];
+    return [types, orders, sales];
   }
 
   private assembleItemsInfo(
     type_id: number,
+    name: string,
     type_orders: EsiOrder[],
     ids: number[],
     sd: SalesData | undefined
@@ -159,7 +163,7 @@ export class OrdersComponent {
     return [
       {
         type_id,
-        name: this.esiData.typesInfo.get(type_id).name,
+        name,
         quantity,
         price: quantity ? total / quantity : sd ? sd.value / sd.quantity : undefined,
         duration: (sold && this.depth) || undefined,
@@ -171,15 +175,23 @@ export class OrdersComponent {
     ].concat(lines);
   }
 
-  private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistory): LocationInfo {
-    const items = [...orders.orders]
+  private assembleLocationInfo(loc_orders: LocationOrders, ids: number[], sales: SalesHistory): LocationInfo {
+    const items = [...loc_orders.orders]
       .map(([type_id, type_orders]) =>
-        this.assembleItemsInfo(type_id, type_orders, ids, sales.get({ l_id: orders.location_id, t_id: type_id }))
+        this.assembleItemsInfo(
+          type_id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          this.esiData.typesInfo.get(type_id)!.name, // type_id loaded by loadOrders()
+          type_orders,
+          ids,
+          sales.get({ l_id: loc_orders.location_id, t_id: type_id })
+        )
       )
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
     return {
-      name: this.esiData.locationsInfo.get(orders.location_id).name,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      name: this.esiData.locationsInfo.get(loc_orders.location_id)!.name, // loc_orders.location_id loaded by loadOrders()
       items: items
     };
   }

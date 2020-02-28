@@ -393,6 +393,10 @@ export class EsiDataService {
     );
   }
 
+  /**
+   * Returns LocationOrders for locations/types, ensures all related loc_id and type_id are loaded.
+   * @param locs array of location and item types per location
+   */
   loadOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
     const loc_ids = locs.map(loc => loc.location_id);
     const typ_ids = locs.map(loc => loc.types).reduce((s, a) => [...s, ...a], []);
