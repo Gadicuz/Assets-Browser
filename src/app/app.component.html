@@ -3,7 +3,6 @@
     <ng-container *ngIf="character; else nochar">
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/browse']">Assets</a>
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/orders']">Orders</a>
-      <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/demands']">Demands</a>
       <div fxFlex="1 1 auto"></div>
       <div fxFlex="0 0 auto"><span>{{character.name}}</span></div>
       <img fxFlex="0 0 auto" class="avatar" src={{character.avatar}}>

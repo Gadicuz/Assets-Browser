@@ -1,7 +1,0 @@
-<mat-chip-list #chipList multiple>
-  <mat-chip selected *ngFor="let chip of chips; let i = index;" (click)="onChipClick(i)" [value]="chip">
-    <mat-chip-avatar *ngIf="chip.avatar"><img MatChipAvatar [src]="chip.avatar"></mat-chip-avatar>
-    {{chip.caption}}
-  </mat-chip>
-</mat-chip-list>
-
