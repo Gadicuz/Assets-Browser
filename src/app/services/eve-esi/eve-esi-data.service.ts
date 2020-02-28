@@ -23,27 +23,43 @@ import {
   EsiError,
   EsiAssetsItem,
   EsiSystemInfo,
+  EsiConstellationInfo,
   EsiStructureInfo,
   EsiStationInfo,
   EsiOrder,
   EsiCharOrder,
-  EsiMail,
+  EsiMailRecipient,
+  EsiMailHeader,
   EsiWalletTransaction
 } from './eve-esi.module';
 export * from './eve-esi.module';
 
 import { set, tuple } from '../../utils/utils';
 
+export interface EsiDataMailHeader {
+  mail_id: number;
+  from: number;
+  recipients: EsiMailRecipient[];
+  subject: string;
+  timestamp: number;
+  labels: number[];
+  is_read: boolean;
+}
+
+export interface EsiDataMail extends EsiDataMailHeader {
+  body: string;
+}
+
 export interface EsiDataTypeInfo {
   name: string;
-  volume: number;
+  volume?: number;
   packaged_volume?: number;
 }
 
 export interface EsiDataLocationInfo {
   name: string; // name
-  type_id?: number; // type_id or 0/undefined
-  type_info?: string; // type if !type_id
+  type_id?: number; // type_id or undefined
+  type_info?: string; // type if type_id == undefined
 }
 
 export type TypeOrders = Map<number, EsiOrder[]>;
@@ -64,21 +80,36 @@ export interface LocationOrders {
 })
 export class EsiDataService {
   // MAP: type_id -> {name, volume, packaged_volume?}
-  public typesInfo: Map<number, EsiDataTypeInfo>;
+  public typesInfo = new Map<number, EsiDataTypeInfo>();
 
-  // MAP: type_id -> price
-  public prices: Map<number, number>; // markets/prices/ -> Map()
+  // markets/prices/ -> MAP: type_id -> price
+  private _prices?: Map<number, number>;
+  public get prices(): Map<number, number> {
+    if (this._prices == undefined) throw Error('EsiDataService.prices() undefined');
+    return this._prices;
+  }
 
   // characters/{character_id}/assets/
-  public charAssets: EsiAssetsItem[];
-  private max_item_id: number;
-
-  public charOrders: EsiCharOrder[];
-
-  public charWalletTransactions: EsiWalletTransaction[];
-
+  private _charAssets?: EsiAssetsItem[];
+  public get charAssets(): EsiAssetsItem[] {
+    if (this._charAssets == undefined) throw Error('EsiDataService.charAssets() undefined');
+    return this._charAssets;
+  }
+  private maxItemId = 0;
   // MAP: item_id -> name?
-  public charAssetsNames: Map<number, string>;
+  public charAssetsNames = new Map<number, string | undefined>();
+
+  private _charOrders?: EsiCharOrder[];
+  public get charOrders(): EsiCharOrder[] {
+    if (this._charOrders == undefined) throw Error('EsiDataService.charOrders() undefined');
+    return this._charOrders;
+  }
+
+  private _charWalletTransactions?: EsiWalletTransaction[];
+  public get charWalletTransactions(): EsiWalletTransaction[] {
+    if (this._charWalletTransactions == undefined) throw Error('EsiDataService.charWalletTransactions() undefined');
+    return this._charWalletTransactions;
+  }
 
   // MAP: (station_id|structure_id) -> {name, type_id, err}
   public locationsInfo: Map<number, EsiDataLocationInfo>;
@@ -88,30 +119,26 @@ export class EsiDataService {
   }
 
   constructor(private http: HttpClient, private esi: EsiService, private sso: EVESSOService) {
-    this.typesInfo = null;
-    this.prices = null;
-    this.charAssets = null;
-    this.max_item_id = 0;
-    this.charOrders = null;
-    this.charAssetsNames = new Map<number, string>();
     this.locationsInfo = new Map<number, EsiDataLocationInfo>([
       [0, { name: 'Universe', type_info: 'Tranquility' }],
       [EsiService.LOCATION_ID_AssetSafety, { name: 'Asset Safety', type_info: '' }]
     ]);
   }
 
-  get character_id(): number {
-    return this.sso.charId;
+  private get character_id(): number {
+    const idn = this.sso.charIdName;
+    if (idn == undefined) throw Error('Undefined character_id');
+    return idn.id;
   }
 
-  findCharAssetsItem(item_id: number): EsiAssetsItem {
-    return this.charAssets && this.charAssets.find(item => item.item_id == item_id);
+  findCharAssetsItem(item_id: number): EsiAssetsItem | undefined {
+    return this.charAssets.find(item => item.item_id == item_id);
   }
 
   loadTypeInfo(ids: number[]): Observable<Map<number, EsiDataTypeInfo>> {
     return iif(
-      () => !this.typesInfo,
-      from(this.http.get('/assets/sde/universe-types.json') as Observable<[number, EsiDataTypeInfo][]>).pipe(
+      () => !this.typesInfo.size,
+      from(this.http.get<[number, EsiDataTypeInfo][]>('/assets/sde/universe-types.json')).pipe(
         map(obj => (this.typesInfo = new Map<number, EsiDataTypeInfo>(obj)))
       ),
       of(this.typesInfo)
@@ -119,13 +146,7 @@ export class EsiDataService {
       switchMap(typesInfo =>
         from(this.missedIDs(ids, typesInfo.keys())).pipe(
           mergeMap(type_id => this.esi.getTypeInformation(type_id)),
-          map(type_info =>
-            typesInfo.set(type_info.type_id, {
-              name: type_info.name,
-              volume: type_info.volume,
-              packaged_volume: type_info.packaged_volume
-            })
-          ),
+          map(type_info => typesInfo.set(type_info.type_id, type_info)),
           reduce(acc => acc, typesInfo)
         )
       )
@@ -133,62 +154,54 @@ export class EsiDataService {
   }
 
   loadPrices(reload?: boolean): Observable<Map<number, number>> {
-    if (this.prices != null && !reload) return of(this.prices);
+    if (this._prices != undefined && !reload) return of(this._prices);
     return this.esi.listMarketPrices().pipe(
       map(prices => new Map<number, number>(prices.map(v => [v.type_id, v.average_price || v.adjusted_price || 0]))),
-      tap(prices => (this.prices = prices))
+      tap(prices => (this._prices = prices))
     );
   }
 
-  private resetCharacterAssetsItemId(): void {
-    this.max_item_id = Math.max(...this.charAssets.map(item => item.item_id));
+  private initCharacterAssetsItemId(assets: EsiAssetsItem[]): EsiAssetsItem[] {
+    this.maxItemId = Math.max(...assets.map(item => item.item_id));
+    return (this._charAssets = assets);
   }
 
   generateCharacterAssetsItemId(): number {
-    return ++this.max_item_id;
+    return ++this.maxItemId;
   }
 
   loadCharacterAssets(reload?: boolean): Observable<EsiAssetsItem[]> {
-    if (this.charAssets != null && !reload) {
-      this.resetCharacterAssetsItemId();
-      return of(this.charAssets);
-    }
-    return this.esi.getCharacterAssets(this.character_id).pipe(
-      tap(assets => {
-        this.charAssets = assets;
-        this.resetCharacterAssetsItemId();
-      })
-    );
+    if (this._charAssets != undefined && !reload) return of(this.initCharacterAssetsItemId(this._charAssets));
+    return this.esi.getCharacterAssets(this.character_id).pipe(tap(assets => this.initCharacterAssetsItemId(assets)));
   }
 
   loadCharacterOrders(reload?: boolean): Observable<EsiCharOrder[]> {
-    if (this.charOrders != null && !reload) return of(this.charOrders);
-    return this.esi.getCharacterOrders(this.character_id, false).pipe(tap(orders => (this.charOrders = orders)));
+    if (this._charOrders != undefined && !reload) return of(this._charOrders);
+    return this.esi.getCharacterOrders(this.character_id, false).pipe(tap(orders => (this._charOrders = orders)));
   }
 
   loadCharacterWalletTransactions(reload?: boolean): Observable<EsiWalletTransaction[]> {
-    if (this.charWalletTransactions != null && !reload) return of(this.charWalletTransactions);
+    if (this._charWalletTransactions != undefined && !reload) return of(this._charWalletTransactions);
     return this.esi
       .getCharacterWalletTransactions(this.character_id)
-      .pipe(tap(transactions => (this.charWalletTransactions = transactions)));
+      .pipe(tap(transactions => (this._charWalletTransactions = transactions)));
   }
 
-  loadCharacterAssetsNames(ids: number[]): Observable<null> {
-    ids = this.missedIDs(ids, this.charAssetsNames.keys());
-    if (ids.length == 0) return of(null); // all names resolved
-    return concat(
-      this.esi.getCharacterAssetNames(this.character_id, ids).pipe(
-        tap(id_name => this.charAssetsNames.set(id_name.item_id, id_name.name != 'None' ? id_name.name : null)), // remove 'None' names
-        ignoreElements()
-      ),
-      of(null)
+  loadCharacterAssetsNames(ids: number[]): Observable<never> {
+    return this.esi.getCharacterAssetNames(this.character_id, this.missedIDs(ids, this.charAssetsNames.keys())).pipe(
+      map(id_name => ({
+        item_id: id_name.item_id,
+        name: id_name.name !== 'None' ? id_name.name : undefined // remove 'None' names
+      })),
+      tap(id_name => this.charAssetsNames.set(id_name.item_id, id_name.name)),
+      ignoreElements()
     );
   }
 
   loadLocationsInfo(id_types: [number, string][]): Observable<Map<number, EsiDataLocationInfo>> {
     const types = new Map(id_types);
     const ids = this.missedIDs([...types.keys()], this.locationsInfo.keys());
-    if (ids.length == 0) return of(this.locationsInfo);
+    //    if (ids.length == 0) return of(this.locationsInfo);
     return from(ids).pipe(
       mergeMap(sID => {
         const type = types.get(sID) || EsiService.getAssetLocationType(sID);
@@ -206,18 +219,21 @@ export class EsiDataService {
           default:
             this.locationsInfo.set(sID, {
               name: `*** Unknown '${type}' ***`,
-              type_id: null,
               type_info: `ID = ${sID}`
             });
-            return of(null);
+            return empty();
         }
         return this.esi.getInformation<EsiSystemInfo | EsiStructureInfo | EsiStationInfo>(selector, sID).pipe(
           map(esiInfo => {
-            return {
-              name: esiInfo.name,
-              type_id: type == 'solar_system' ? null : (esiInfo as EsiStructureInfo | EsiStationInfo).type_id,
-              type_info: type == 'solar_system' ? 'Solar system' : null
-            } as EsiDataLocationInfo;
+            return (type === 'solar_system'
+              ? {
+                  name: esiInfo.name,
+                  type_info: 'Solar system'
+                }
+              : {
+                  name: esiInfo.name,
+                  type_id: (esiInfo as EsiStructureInfo | EsiStationInfo).type_id
+                }) as EsiDataLocationInfo;
           }),
           catchError((err: unknown) => {
             //            if (err.name == 'EsiError' ...
@@ -225,46 +241,61 @@ export class EsiDataService {
               // some locations are 'forbidden'
               return of({
                 name: `*** Forbidden '${type}' ***`,
-                type_id: null,
                 type_info: `ID = ${sID}`
               } as EsiDataLocationInfo); // err.error - server 403 error body
             return throwError(err);
           }),
-          map(info => {
-            this.locationsInfo.set(sID, info);
-            return info.type_id;
-          })
+          tap(info => this.locationsInfo.set(sID, info)),
+          filter(info => info.type_id != undefined),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          map(info => info.type_id!)
         );
       }),
-      filter(id => !!id),
       toArray(),
       switchMap(ids => this.loadTypeInfo(ids)),
       mapTo(this.locationsInfo)
     );
   }
 
-  private getCharacterMailHeadersFromId(mail_id: number, labels: number[], up_to_date: number): Observable<EsiMail[]> {
+  private static convertEsiDataMailHeader(h: EsiMailHeader): EsiDataMailHeader {
+    return {
+      mail_id: h.mail_id,
+      from: h.from,
+      recipients: h.recipients,
+      subject: h.subject,
+      timestamp: new Date(h.timestamp).getTime(),
+      labels: h.labels,
+      is_read: h.is_read
+    };
+  }
+
+  private getCharacterMailHeadersFromId(
+    mail_id: number | undefined,
+    labels: number[] | undefined,
+    up_to_date = 0
+  ): Observable<EsiDataMailHeader[]> {
     return this.esi.getCharacterMailHeaders(this.character_id, labels, mail_id).pipe(
-      map(mails => mails.filter(m => up_to_date == undefined || new Date(m.timestamp).getTime() > up_to_date)),
-      takeWhile(mails => mails.length != 0)
-    );
-  }
-
-  getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiMail> {
-    return this.getCharacterMailHeadersFromId(undefined, labels, up_to_date).pipe(
-      expand(mails =>
-        mails.length < 50
-          ? empty()
-          : this.getCharacterMailHeadersFromId(Math.min(...mails.map(m => m.mail_id)), labels, up_to_date)
+      map(headers =>
+        headers.map(h => EsiDataService.convertEsiDataMailHeader(h)).filter(h => h.timestamp >= up_to_date)
       ),
-      mergeMap(mails => from(mails))
+      takeWhile(headers => headers.length > 0) // ???
     );
   }
 
-  private remapIDs<T>(ids: number[], type: string, field: string): Observable<number[]> {
+  getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiDataMailHeader> {
+    return this.getCharacterMailHeadersFromId(undefined, labels, up_to_date).pipe(
+      expand(headers =>
+        headers.length < 50
+          ? empty()
+          : this.getCharacterMailHeadersFromId(Math.min(...headers.map(h => h.mail_id)), labels, up_to_date)
+      ),
+      mergeMap(headers => from(headers))
+    );
+  }
+
+  private remapIDs<T>(ids: number[], type: string, m: (obj: T) => number): Observable<number[]> {
     return from(ids).pipe(
-      mergeMap(id => this.esi.getInformation<T>(type, id)),
-      map(info => info[field]),
+      mergeMap(id => this.esi.getInformation<T>(type, id).pipe(map(info => m(info)))),
       distinct(),
       toArray()
     );
@@ -272,11 +303,12 @@ export class EsiDataService {
 
   private getLocationRegions(locs: LocationOrdersTypes[]): Observable<number> {
     return merge(
-      from(locs.map(loc => loc.region_id).filter(region_id => !!region_id)),
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      from(locs.filter(loc => loc.region_id).map(loc => loc.region_id!)),
       of(set(locs.filter(loc => !loc.region_id).map(loc => loc.location_id))).pipe(
-        mergeMap(loc_ids => this.remapIDs<EsiStationInfo>(loc_ids, 'stations', 'system_id')),
-        mergeMap(sys_ids => this.remapIDs<EsiSystemInfo>(sys_ids, 'systems', 'constellation_id')),
-        mergeMap(con_ids => this.remapIDs(con_ids, 'constellations', 'region_id')),
+        mergeMap(loc_ids => this.remapIDs<EsiStationInfo>(loc_ids, 'stations', s => s.system_id)),
+        mergeMap(sys_ids => this.remapIDs<EsiSystemInfo>(sys_ids, 'systems', s => s.constellation_id)),
+        mergeMap(con_ids => this.remapIDs<EsiConstellationInfo>(con_ids, 'constellations', c => c.region_id)),
         mergeMap(reg_ids => from(reg_ids))
       )
     ).pipe(distinct());
@@ -285,32 +317,35 @@ export class EsiDataService {
   private resolveIDs<T>(
     ids: [number, number][],
     type: string,
-    fields: [string, string]
+    r: (obj: T) => [number, number]
   ): Observable<[number, number][]> {
-    return from(ids.map(([, id]) => id)).pipe(
-      distinct(),
+    return from(set(ids.map(([, id]) => id))).pipe(
       mergeMap(id => this.esi.getInformation<T>(type, id)),
-      map(info => tuple(info[fields[0]], info[fields[1]])),
+      map(info => r(info)), //tuple(info[fields[0]], info[fields[1]])),
       toArray(),
       map(arr => new Map(arr)),
-      map(m => ids.map(([loc, id]) => [loc, m.get(id)]))
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      map(m => ids.map(([loc, id]) => [loc, m.get(id)!]))
     );
   }
 
   private getRegionLocations(locs: LocationOrdersTypes[]): Observable<[number, LocationOrdersTypes[]]> {
     return of(locs.filter(loc => !loc.region_id).map(loc => tuple(loc.location_id, loc.location_id))).pipe(
-      mergeMap(loc_ids => this.resolveIDs<EsiStationInfo>(loc_ids, 'stations', ['station_id', 'system_id'])),
-      mergeMap(sys_ids => this.resolveIDs<EsiSystemInfo>(sys_ids, 'systems', ['system_id', 'constellation_id'])),
-      mergeMap(con_ids => this.resolveIDs(con_ids, 'constellations', ['constellation_id', 'region_id'])),
+      mergeMap(loc_ids => this.resolveIDs<EsiStationInfo>(loc_ids, 'stations', s => [s.station_id, s.system_id])),
+      mergeMap(sys_ids => this.resolveIDs<EsiSystemInfo>(sys_ids, 'systems', s => [s.system_id, s.constellation_id])),
+      mergeMap(con_ids =>
+        this.resolveIDs<EsiConstellationInfo>(con_ids, 'constellations', c => [c.constellation_id, c.region_id])
+      ),
       map(reg_ids => new Map(reg_ids)),
-      tap(reg_map => locs.forEach(loc => (loc.region_id = loc.region_id || reg_map.get(loc.location_id)))),
-      mergeMap(() =>
-        from(locs.map(loc => loc.region_id)).pipe(
-          distinct(),
-          map(region_id =>
+      tap(reg_map => locs.filter(loc => !loc.region_id).forEach(loc => (loc.region_id = reg_map.get(loc.location_id)))),
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      mapTo(set(locs.map(loc => loc.region_id!))),
+      switchMap(r_ids =>
+        from(r_ids).pipe(
+          map(r_id =>
             tuple(
-              region_id,
-              locs.filter(loc => loc.region_id == region_id)
+              r_id,
+              locs.filter(loc => loc.region_id == r_id)
             )
           )
         )

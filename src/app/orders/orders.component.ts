@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { Observable, of, concat, zip } from 'rxjs';
 import { map, mergeMap, toArray, catchError } from 'rxjs/operators';
 
@@ -15,12 +15,12 @@ import { set, tuple } from '../utils/utils';
 
 export interface OrderListItem {
   type_id: number;
-  name?: string; // main line only
+  name: string; // main line only,
   quantity: number;
   price: number;
   duration: number;
   sold: number;
-  owned?: boolean; // child line only
+  owned: boolean; // child line only, false for main line
   icons: string[];
   cls?: {
     // main line only
@@ -36,133 +36,26 @@ interface LocationInfo {
   items: OrderListItem[];
 }
 
-interface SalesHistory {
-  location_id: number;
-  type_id: number;
+interface SalesData {
   quantity: number;
   value: number;
   date: number;
 }
+type SalesHistory = Map<{ l_id: number; t_id: number }, SalesData>;
 
 @Component({
   selector: 'app-orders',
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.css']
 })
-export class OrdersComponent implements OnInit {
+export class OrdersComponent {
   orders$: Observable<{ data?: LocationInfo[]; error?: unknown }>;
 
   private readonly depth = 30 * 24 * 60 * 60 * 1000;
 
-  constructor(private esiData: EsiDataService) {}
-
-  private analyzeData(
-    orders: EsiCharOrder[],
-    trans: EsiWalletTransaction[]
-  ): [number[], LocationOrdersTypes[], SalesHistory[]] {
-    const sales = trans.reduce((sum: SalesHistory[], t: EsiWalletTransaction) => {
-      const s = sum.find(s => t.location_id == s.location_id && t.type_id == s.type_id);
-      if (s) {
-        s.quantity += t.quantity;
-        s.value += t.quantity * t.unit_price;
-        if (s.date < new Date(t.date).getTime()) s.date = new Date(t.date).getTime();
-      } else {
-        sum.push({
-          location_id: t.location_id,
-          type_id: t.type_id,
-          quantity: t.quantity,
-          value: t.quantity * t.unit_price,
-          date: new Date(t.date).getTime()
-        });
-      }
-      return sum;
-    }, []);
-    const loc_id_types = [
-      ...orders.map(o => tuple(o.location_id, o.type_id)),
-      ...trans.map(t => tuple(t.location_id, t.type_id))
-    ];
-    const loc_ids = set(loc_id_types.map(([location_id]) => location_id));
-    return [
-      orders.map(o => o.order_id),
-      loc_ids.map(id => ({
-        location_id: id,
-        types: set(loc_id_types.filter(([location_id]) => location_id == id).map(([, type_id]) => type_id)),
-        region_id: (orders.filter(o => o.location_id == id).find(o => !!o.region_id) || { region_id: null }).region_id
-      })),
-      sales
-    ];
-  }
-
-  private assembleItemsInfo(
-    type_id: number,
-    type_orders: EsiOrder[],
-    ids: number[],
-    sale: SalesHistory
-  ): OrderListItem[] {
-    const now = Date.now();
-    const dtime = 1 * 24 * 60 * 60 * 1000;
-    const lines: OrderListItem[] = type_orders
-      .map(o => {
-        const duration = now - new Date(o.issued).getTime();
-        return {
-          type_id: type_id,
-          quantity: o.volume_remain,
-          price: o.price,
-          duration: duration,
-          sold: o.volume_total - o.volume_remain,
-          owned: ids.includes(o.order_id),
-          icons: duration < dtime ? ['new_releases'] : []
-        };
-      })
-      .sort((l1, l2) => l1.price - l2.price || l2.duration - l1.duration);
-    const [has_owned, has_other, best_price, expandable] = lines.reduce(
-      (s, x, i) => [s[0] || x.owned, s[1] || !x.owned, s[2] || (x.owned && i == 0), true],
-      [false, false, false, false]
-    );
-    const [quantity, total] = lines
-      .filter(val => val.owned)
-      .reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
-    const sold = (sale && sale.quantity) || 0;
-    const icons = [];
-    if (sold && now - sale.date < dtime) icons.push('attach_money');
-    if (lines.find(x => x.icons.length)) icons.push('new_releases');
-    if (!has_owned && has_other) icons.push('people_outline');
-    if (has_owned && !has_other) icons.push('person');
-    return [
-      {
-        type_id: type_id,
-        name: this.esiData.typesInfo.get(type_id).name,
-        quantity: quantity || null,
-        price: quantity ? total / quantity : sold ? sale.value / sale.quantity : null,
-        duration: (sold && this.depth) || null,
-        sold: sold || null,
-        icons: icons,
-        cls: { has_owned, has_other, best_price, expandable }
-      } as OrderListItem
-    ].concat(lines);
-  }
-
-  private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistory[]): LocationInfo {
-    const items = [...orders.orders]
-      .map(([type_id, type_orders]) =>
-        this.assembleItemsInfo(
-          type_id,
-          type_orders,
-          ids,
-          sales.find(t => t.type_id == type_id && t.location_id == orders.location_id)
-        )
-      )
-      .sort((a, b) => a[0].name.localeCompare(b[0].name))
-      .reduce((s, a) => s.concat(a), []);
-    return {
-      name: this.esiData.locationsInfo.get(orders.location_id).name,
-      items: items
-    };
-  }
-
-  ngOnInit(): void {
+  constructor(private esiData: EsiDataService) {
     this.orders$ = concat(
-      of(null),
+      of({}),
       zip(
         this.esiData.loadCharacterOrders().pipe(map(orders => orders.filter(o => !o.is_buy_order))),
         this.esiData
@@ -185,5 +78,109 @@ export class OrdersComponent implements OnInit {
         })
       )
     );
+  }
+
+  private analyzeData(
+    orders: EsiCharOrder[],
+    trans: EsiWalletTransaction[]
+  ): [number[], LocationOrdersTypes[], SalesHistory] {
+    const loc_id_types = [
+      ...orders.map(o => tuple(o.location_id, o.type_id)),
+      ...trans.map(t => tuple(t.location_id, t.type_id))
+    ];
+    const types = set(loc_id_types.map(([location_id]) => location_id)).map(location_id => {
+      const r_order = orders.find(o => o.location_id === location_id && o.region_id != undefined); // ???
+      return {
+        location_id,
+        types: set(loc_id_types.filter(([l_id]) => l_id === location_id).map(([, type_id]) => type_id)),
+        region_id: r_order && r_order.region_id
+      } as LocationOrdersTypes;
+    });
+
+    const sales = trans.reduce((sales: SalesHistory, wt: EsiWalletTransaction) => {
+      if (wt.quantity) {
+        const k = { l_id: wt.location_id, t_id: wt.type_id };
+        const hItem = sales.get(k);
+        const t = new Date(wt.date).getTime();
+        if (hItem) {
+          hItem.quantity += wt.quantity;
+          hItem.value += wt.quantity * wt.unit_price;
+          if (hItem.date < t) hItem.date = t;
+        } else {
+          sales.set(k, {
+            quantity: wt.quantity,
+            value: wt.quantity * wt.unit_price,
+            date: t
+          });
+        }
+      }
+      return sales;
+    }, new Map());
+
+    return [orders.map(o => o.order_id), types, sales];
+  }
+
+  private assembleItemsInfo(
+    type_id: number,
+    type_orders: EsiOrder[],
+    ids: number[],
+    sd: SalesData | undefined
+  ): OrderListItem[] {
+    const now = Date.now();
+    const dtime = 1 * 24 * 60 * 60 * 1000;
+    const lines: OrderListItem[] = type_orders
+      .map(o => {
+        const duration = now - new Date(o.issued).getTime();
+        return {
+          type_id,
+          name: '',
+          quantity: o.volume_remain,
+          price: o.price,
+          duration,
+          sold: o.volume_total - o.volume_remain,
+          owned: ids.includes(o.order_id),
+          icons: duration < dtime ? ['new_releases'] : []
+        };
+      })
+      .sort((l1, l2) => l1.price - l2.price || l2.duration - l1.duration);
+    const [has_owned, has_other, best_price, expandable] = lines.reduce(
+      (s, x, i) => [s[0] || x.owned, s[1] || !x.owned, s[2] || (x.owned && i === 0), true],
+      [false, false, false, false]
+    );
+    const [quantity, total] = lines
+      .filter(val => val.owned)
+      .reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
+    const sold = sd ? sd.quantity : 0;
+    const icons = [];
+    if (sd && now - sd.date < dtime) icons.push('attach_money');
+    if (lines.find(x => x.icons.length)) icons.push('new_releases');
+    if (!has_owned && has_other) icons.push('people_outline');
+    if (has_owned && !has_other) icons.push('person');
+    return [
+      {
+        type_id,
+        name: this.esiData.typesInfo.get(type_id).name,
+        quantity,
+        price: quantity ? total / quantity : sd ? sd.value / sd.quantity : undefined,
+        duration: (sold && this.depth) || undefined,
+        sold,
+        owned: false,
+        icons,
+        cls: { has_owned, has_other, best_price, expandable }
+      } as OrderListItem
+    ].concat(lines);
+  }
+
+  private assembleLocationInfo(orders: LocationOrders, ids: number[], sales: SalesHistory): LocationInfo {
+    const items = [...orders.orders]
+      .map(([type_id, type_orders]) =>
+        this.assembleItemsInfo(type_id, type_orders, ids, sales.get({ l_id: orders.location_id, t_id: type_id }))
+      )
+      .sort((a, b) => a[0].name.localeCompare(b[0].name))
+      .reduce((s, a) => s.concat(a), []);
+    return {
+      name: this.esiData.locationsInfo.get(orders.location_id).name,
+      items: items
+    };
   }
 }

@@ -1,9 +1,15 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, OnDestroy, ViewChild } from '@angular/core';
 
 import { map, tap, mergeMap, distinct, mergeAll, filter, toArray, catchError } from 'rxjs/operators';
 import { Observable, of, from, concat, merge, Subject, Subscription } from 'rxjs';
 
-import { EsiDataService, TypeOrders, EsiService, EsiMail, EsiOrder } from '../services/eve-esi/eve-esi-data.service';
+import {
+  EsiDataService,
+  EsiDataMailHeader,
+  TypeOrders,
+  EsiService,
+  EsiOrder
+} from '../services/eve-esi/eve-esi-data.service';
 
 import { set, tuple } from '../utils/utils';
 
@@ -39,7 +45,7 @@ interface ReqRecord {
   templateUrl: './demands.component.html',
   styleUrls: ['./demands.component.css']
 })
-export class DemandsComponent implements OnInit, OnDestroy {
+export class DemandsComponent implements OnDestroy {
   static readonly marketStructureIds: number[] = [
     // All tructures market module can fit to.
     35826, // Azbel
@@ -84,23 +90,78 @@ export class DemandsComponent implements OnInit, OnDestroy {
   demandChips$: Observable<DemandChip[]>;
   demandReport$: Subject<DemandsReport>;
 
-  private currentDemands: DemandInfo[];
-  private marketOrders: Map<number, TypeOrders>;
+  private currentDemands: DemandInfo[] = [];
+  private marketOrders = new Map<number, TypeOrders>();
 
-  constructor(private esi: EsiService, private esiData: EsiDataService) {}
+  constructor(private esi: EsiService, private esiData: EsiDataService) {
+    this.demandChips$ = concat(
+      of(null),
+      this.esiData.loadPrices().pipe(
+        mergeMap(() =>
+          this.getDemands(Date.now() - DemandsComponent.TimeDepth).pipe(
+            toArray(),
+            tap(
+              demand =>
+                (this.currentDemands = demand
+                  .sort(
+                    (a, b) =>
+                      a.name.localeCompare(b.name) ||
+                      a.issuer_name.localeCompare(b.issuer_name) ||
+                      a.mail_ts - b.mail_ts
+                  )
+                  .reduce((r, d) => {
+                    const cnt = r.length;
+                    if (cnt == 0) return [d];
+                    const prev = r[cnt - 1];
+                    if (prev.issuer_id == d.issuer_id && !prev.name.localeCompare(d.name)) {
+                      // same issuer_id/name, update it
+                      d.data[0].timestamp = d.mail_ts;
+                      if (prev.mail_ts) prev.data[0].timestamp = prev.mail_ts;
+                      prev.data = [...d.data, ...prev.data];
+                      prev.mail_id = undefined;
+                    } else r.push(d); // new issuer_id/name, add it
+                    return r;
+                  }, [] as DemandInfo[]))
+            ),
+            mergeMap(() =>
+              this.esiData
+                .loadOrders(
+                  this.processDemandsCards(this.currentDemands).map(i => ({
+                    location_id: i.id,
+                    types: i.items.map(c => c.type_id)
+                  }))
+                )
+                .pipe(
+                  map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
+                  toArray(),
+                  tap(orders => (this.marketOrders = new Map(orders)))
+                )
+            )
+          )
+        ),
+        map(() => this.extractChips(this.currentDemands)),
+        catchError(err => {
+          console.log(err);
+          return of({ error: err });
+        })
+      )
+    );
+    this.demandReport$ = new Subject<DemandsReport>();
+  }
 
   private buildDemandRecord(lines: ReqLine[]): Observable<ReqRecord[]> {
     const values = lines.map(l => l && /(?:showinfo:(\d+)(?:\/.*?\/(\d+))?)|(?:fitting:(\d+):(.*))/i.exec(l.href));
-    return this.esiData.loadTypeInfo(values.filter(v => v && v[1] != undefined).map(v => Number(v[1]))).pipe(
+    return this.esiData.loadTypeInfo(values.filter(v => v && v[1] != undefined).map(v => Number(v![1]))).pipe(
       map(() =>
         from(
           lines.map(
             (l, i): ReqRecord => {
-              if (l == null) return { type: 'break' };
+              if (l == undefined) return { type: 'break' };
               const v = values[i];
-              const q = l.quantity && Number(l.quantity);
-              if (v == null) return { type: 'unrecognized', name: l.name, comment: l.href, quantity: q };
-              if (v[1] == null) return { type: 'fitting', name: l.name, id: Number(v[3]), comment: v[4], quantity: q };
+              const q = l.quantity.length ? Number(l.quantity) : 0;
+              if (v == undefined) return { type: 'unrecognized', name: l.name, comment: l.href, quantity: q };
+              if (v[1] == undefined)
+                return { type: 'fitting', name: l.name, id: Number(v[3]), comment: v[4], quantity: q };
               const type_id = Number(v[1]);
               if (v[2] != undefined) {
                 const item_id = Number(v[2]);
@@ -121,7 +182,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
               }
               return {
                 type: 'item',
-                name: this.esiData.typesInfo.get(type_id).name,
+                name: this.esiData.typesInfo.get(type_id)!.name,
                 id: type_id,
                 comment: '',
                 quantity: q
@@ -140,7 +201,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
       .replace(/<\/?font.*?>|<\/?loc.*?>/gi, '')
       .split('<br>')
       .reduce((result, line) => {
-        if (line.length == 0) result.push(null);
+        if (line.length == 0) result.push({ href: '', name: '', quantity: '' });
         else {
           const item = /<a href="(.*?)">(.+?)<\/a>\s*x?(\d+)?/i.exec(line);
           if (item)
@@ -155,7 +216,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
               result.push({
                 href: 'mailingList',
                 name: mailing[1],
-                quantity: undefined
+                quantity: ''
               });
           }
         }
@@ -166,17 +227,17 @@ export class DemandsComponent implements OnInit, OnDestroy {
   private static assembleChunk(r: ReqRecord): DemandDataItem {
     return {
       icon: r.type == 'fitting' ? 'build' : 'category',
-      name: r.name,
-      quantity: r.quantity,
+      name: r.name!,
+      quantity: r.quantity!,
       chunks: [
-        { type_id: r.id, quantity: 1 },
-        ...r.comment
-          .split(':')
+        { type_id: r.id!, quantity: 1 },
+        ...r
+          .comment!.split(':')
           .map(v => /^(\d+);(\d+)$/.exec(v))
-          .filter(v => v != null)
+          .filter(v => v != undefined)
           .map(v => ({
-            type_id: Number(v[1]),
-            quantity: Number(v[2])
+            type_id: Number(v![1]),
+            quantity: Number(v![2])
           }))
       ]
     };
@@ -196,15 +257,15 @@ export class DemandsComponent implements OnInit, OnDestroy {
           if (r.type == 'unrecognized' && r.comment == 'mailingList') {
             res[res.length - 1].items.push({
               icon: 'list',
-              name: r.name,
-              quantity: r.quantity,
+              name: r.name!,
+              quantity: r.quantity!,
               chunks: []
             });
             return tuple(res, true);
           }
         }
         if (r.type == 'structure' || r.type == 'station') {
-          res.push({ id: r.id, name: r.name, items: [] });
+          res.push({ id: r.id!, name: r.name!, items: [] });
           return tuple(res, true);
         }
         return tuple(res, s);
@@ -212,24 +273,24 @@ export class DemandsComponent implements OnInit, OnDestroy {
       .filter(v => v.items.length != 0);
   }
 
-  private assembleDemands(hdrs: EsiMail[], mailList?: string, loc?: DemandLocData): Observable<DemandInfo> {
+  private assembleDemands(hdrs: EsiDataMailHeader[], mailList?: string, loc?: DemandLocData): Observable<DemandInfo> {
     return this.esi.getIdsInformation(set(hdrs.map(h => h.from))).pipe(
       toArray(),
       map(info => new Map<number, string>(info.map(v => [v.id, v.name]))),
       mergeMap(names =>
         from(hdrs).pipe(
           mergeMap(hdr =>
-            this.esi.getCharacterMail(this.esiData.character_id, hdr.mail_id).pipe(
+            this.esi.getCharacterMail(0 /*this.esiData.character_id*/, hdr.mail_id).pipe(
               mergeMap(mail => this.buildDemandRecord(DemandsComponent.parseBody(mail.body))),
               map(records => DemandsComponent.assembleItems(records, loc)),
               //filter(data => data.length != 0),
               map(data => ({
                 name: mailList || DemandsComponent.getDemandName(hdr.subject),
-                timestamp: new Date(hdr.timestamp).getTime(),
                 issuer_id: hdr.from,
-                issuer_name: names.get(hdr.from),
+                issuer_name: names.get(hdr.from)!,
                 avatar: this.esi.getCharacterAvatarURI(hdr.from, 64),
                 data: data,
+                mail_ts: hdr.timestamp,
                 mail_id: hdr.mail_id
               }))
             )
@@ -239,7 +300,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
     );
   }
 
-  private getMailingLists(hdrs: EsiMail[], demand: DemandInfo): Observable<DemandInfo> {
+  private getMailingLists(hdrs: EsiDataMailHeader[], demand: DemandInfo): Observable<DemandInfo> {
     const mailingLists = demand.data
       .map(loc => loc.items.filter(item => item.icon == 'list').map(item => tuple(item.name, loc)))
       .filter(v => v.length != 0)
@@ -247,8 +308,8 @@ export class DemandsComponent implements OnInit, OnDestroy {
     return from(mailingLists).pipe(
       distinct(([listName, loc]) => `${listName}/${loc.name}`),
       mergeMap(([listName, loc]) => {
-        return this.esi.getCharacterMailingLists(this.esiData.character_id).pipe(
-          map(lists => lists.find(list => list.name.localeCompare(listName) == 0)),
+        return this.esi.getCharacterMailingLists(0 /*this.esiData.character_id*/).pipe(
+          map(lists => lists.find(list => !list.name.localeCompare(listName))!),
           map(
             list =>
               list &&
@@ -279,7 +340,7 @@ export class DemandsComponent implements OnInit, OnDestroy {
             )
               result.push(hdr);
             return result;
-          }, [] as EsiMail[]);
+          }, [] as EsiDataMailHeader[]);
         return this.assembleDemands(h).pipe(mergeMap(demand => merge(of(demand), this.getMailingLists(hdrs, demand))));
       }),
       tap(demand => {
@@ -334,24 +395,22 @@ export class DemandsComponent implements OnInit, OnDestroy {
   private buildMarkets(items: DemandLocItems[]): MarketData[] {
     if (items.length == 0) return []; // TODO
     return items
-      .map<MarketData>(locItems => ({
-        name: this.esiData.locationsInfo.get(locItems.id).name,
+      .map(locItems => ({
+        name: this.esiData.locationsInfo.get(locItems.id)!.name,
         items: locItems.items
-          .map(
-            (i): MarketItem => {
-              const type_id_orders = this.marketOrders.get(locItems.id).get(i.type_id);
-              const q_market = type_id_orders.reduce((s, a) => s + a.volume_remain, 0);
-              const ratio = this.calcRatio(i.quantity, this.esiData.prices.get(i.type_id), type_id_orders);
-              return {
-                id: i.type_id,
-                name: this.esiData.typesInfo.get(i.type_id).name,
-                q_demand: i.quantity || undefined,
-                q_market: q_market || undefined,
-                ratio: ratio,
-                shortage: !q_market || i.quantity > q_market
-              };
-            }
-          )
+          .map(i => {
+            const type_id_orders = this.marketOrders.get(locItems.id)!.get(i.type_id)!;
+            const q_market = type_id_orders.reduce((s, a) => s + a.volume_remain, 0);
+            const ratio = this.calcRatio(i.quantity, this.esiData.prices.get(i.type_id)!, type_id_orders);
+            return {
+              id: i.type_id,
+              name: this.esiData.typesInfo.get(i.type_id)!.name,
+              q_demand: i.quantity,
+              q_market: q_market,
+              ratio: ratio || 0,
+              shortage: !q_market || i.quantity > q_market
+            };
+          })
           .sort((a, b) => a.name.localeCompare(b.name))
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -378,62 +437,6 @@ export class DemandsComponent implements OnInit, OnDestroy {
     return [...issuers, ...subjects];
   }
 
-  ngOnInit(): void {
-    this.demandChips$ = concat(
-      of(null),
-      this.esiData.loadPrices().pipe(
-        mergeMap(() =>
-          this.getDemands(Date.now() - DemandsComponent.TimeDepth).pipe(
-            toArray(),
-            tap(
-              demand =>
-                (this.currentDemands = demand
-                  .sort(
-                    (a, b) =>
-                      a.name.localeCompare(b.name) ||
-                      a.issuer_name.localeCompare(b.issuer_name) ||
-                      a.timestamp - b.timestamp
-                  )
-                  .reduce((r, d) => {
-                    const cnt = r.length;
-                    if (cnt == 0) return [d];
-                    const v = r[cnt - 1];
-                    if (v.issuer_id == d.issuer_id && v.name == d.name) {
-                      d.data[0].timestamp = d.timestamp;
-                      if (v.timestamp) v.data[0].timestamp = v.timestamp;
-                      v.timestamp = undefined;
-                      v.data = [...d.data, ...v.data];
-                      v.mail_id = undefined;
-                    } else r.push(d);
-                    return r;
-                  }, [] as DemandInfo[]))
-            ),
-            mergeMap(() =>
-              this.esiData
-                .loadOrders(
-                  this.processDemandsCards(this.currentDemands).map(i => ({
-                    location_id: i.id,
-                    types: i.items.map(c => c.type_id)
-                  }))
-                )
-                .pipe(
-                  map(locOrders => tuple(locOrders.location_id, locOrders.orders)),
-                  toArray(),
-                  tap(orders => (this.marketOrders = new Map(orders)))
-                )
-            )
-          )
-        ),
-        map(() => this.extractChips(this.currentDemands)),
-        catchError(err => {
-          console.log(err);
-          return of({ error: err });
-        })
-      )
-    );
-    this.demandReport$ = new Subject<DemandsReport>();
-  }
-
   ngOnDestroy(): void {
     this.chips = undefined;
   }
@@ -453,9 +456,9 @@ export class DemandsComponent implements OnInit, OnDestroy {
     this.demandReport$.next(report);
   }
 
-  private _chips: DemandChips = undefined;
-  private _chips_sub: Subscription = undefined;
-  @ViewChild('demandChips') set chips(chips: DemandChips) {
+  private _chips?: DemandChips = undefined;
+  private _chips_sub?: Subscription = undefined;
+  @ViewChild('demandChips') set chips(chips: DemandChips | undefined) {
     if (this._chips === chips) return;
     if (this._chips_sub) this._chips_sub.unsubscribe();
     this._chips = chips;

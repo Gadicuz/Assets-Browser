@@ -1,4 +1,4 @@
-import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
+import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { Observable, from, throwError, timer } from 'rxjs';
 import { map, mergeMap, mergeAll, toArray, bufferCount, retryWhen } from 'rxjs/operators';
@@ -6,13 +6,14 @@ import { map, mergeMap, mergeAll, toArray, bufferCount, retryWhen } from 'rxjs/o
 import { tuple } from '../../utils/utils';
 
 import { OAuthModuleConfig } from 'angular-oauth2-oidc';
-import { EVEESIConfig } from './eve-esi.config';
 //import { NostoreInterceptorService } from './nostore.interceptor.service';
 //import { NoauthInterceptorService } from './noauth.interceptor.service';
 import { XpageInterceptorService } from './xpage.interceptor.service';
 
-export { EVEESIConfig } from './eve-esi.config';
+import { EVEESI_CONFIG, EVEESIConfig } from './eve-esi.config';
 import { noAuthRoutes } from './eve-esi.public';
+
+export { EVEESIConfig } from './eve-esi.config';
 
 export interface EsiErrorData {
   error: string;
@@ -148,6 +149,14 @@ export interface EsiSystemInfo {
   system_id: number;
 }
 
+export interface EsiConstellationInfo {
+  constellation_id: number;
+  name: string;
+  position: { x: number; y: number; z: number };
+  region_id: number;
+  systems: number[];
+}
+
 export interface EsiOrder {
   duration: number;
   is_buy_order?: boolean;
@@ -201,16 +210,24 @@ export interface EsiMailRecipient {
   recipient_type: 'alliance' | 'character' | 'corporation' | 'mailing_list';
 }
 
-export interface EsiMail {
-  mail_id?: number;
-  timestamp?: string;
-  from?: number;
-  recipients?: EsiMailRecipient[];
-  labels?: number[];
-  subject?: string;
-  is_read?: boolean;
-  read?: boolean;
-  body?: string;
+export interface EsiMailHeader {
+  from: number;
+  is_read: boolean;
+  labels: number[];
+  mail_id: number;
+  recipients: EsiMailRecipient[];
+  subject: string;
+  timestamp: string;
+}
+
+export interface EsiMailBody {
+  body: string;
+  from: number;
+  labels: number[];
+  read: boolean;
+  recipients: EsiMailRecipient[];
+  subject: string;
+  timestamp: string;
 }
 
 export interface EsiMailMailingList {
@@ -267,6 +284,14 @@ export interface EsiIdInfo {
   name: string;
 }
 
+enum imageResource {
+  AllianceLogo = 'alliances/{}/logo',
+  CharPortrait = 'characters/{}/portrait',
+  CorporationLogo = 'corporations/{}/logo',
+  TypeIcon = 'types/{}/icon',
+  TypeRender = 'types/{}/render'
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -279,30 +304,23 @@ export class EsiService {
   static STD_MAIL_LABEL_ID_Corp = 4;
   static STD_MAIL_LABEL_ID_Alliance = 8;
 
-  private readonly params: HttpParams;
+  private readonly defParams: object;
   private static status_is_4xx(status: number): boolean {
     return status >= 400 && status < 500;
   }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
   private static imageUrl = 'https://images.evetech.net/';
-  private static imageResources = {
-    'alliance.logo': 'alliances/{}/logo',
-    'char.portrait': 'characters/{}/portrait',
-    'corporation.logo': 'corporations/{}/logo',
-    'type.icon': 'types/{}/icon',
-    'type.render': 'types/{}/render'
-  };
-  private static getImage(resource: string, id: number, size?: number): string {
-    let uri = EsiService.imageResources[resource].replace('{}', id);
+  private static getImage(resource: imageResource, id: number, size?: number): string {
+    let uri = resource.replace('{}', String(id));
     if (size) uri += `?size=${size}`;
     return EsiService.imageUrl + uri;
   }
   public getCharacterAvatarURI(character_id: number, size: number): string {
-    return EsiService.getImage('char.portrait', character_id, size);
+    return EsiService.getImage(imageResource.CharPortrait, character_id, size);
   }
   public getItemIconURI(type_id: number, size: number): string {
-    return EsiService.getImage('type.icon', type_id, size);
+    return EsiService.getImage(imageResource.TypeIcon, type_id, size);
   }
 
   public static getAssetLocationType(id: number): string {
@@ -352,10 +370,10 @@ export class EsiService {
     return EsiService.getAssetLocationType(id) === 'station';
   }
 
-  constructor(private httpClient: HttpClient, private config: EVEESIConfig) {
-    //this.params = new HttpParams({ encoder: new X_WWW_FORM_UrlEncodingCodec()});
-    this.params = new HttpParams();
-    if (config.datasource) this.params = this.params.set('datasource', config.datasource);
+  constructor(private httpClient: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
+    this.defParams = {
+      datasource: config.datasource
+    };
   }
 
   private static retry(
@@ -377,15 +395,21 @@ export class EsiService {
     return this.config.url + this.config.ver + route;
   }
 
-  private getData<T>(route: string, params: HttpParams = this.params, retry = EsiService.retry()): Observable<T> {
-    return this.httpClient.get(this.getUrl(route), { params: params }).pipe(retryWhen<T>(retry));
+  private getData<T>(route: string, parameters: object = {}, retry = EsiService.retry()): Observable<T> {
+    const params = new HttpParams({ fromObject: { ...this.defParams, ...parameters } });
+    return this.httpClient
+      .get<T>(this.getUrl(route), { params: params })
+      .pipe(retryWhen(retry));
   }
 
   private postData<T>(route: string, data: unknown, retry = EsiService.retry()): Observable<T> {
-    return this.httpClient.post(this.getUrl(route), data, { params: this.params }).pipe(retryWhen<T>(retry));
+    const params = new HttpParams({ fromObject: { ...this.defParams } });
+    return this.httpClient
+      .post<T>(this.getUrl(route), data, { params })
+      .pipe(retryWhen(retry));
   }
 
-  private getCharacterInformation<T>(character_id: number, route: string, params?: HttpParams): Observable<T> {
+  private getCharacterInformation<T>(character_id: number, route: string, params?: object): Observable<T> {
     return this.getData<T>(`characters/${character_id}/${route}`, params);
   }
 
@@ -405,16 +429,15 @@ export class EsiService {
     character_id: number,
     labels?: number[],
     last_mail_id?: number
-  ): Observable<EsiMail[]> {
-    let params = this.params;
-    if (labels != undefined && labels.length != 0)
-      params = params.set('labels', labels.map(id => id.toString(10)).join(','));
-    if (last_mail_id != undefined) params = params.set('last_mail_id', last_mail_id.toString(10));
-    return this.getCharacterInformation<EsiMail[]>(character_id, 'mail/', params);
+  ): Observable<EsiMailHeader[]> {
+    return this.getCharacterInformation<EsiMailHeader[]>(character_id, 'mail/', {
+      labels: labels && labels.length != 0 ? labels.map(id => String(id)).join(',') : undefined,
+      last_mail_id: last_mail_id != undefined ? String(last_mail_id) : undefined
+    });
   }
 
-  public getCharacterMail(character_id: number, mail_id: number): Observable<EsiMail> {
-    return this.getCharacterInformation<EsiMail>(character_id, `mail/${mail_id}/`);
+  public getCharacterMail(character_id: number, mail_id: number): Observable<EsiMailBody> {
+    return this.getCharacterInformation<EsiMailBody>(character_id, `mail/${mail_id}/`);
   }
 
   public getCharacterMailLabels(character_id: number): Observable<EsiMailLabels> {
@@ -505,14 +528,10 @@ export class EsiService {
   }
 
   public getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {
-    let params = this.params;
-    if (type_id != undefined) {
-      params = params.set('type_id', type_id.toString(10));
-      if (order_type != undefined) {
-        params = params.set('order_type', order_type);
-      }
-    }
-    return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, params);
+    return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, {
+      type_id: type_id != undefined ? String(type_id) : undefined,
+      order_type
+    });
   }
 
   public getRegionOrdersEx(
@@ -552,7 +571,7 @@ export class EVEESIModule {
         //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
         { provide: OAuthModuleConfig, useValue: oauthCfg(cfg.url, new RegExp(noAuthRoutes(cfg.ver))) },
-        { provide: EVEESIConfig, useValue: cfg }
+        { provide: EVEESI_CONFIG, useValue: cfg }
       ]
     };
   }

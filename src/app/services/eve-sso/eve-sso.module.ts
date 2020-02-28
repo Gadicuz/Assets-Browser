@@ -1,11 +1,15 @@
-import { NgModule, ModuleWithProviders, Injectable } from '@angular/core';
+import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
-import { OAuthModule, JwksValidationHandler } from 'angular-oauth2-oidc';
+import { OAuthModule, JwksValidationHandler, ValidationParams } from 'angular-oauth2-oidc';
 import { OAuthService } from 'angular-oauth2-oidc';
 
+import { EVESSO_CONFIG, EVESSOConfig } from './eve-sso.config';
+import { AccessTokenV2, AccessTokenV2Payload } from './eve-sso.model';
 import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
 
 import { b64urlDecode } from '@waiting/base64';
+
+export { EVESSOConfig } from './eve-sso.config';
 
 /*
 {
@@ -22,40 +26,24 @@ import { b64urlDecode } from '@waiting/base64';
 }
 */
 
-export class EVESSOConfig {
-  client_id: string;
-  client_secret?: string;
-  scopes: string[];
-}
-
-export interface EVESSOAccessTokenPayload {
-  kid: string; // "JWT-Signature-Key"
-  jti: string; // "998e12c7-3241-43c5-8355-2c48822e0a1b"
-  sub: string; // "CHARACTER:EVE:123123"
-  iss: string; // "login.eveonline.com"
-  exp: number; // 1534412504
-  azp: string; // "my3rdpartyclientid"
-  name: string; // "Some Bloke"
-  owner: string; // "8PmzCeTKb4VFUDrHLc/AeZXDSWM="
-  scp: string[]; // [ "esi-skills.read_skills.v1", "esi-skills.read_skillqueue.v1" ]
-}
-
 @Injectable({
   providedIn: 'root'
 })
 export class EVESSOService {
-  public atp: EVESSOAccessTokenPayload;
+  public atp?: AccessTokenV2Payload;
   public err: unknown;
 
-  get charId(): number {
-    return this.atp && +this.atp.sub.split(':').pop();
+  get charIdName(): { id: number; name: string } | undefined {
+    if (this.atp == undefined) return undefined;
+    const id = this.atp.sub.split(':').pop();
+    if (id == undefined) return undefined;
+    return {
+      id: +id,
+      name: this.atp.name
+    };
   }
 
-  get charName(): string {
-    return this.atp && this.atp.name;
-  }
-
-  constructor(private oauth: OAuthService, private cfg: EVESSOConfig) {}
+  constructor(private oauth: OAuthService, @Inject(EVESSO_CONFIG) private cfg: EVESSOConfig) {}
 
   public configure(): void {
     this.oauth.configure({
@@ -80,22 +68,20 @@ export class EVESSOService {
       .loadDiscoveryDocumentAndTryLogin()
       .then(() => {
         if (this.oauth.hasValidAccessToken()) {
-          const at = this.oauth.getAccessToken();
-          const parts = at
+          const at = this.oauth.getAccessToken() as AccessTokenV2;
+          const [atHeader, atPayload] = at
             .split('.')
             .slice(0, 2)
-            .map(s => JSON.parse(b64urlDecode(s)));
+            .map(s => JSON.parse(b64urlDecode(s))) as [object, AccessTokenV2Payload];
           this.oauth.tokenValidationHandler
             .validateSignature({
               idToken: at,
-              idTokenHeader: parts[0],
-              idTokenClaims: parts[1],
-              accessToken: null,
-              jwks: this.oauth.jwks,
-              loadKeys: null
-            })
+              idTokenHeader: atHeader,
+              idTokenClaims: atPayload,
+              jwks: this.oauth.jwks
+            } as ValidationParams)
             .then(() => {
-              this.atp = parts[1];
+              this.atp = atPayload;
               //this.oauth.timeoutFactor = 0.1;
               this.oauth.setupAutomaticSilentRefresh();
             });
@@ -109,7 +95,7 @@ export class EVESSOService {
   }
 
   logout(): void {
-    this.atp = null;
+    this.atp = undefined;
     this.oauth.logOut();
   }
 
@@ -119,7 +105,7 @@ export class EVESSOService {
 }
 
 @NgModule({
-  imports: [OAuthModule.forRoot(null, JwksValidationHandler)]
+  imports: [OAuthModule.forRoot(undefined, JwksValidationHandler)]
 })
 export class EVESSOModule {
   static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
@@ -131,7 +117,7 @@ export class EVESSOModule {
           useClass: CodeVerifierInterceptorService,
           multi: true
         },
-        { provide: EVESSOConfig, useValue: cfg }
+        { provide: EVESSO_CONFIG, useValue: cfg }
       ]
     };
   }

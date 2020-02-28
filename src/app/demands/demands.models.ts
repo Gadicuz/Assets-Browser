@@ -38,12 +38,12 @@ export interface DemandLocItems {
 
 export interface DemandInfo {
   name: string;
-  timestamp: number;
   issuer_id: number;
   issuer_name: string;
   avatar: string;
   data: DemandLocData[];
-  mail_id: number;
+  mail_id?: number;
+  mail_ts: number;
 }
 
 export interface DemandsReport {

@@ -23,15 +23,14 @@ export interface CharacterData {
 export class AppComponent {
   public readonly copyright: string;
 
-  get charData(): CharacterData {
-    if (this.sso.atp) {
-      const id = this.sso.charId;
-      return {
-        id: id,
-        name: this.sso.charName,
-        avatar: this.esi.getCharacterAvatarURI(id, 64)
-      };
-    } else return null;
+  get charData(): CharacterData | undefined {
+    const idn = this.sso.charIdName;
+    return (
+      idn && {
+        ...idn,
+        avatar: this.esi.getCharacterAvatarURI(idn.id, 64)
+      }
+    );
   }
 
   get loginError(): unknown {

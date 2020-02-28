@@ -16,10 +16,10 @@ import { OrderListItem } from '../orders/orders.component';
   */
 })
 export class OrdersListComponent {
-  @Input() orders: OrderListItem[];
+  @Input() orders?: OrderListItem[];
 
   readonly displayedColumns: string[] = ['name', 'icon', 'quantity', 'price', 'duration', 'sold'];
 
   isOrderRow = (_index: number, item: OrderListItem): boolean => !item.name;
-  expandedType: number;
+  expandedType?: number;
 }

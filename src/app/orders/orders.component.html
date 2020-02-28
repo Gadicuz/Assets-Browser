@@ -2,7 +2,7 @@
 
   <div></div>
 
-  <mat-accordion *ngIf="orders; else loading">
+  <mat-accordion *ngIf="orders.data || orders.error; else loading">
     <app-error *ngIf="orders.error" [err]="orders.error"></app-error>
     <ng-container *ngIf="orders.data">
       <mat-expansion-panel *ngFor="let locationOrders of orders.data">

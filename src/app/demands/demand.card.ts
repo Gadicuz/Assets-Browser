@@ -8,5 +8,5 @@ import { DemandInfo } from './demands.models';
   styleUrls: ['./demand.card.css']
 })
 export class DemandCard {
-  @Input() data: DemandInfo;
+  @Input() data?: DemandInfo;
 }

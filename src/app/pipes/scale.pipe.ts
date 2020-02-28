@@ -6,8 +6,8 @@ import { LOCALE_ID } from '@angular/core';
 export class ScalePipe implements PipeTransform {
   constructor(@Inject(LOCALE_ID) private locale: string) {}
 
-  transform(value: unknown, digitsInfo?: string, locale?: string): string {
-    if (value == null) return null;
+  transform(value: unknown, digitsInfo?: string, locale?: string): unknown {
+    if (value == undefined) return undefined;
     let v = Number(value);
     if (isNaN(v)) return new DecimalPipe(this.locale).transform(value, digitsInfo, locale);
     const letter = ['', ' k', ' M', ' B'];
@@ -16,6 +16,7 @@ export class ScalePipe implements PipeTransform {
       v /= 1000;
       index++;
     }
-    return new DecimalPipe(this.locale).transform(v, digitsInfo, locale) + letter[index];
+    const res = new DecimalPipe(this.locale).transform(v, digitsInfo, locale);
+    return res && res + letter[index];
   }
 }

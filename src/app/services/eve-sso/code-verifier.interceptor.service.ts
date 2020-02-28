@@ -16,10 +16,8 @@ export class CodeVerifierInterceptorService implements HttpInterceptor {
     if (request.url === this.oauth.tokenEndpoint && request.method === 'POST' && typeof request.body === 'object') {
       const param_name = 'code_verifier';
       const params = request.body as HttpParams;
-      if (params.has(param_name)) {
-        const cv = b64urlEncode(params.get(param_name));
-        request = request.clone({ body: params.set(param_name, cv) });
-      }
+      const cv = params.get(param_name);
+      if (cv) request = request.clone({ body: params.set(param_name, b64urlEncode(cv)) });
     }
     return next.handle(request);
   }
