@@ -1,7 +1,7 @@
 import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { Observable, from, throwError, timer } from 'rxjs';
-import { map, mergeMap, mergeAll, toArray, bufferCount, retryWhen } from 'rxjs/operators';
+import { map, mergeMap, mergeAll, bufferCount, retryWhen } from 'rxjs/operators';
 
 import { tuple } from '../../utils/utils';
 
@@ -12,6 +12,23 @@ import { XpageInterceptorService } from './xpage.interceptor.service';
 
 import { EVEESI_CONFIG, EVEESIConfig } from './eve-esi.config';
 import { noAuthRoutes } from './eve-esi.public';
+
+import {
+  EsiItem,
+  EsiItemName,
+  EsiInformationType,
+  EsiLocationType,
+  EsiMarketOrderCharacter,
+  EsiMarketHistoryOrderCharacter,
+  EsiMarketOrderStructure,
+  EsiMarketOrderRegion,
+  EsiWalletTransaction,
+  EsiMarketPrice,
+  EsiTypeIdInfo,
+  EsiStationInfo,
+  EsiStructureInfo,
+  EsiSystemInfo
+} from './eve-esi.models';
 
 export { EVEESIConfig } from './eve-esi.config';
 
@@ -48,161 +65,6 @@ export type EsiServiceUnavailableErrorData = EsiErrorData;
 /*504*/
 export interface EsiGatewayTimeoutErrorData extends EsiErrorData {
   timeout?: number;
-}
-
-export interface EsiDogmaAttribute {
-  attribute_id: number;
-  value: number;
-}
-
-export interface EsiDogmaEffect {
-  effect_id: number;
-  is_default: boolean;
-}
-
-export interface EsiTypeIdInfo {
-  capacity?: number;
-  description: string;
-  dogma_attributes?: EsiDogmaAttribute[];
-  dogma_effects?: EsiDogmaEffect[];
-  graphic_id?: number;
-  group_id: number;
-  icon_id?: number;
-  market_group_id?: number;
-  mass?: number;
-  name: string;
-  packaged_volume?: number;
-  portion_size?: number;
-  published: boolean;
-  radius?: number;
-  type_id: number;
-  volume?: number;
-}
-
-export interface EsiAssetsName {
-  item_id: number;
-  name: string;
-}
-
-export interface EsiPosition {
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface EsiStationInfo {
-  station_id: number;
-  name: string;
-  type_id: number;
-  owner?: number;
-  system_id: number;
-  position: EsiPosition;
-  max_dockable_ship_volume?: number;
-  office_rental_cost: number;
-  race_id?: number;
-  reprocessing_efficiency: number;
-  reprocessing_stations_take: number;
-  services: string[];
-}
-
-export interface EsiMarketPrice {
-  adjusted_price?: number;
-  average_price?: number;
-  type_id: number;
-}
-
-export interface EsiAssetsItem {
-  is_blueprint_copy?: boolean;
-  is_singleton: boolean;
-  item_id: number;
-  location_flag: string;
-  location_id: number;
-  location_type: string;
-  quantity: number;
-  type_id: number;
-}
-
-export interface EsiStructureInfo {
-  name: string;
-  type_id?: number;
-  owner_id: number;
-  solar_system_id: number;
-  position?: EsiPosition;
-}
-
-export interface EsiPlanetInfo {
-  planet_id: number;
-  moons?: number[];
-  asteroid_belts?: number[];
-}
-
-export interface EsiSystemInfo {
-  constellation_id: number;
-  name: string;
-  planets?: EsiPlanetInfo[];
-  position: EsiPosition;
-  security_class: string;
-  security_status: number;
-  star_id?: number;
-  stargates?: number[];
-  stations?: number[];
-  system_id: number;
-}
-
-export interface EsiConstellationInfo {
-  constellation_id: number;
-  name: string;
-  position: { x: number; y: number; z: number };
-  region_id: number;
-  systems: number[];
-}
-
-export interface EsiOrder {
-  duration: number;
-  is_buy_order?: boolean;
-  issued: string;
-  location_id: number;
-  min_volume?: number;
-  order_id: number;
-  price: number;
-  range: string;
-  type_id: number;
-  volume_remain: number;
-  volume_total: number;
-}
-
-export interface EsiCharCorpOrder extends EsiOrder {
-  escrow?: number;
-  region_id: number;
-  state?: string; // 'cancelled', 'expired' for history, absent for current
-}
-
-export interface EsiCharOrder extends EsiCharCorpOrder {
-  is_corporation: boolean;
-}
-
-export interface EsiCorpOrder extends EsiCharCorpOrder {
-  issued_by: number;
-  wallet_division: number;
-}
-
-export interface EsiRegionOrder extends EsiOrder {
-  system_id: number;
-}
-
-export type EsiStructureOrder = EsiOrder;
-
-export interface EsiWalletTransaction {
-  client_id: number;
-  date: string;
-  is_buy: boolean;
-  is_personal?: boolean;
-  journal_ref_id: number;
-  location_id: number;
-  quantity: number;
-  transaction_id: number;
-  type_id: number;
-  unit_price: number;
 }
 
 export interface EsiMailRecipient {
@@ -323,7 +185,7 @@ export class EsiService {
     return EsiService.getImage(imageResource.TypeIcon, type_id, size);
   }
 
-  public static getAssetLocationType(id: number): string {
+  public static getLocationTypeById(id: number): EsiLocationType | 'asset_safety' {
     // https://github.com/esi/esi-docs/blob/master/docs/asset_location_id.md
     if (id == EsiService.LOCATION_ID_AssetSafety) return 'asset_safety';
     if (id >= 30000000 && id < 32000000) return 'solar_system';
@@ -332,7 +194,7 @@ export class EsiService {
     return 'other';
   }
 
-  public static getIdType(id: number): string {
+  public static getTypeById(id: number): string {
     // https://github.com/esi/esi-docs/blob/master/docs/id_ranges.md
     if (id >= 2147483648) return 'other';
     if (id < 10000) return 'special';
@@ -366,8 +228,8 @@ export class EsiService {
     return 'character';
   }
 
-  public static isLocationLocID(id: number): boolean {
-    return EsiService.getAssetLocationType(id) === 'station';
+  public static isStationId(id: number): boolean {
+    return EsiService.getLocationTypeById(id) === 'station';
   }
 
   constructor(private httpClient: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
@@ -413,12 +275,16 @@ export class EsiService {
     return this.getData<T>(`characters/${character_id}/${route}`, params);
   }
 
-  public getCharacterOrders(character_id: number, historical = false): Observable<EsiCharOrder[]> {
-    return this.getCharacterInformation<EsiCharOrder[]>(character_id, historical ? 'orders/history/' : 'orders/');
+  public getCharacterOrders(character_id: number): Observable<EsiMarketOrderCharacter[]> {
+    return this.getCharacterInformation<EsiMarketOrderCharacter[]>(character_id, 'orders/');
   }
 
-  public getCharacterAssets(character_id: number): Observable<EsiAssetsItem[]> {
-    return this.getCharacterInformation<EsiAssetsItem[]>(character_id, 'assets/');
+  public getCharacterOrdersHistory(character_id: number): Observable<EsiMarketHistoryOrderCharacter[]> {
+    return this.getCharacterInformation<EsiMarketHistoryOrderCharacter[]>(character_id, 'orders/history/');
+  }
+
+  public getCharacterItems(character_id: number): Observable<EsiItem[]> {
+    return this.getCharacterInformation<EsiItem[]>(character_id, 'assets/');
   }
 
   public getCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
@@ -448,15 +314,23 @@ export class EsiService {
     return this.getCharacterInformation<EsiMailMailingList[]>(character_id, 'mail/lists/');
   }
 
-  private getCharacterAssetNames_chunk(character_id: number, item_ids: number[]): Observable<EsiAssetsName[]> {
-    return this.postData<EsiAssetsName[]>(`characters/${character_id}/assets/names/`, item_ids);
+  private _getCharacterItemNames(character_id: number, item_ids: number[]): Observable<EsiItemName[]> {
+    return this.postData<EsiItemName[]>(`characters/${character_id}/assets/names/`, item_ids);
+  }
+
+  public getCharacterItemNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName> {
+    return from(item_ids).pipe(
+      bufferCount(chunk <= 1000 ? chunk : 1000),
+      mergeMap(ids => this._getCharacterItemNames(character_id, ids)),
+      mergeMap(ans => from(ans))
+    );
   }
 
   public listMarketPrices(): Observable<EsiMarketPrice[]> {
     return this.getData<EsiMarketPrice[]>('markets/prices/');
   }
 
-  public getInformation<T>(type: string, id: number): Observable<T> {
+  public getInformation<T>(type: EsiInformationType, id: number): Observable<T> {
     return this.getData<T>(`universe/${type}/${id}/`);
   }
 
@@ -485,50 +359,18 @@ export class EsiService {
     return this.getInformation<EsiSystemInfo>('systems', solar_system_id);
   }
 
-  public getStructureOrders(structure_id: number): Observable<EsiStructureOrder[]> {
-    return this.getData<EsiStructureOrder[]>(`markets/structures/${structure_id}/`);
+  public getStructureOrders(structure_id: number): Observable<EsiMarketOrderStructure[]> {
+    return this.getData<EsiMarketOrderStructure[]>(`markets/structures/${structure_id}/`);
   }
 
-  public getStructureOrdersEx(
-    structure_id: number,
-    type_ids: number[],
-    order_type?: string
-  ): Observable<[number, EsiStructureOrder[]]> {
-    order_type = order_type || 'any';
-    return this.getStructureOrders(structure_id).pipe(
-      map(orders => orders.filter(o => order_type == 'any' || order_type == (o.is_buy_order ? 'buy' : 'sell'))),
-      mergeMap(orders =>
-        from(type_ids).pipe(
-          map(type_id =>
-            tuple(
-              type_id,
-              orders.filter(o => o.type_id == type_id)
-            )
-          )
-        )
-      )
-    );
-  }
-
-  public getCharacterAssetNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiAssetsName> {
-    return from(item_ids).pipe(
-      bufferCount(chunk <= 1000 ? chunk : 1000),
-      mergeMap(ids => this.getCharacterAssetNames_chunk(character_id, ids)),
-      map(ans => from(ans)),
-      mergeAll()
-    );
-  }
-
-  public getCharacterAssetNamesArray(
-    character_id: number,
-    item_ids: number[],
-    chunk = 1000
-  ): Observable<EsiAssetsName[]> {
-    return this.getCharacterAssetNames(character_id, item_ids, chunk).pipe(toArray());
-  }
-
-  public getRegionOrders(region_id: number, type_id?: number, order_type?: string): Observable<EsiRegionOrder[]> {
-    return this.getData<EsiRegionOrder[]>(`markets/${region_id}/orders/`, {
+  public getRegionOrders(
+    region_id: number,
+    type_id?: number,
+    order_type: 'buy' | 'sell' | 'all' = 'all'
+  ): Observable<EsiMarketOrderRegion[]> {
+    if (type_id == undefined && order_type !== 'all')
+      throw Error(`Invalid parameters: order_type = ${order_type} without type_id`);
+    return this.getData<EsiMarketOrderRegion[]>(`markets/${region_id}/orders/`, {
       type_id: type_id != undefined ? String(type_id) : undefined,
       order_type
     });
@@ -537,8 +379,8 @@ export class EsiService {
   public getRegionOrdersEx(
     region_id: number,
     type_ids: number[],
-    order_type?: string
-  ): Observable<[number, EsiRegionOrder[]]> {
+    order_type: 'buy' | 'sell' | 'all' = 'all'
+  ): Observable<[number, EsiMarketOrderRegion[]]> {
     return from(type_ids).pipe(
       mergeMap(type_id =>
         this.getRegionOrders(region_id, type_id, order_type).pipe(

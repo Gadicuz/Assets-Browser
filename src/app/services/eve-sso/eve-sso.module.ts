@@ -68,7 +68,7 @@ export class EVESSOService {
       .loadDiscoveryDocumentAndTryLogin()
       .then(() => {
         if (this.oauth.hasValidAccessToken()) {
-          const at = this.oauth.getAccessToken() as AccessTokenV2;
+          const at = this.oauth.getAccessToken();
           const [atHeader, atPayload] = at
             .split('.')
             .slice(0, 2)

@@ -3,13 +3,16 @@ import { Observable, of, concat, zip } from 'rxjs';
 import { map, mergeMap, toArray, catchError } from 'rxjs/operators';
 
 import {
+  EsiDataCharMarketOrder,
+  EsiDataLocMarketTypes,
+  EsiDataLocMarketOrders,
+  EsiDataMarketOrder,
+  EsiWalletTransaction,
   EsiDataService,
-  LocationOrdersTypes,
-  LocationOrders,
-  EsiOrder,
-  EsiCharOrder,
-  EsiWalletTransaction
+  asKeys
 } from '../services/eve-esi/eve-esi-data.service';
+
+import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 
 import { set, tuple } from '../utils/utils';
 
@@ -53,12 +56,12 @@ export class OrdersComponent {
 
   private readonly depth = 30 * 24 * 60 * 60 * 1000;
 
-  constructor(private esiData: EsiDataService) {
+  constructor(private data: EsiDataService, private cache: EsiCacheService) {
     this.orders$ = concat(
       of({}),
       zip(
-        this.esiData.loadCharacterOrders().pipe(map(orders => orders.filter(o => !o.is_buy_order))),
-        this.esiData
+        this.data.loadCharacterMarketOrders('sell'),
+        this.data
           .loadCharacterWalletTransactions()
           .pipe(
             map(wts =>
@@ -67,11 +70,11 @@ export class OrdersComponent {
           ),
         (orders, trans) => this.analyzeData(orders, trans)
       ).pipe(
-        mergeMap(([locs, orders, sales]) => {
-          const o_ids = orders.map(o => o.order_id);
-          return this.esiData
-            .loadOrders(locs)
-            .pipe(map(loc_orders => this.assembleLocationInfo(loc_orders, o_ids, sales)));
+        mergeMap(([loc_types, char_orders, loc_type_sales]) => {
+          const ids = char_orders.map(o => o.order_id);
+          return this.cache
+            .loadMarketOrders(loc_types, 'sell')
+            .pipe(map(loc_orders => this.assembleLocationInfo(loc_orders, ids, loc_type_sales)));
         }),
         toArray(),
         map(data => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
@@ -84,21 +87,16 @@ export class OrdersComponent {
   }
 
   private analyzeData(
-    orders: EsiCharOrder[],
+    orders: EsiDataCharMarketOrder[],
     trans: EsiWalletTransaction[]
-  ): [LocationOrdersTypes[], EsiCharOrder[], SalesHistory] {
-    const loc_id_types = [
+  ): [EsiDataLocMarketTypes[], EsiDataCharMarketOrder[], SalesHistory] {
+    const loc_id = [
       ...orders.map(o => tuple(o.location_id, o.type_id)),
       ...trans.map(t => tuple(t.location_id, t.type_id))
     ];
-    const types = set(loc_id_types.map(([location_id]) => location_id)).map(location_id => {
-      const r_order = orders.find(o => o.location_id === location_id && o.region_id != undefined); // ???
-      return {
-        location_id,
-        types: set(loc_id_types.filter(([l_id]) => l_id === location_id).map(([, type_id]) => type_id)),
-        region_id: r_order && r_order.region_id
-      } as LocationOrdersTypes;
-    });
+    const types = set(loc_id.map(([l_id]) => l_id))
+      .map(asKeys(loc_id, (id, [x_id]) => id === x_id))
+      .map(([l_id, loc_id]) => ({ l_id, types: loc_id.map(([, t]) => t) }));
 
     const sales = trans.reduce((sales: SalesHistory, wt: EsiWalletTransaction) => {
       if (wt.quantity) {
@@ -126,7 +124,7 @@ export class OrdersComponent {
   private assembleItemsInfo(
     type_id: number,
     name: string,
-    type_orders: EsiOrder[],
+    type_orders: EsiDataMarketOrder[],
     ids: number[],
     sd: SalesData | undefined
   ): OrderListItem[] {
@@ -134,7 +132,7 @@ export class OrdersComponent {
     const dtime = 1 * 24 * 60 * 60 * 1000;
     const lines: OrderListItem[] = type_orders
       .map(o => {
-        const duration = now - new Date(o.issued).getTime();
+        const duration = now - o.timestamp;
         return {
           type_id,
           name: '',
@@ -175,23 +173,23 @@ export class OrdersComponent {
     ].concat(lines);
   }
 
-  private assembleLocationInfo(loc_orders: LocationOrders, ids: number[], sales: SalesHistory): LocationInfo {
+  private assembleLocationInfo(loc_orders: EsiDataLocMarketOrders, ids: number[], sales: SalesHistory): LocationInfo {
     const items = [...loc_orders.orders]
       .map(([type_id, type_orders]) =>
         this.assembleItemsInfo(
           type_id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.esiData.typesInfo.get(type_id)!.name, // type_id loaded by loadOrders()
+          this.cache.typesInfo.get(type_id)!.name, // type_id loaded by loadMarketOrders()
           type_orders,
           ids,
-          sales.get({ l_id: loc_orders.location_id, t_id: type_id })
+          sales.get({ l_id: loc_orders.l_id, t_id: type_id })
         )
       )
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
     return {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      name: this.esiData.locationsInfo.get(loc_orders.location_id)!.name, // loc_orders.location_id loaded by loadOrders()
+      name: this.cache.locationsInfo.get(loc_orders.l_id)!.name, // loc_orders.location_id loaded by loadMarketOrders()
       items: items
     };
   }

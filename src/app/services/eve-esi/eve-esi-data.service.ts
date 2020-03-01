@@ -1,38 +1,31 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, empty, concat, merge, iif, from, throwError } from 'rxjs';
-import {
-  map,
-  expand,
-  tap,
-  distinct,
-  switchMap,
-  mergeMap,
-  reduce,
-  takeWhile,
-  filter,
-  mapTo,
-  toArray,
-  catchError,
-  ignoreElements
-} from 'rxjs/operators';
+import { Observable, of, empty, merge, from, throwError, MonoTypeOperatorFunction } from 'rxjs';
+import { catchError, expand, filter, map, mergeMap, takeWhile, tap, toArray } from 'rxjs/operators';
 
 import { EVESSOService } from '../eve-sso/eve-sso.module';
+import { EsiService, EsiError, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
+
 import {
-  EsiService,
-  EsiError,
-  EsiAssetsItem,
+  EsiItem,
+  EsiInformationType,
+  EsiMarketOrderState,
+  EsiMarketOrderBuySell,
+  EsiMarketOrderCharacter,
+  EsiMarketOrderStructure,
+  EsiMarketOrderRegion,
   EsiSystemInfo,
   EsiConstellationInfo,
   EsiStructureInfo,
   EsiStationInfo,
-  EsiOrder,
-  EsiCharOrder,
-  EsiMailRecipient,
-  EsiMailHeader,
-  EsiWalletTransaction
-} from './eve-esi.module';
-export * from './eve-esi.module';
+  EsiWalletTransaction,
+  EsiDataTypeInfo,
+  EsiDataItemName,
+  EsiDataMarketOrder,
+  EsiDataCharMarketOrder
+} from './eve-esi.models';
+
+export * from './eve-esi.models';
 
 import { set, tuple } from '../../utils/utils';
 
@@ -50,80 +43,52 @@ export interface EsiDataMail extends EsiDataMailHeader {
   body: string;
 }
 
-export interface EsiDataTypeInfo {
-  name: string;
-  volume?: number;
-  packaged_volume?: number;
-}
-
 export interface EsiDataLocationInfo {
   name: string; // name
   type_id?: number; // type_id or undefined
   type_info?: string; // type if type_id == undefined
 }
 
-export type TypeOrders = Map<number, EsiOrder[]>;
-
-export interface LocationOrdersTypes {
-  location_id: number;
+export interface EsiDataLocMarketTypes {
+  l_id: number;
   types: number[];
-  region_id?: number;
 }
 
-export interface LocationOrders {
-  location_id: number;
-  orders: TypeOrders;
+export function pluckLocMarketTypes(locs: EsiDataLocMarketTypes[]): number[] {
+  return set(locs.reduce<number[]>((s, x) => [...s, ...x.types], []));
+}
+
+export interface EsiDataLocMarketOrders {
+  l_id: number;
+  orders: Map<number, EsiDataMarketOrder[]>;
+}
+
+function filterBuySell<T extends EsiDataMarketOrder>(buy_sell?: EsiMarketOrderBuySell): MonoTypeOperatorFunction<T[]> {
+  return buy_sell !== undefined ? map(orders => orders.filter(o => o.buy_sell === buy_sell)) : tap();
+}
+
+/**
+ * maps data array to input keys
+ * @param data data array
+ * @param p checks if data item x is mapped to a key value k
+ */
+export function asKeys<K, T>(data: T[], p: (k: K, x: T) => boolean): (k: K) => [K, T[]] {
+  return (key): [K, T[]] =>
+    tuple(
+      key,
+      data.filter(x => p(key, x))
+    );
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class EsiDataService {
-  // MAP: type_id -> {name, volume, packaged_volume?}
-  public typesInfo = new Map<number, EsiDataTypeInfo>();
-
-  // markets/prices/ -> MAP: type_id -> price
-  private _prices?: Map<number, number>;
-  public get prices(): Map<number, number> {
-    if (this._prices == undefined) throw Error('EsiDataService.prices() undefined');
-    return this._prices;
-  }
-
-  // characters/{character_id}/assets/
-  private _charAssets?: EsiAssetsItem[];
-  public get charAssets(): EsiAssetsItem[] {
-    if (this._charAssets == undefined) throw Error('EsiDataService.charAssets() undefined');
-    return this._charAssets;
-  }
-  private maxItemId = 0;
-  // MAP: item_id -> name?
-  public charAssetsNames = new Map<number, string | undefined>();
-
-  private _charOrders?: EsiCharOrder[];
-  public get charOrders(): EsiCharOrder[] {
-    if (this._charOrders == undefined) throw Error('EsiDataService.charOrders() undefined');
-    return this._charOrders;
-  }
-
-  private _charWalletTransactions?: EsiWalletTransaction[];
-  public get charWalletTransactions(): EsiWalletTransaction[] {
-    if (this._charWalletTransactions == undefined) throw Error('EsiDataService.charWalletTransactions() undefined');
-    return this._charWalletTransactions;
-  }
-
-  // MAP: (station_id|structure_id) -> {name, type_id, err}
-  public locationsInfo: Map<number, EsiDataLocationInfo>;
-
   private missedIDs(ids: number[], knownIDs: IterableIterator<number>): number[] {
     return set(ids).filter(id => ![...knownIDs].includes(id));
   }
 
-  constructor(private http: HttpClient, private esi: EsiService, private sso: EVESSOService) {
-    this.locationsInfo = new Map<number, EsiDataLocationInfo>([
-      [0, { name: 'Universe', type_info: 'Tranquility' }],
-      [EsiService.LOCATION_ID_AssetSafety, { name: 'Asset Safety', type_info: '' }]
-    ]);
-  }
+  constructor(private http: HttpClient, private esi: EsiService, private sso: EVESSOService) {}
 
   private get character_id(): number {
     const idn = this.sso.charIdName;
@@ -131,129 +96,178 @@ export class EsiDataService {
     return idn.id;
   }
 
-  findCharAssetsItem(item_id: number): EsiAssetsItem | undefined {
-    return this.charAssets.find(item => item.item_id == item_id);
+  loadTypeInformation(id: number): Observable<EsiDataTypeInfo> {
+    return this.esi.getTypeInformation(id).pipe(
+      map(info => ({
+        name: info.name,
+        volume: info.volume,
+        packaged_volume: info.packaged_volume
+      }))
+    );
   }
 
-  loadTypeInfo(ids: number[]): Observable<Map<number, EsiDataTypeInfo>> {
-    return iif(
-      () => !this.typesInfo.size,
-      from(this.http.get<[number, EsiDataTypeInfo][]>('/assets/sde/universe-types.json')).pipe(
-        map(obj => (this.typesInfo = new Map<number, EsiDataTypeInfo>(obj)))
-      ),
-      of(this.typesInfo)
-    ).pipe(
-      switchMap(typesInfo =>
-        from(this.missedIDs(ids, typesInfo.keys())).pipe(
-          mergeMap(type_id => this.esi.getTypeInformation(type_id)),
-          map(type_info => typesInfo.set(type_info.type_id, type_info)),
-          reduce(acc => acc, typesInfo)
+  loadCharacterItems(): Observable<EsiItem[]> {
+    return this.esi.getCharacterItems(this.character_id);
+  }
+
+  loadCharacterItemNames(ids: number[]): Observable<EsiDataItemName> {
+    return this.esi.getCharacterItemNames(this.character_id, ids).pipe(
+      filter(itemName => itemName.name !== 'None'),
+      map(itemName => tuple(itemName.item_id, itemName.name))
+    );
+  }
+
+  loadMarketPrices(): Observable<Map<number, number>> {
+    return this.esi
+      .listMarketPrices()
+      .pipe(
+        map(prices => new Map<number, number>(prices.map(v => [v.type_id, v.average_price || v.adjusted_price || 0])))
+      );
+  }
+
+  private fromEsiMarketOrderCharacter(
+    o: EsiMarketOrderCharacter,
+    status?: EsiMarketOrderState
+  ): EsiDataCharMarketOrder {
+    return {
+      order_id: o.order_id,
+      buy_sell: o.is_buy_order ? 'buy' : 'sell',
+      timestamp: new Date(o.issued).getTime(),
+      location_id: o.location_id,
+      range: o.range,
+      duration: o.duration,
+      type_id: o.type_id,
+      price: o.price,
+      min_volume: o.min_volume || 1,
+      volume_remain: o.volume_remain,
+      volume_total: o.volume_total,
+      region_id: o.region_id,
+      issued_by: this.character_id,
+      is_corporation: o.is_corporation,
+      escrow: o.escrow || 0,
+      wallet_division: 0,
+      status
+    };
+  }
+
+  private fromEsiMarketOrderStructureOrRegion(o: EsiMarketOrderStructure | EsiMarketOrderRegion): EsiDataMarketOrder {
+    // o.system_id ignored for EsiMarketOrderRegion
+    return {
+      order_id: o.order_id,
+      buy_sell: o.is_buy_order ? 'buy' : 'sell',
+      timestamp: new Date(o.issued).getTime(),
+      location_id: o.location_id,
+      range: o.range,
+      duration: o.duration,
+      type_id: o.type_id,
+      price: o.price,
+      min_volume: o.min_volume || 1,
+      volume_remain: o.volume_remain,
+      volume_total: o.volume_total,
+      region_id: undefined
+    };
+  }
+
+  loadCharacterMarketOrders(buy_sell?: EsiMarketOrderBuySell): Observable<EsiDataCharMarketOrder[]> {
+    return this.esi.getCharacterOrders(this.character_id).pipe(
+      map(orders => orders.map(o => this.fromEsiMarketOrderCharacter(o))),
+      filterBuySell(buy_sell)
+    );
+  }
+
+  loadStructuresMarketOrders(
+    locs: EsiDataLocMarketTypes[],
+    buy_sell?: EsiMarketOrderBuySell
+  ): Observable<EsiDataLocMarketOrders> {
+    return merge(
+      ...locs.map(loc =>
+        this.esi.getStructureOrders(loc.l_id).pipe(
+          map(orders => orders.map(o => this.fromEsiMarketOrderStructureOrRegion(o))),
+          filterBuySell(buy_sell),
+          map(orders => ({
+            l_id: loc.l_id,
+            orders: new Map(loc.types.map(asKeys(orders, (id, o) => id === o.type_id)))
+          }))
         )
       )
     );
   }
 
-  loadPrices(reload?: boolean): Observable<Map<number, number>> {
-    if (this._prices != undefined && !reload) return of(this._prices);
-    return this.esi.listMarketPrices().pipe(
-      map(prices => new Map<number, number>(prices.map(v => [v.type_id, v.average_price || v.adjusted_price || 0]))),
-      tap(prices => (this._prices = prices))
+  loadStationsMarketOrders(
+    locs: EsiDataLocMarketTypes[],
+    buy_sell?: EsiMarketOrderBuySell
+  ): Observable<EsiDataLocMarketOrders> {
+    return this.separateStations(locs).pipe(
+      mergeMap(([r_id, r_locs]) =>
+        this.esi.getRegionOrdersEx(r_id, pluckLocMarketTypes(r_locs), buy_sell).pipe(
+          toArray(),
+          mergeMap(r_orders =>
+            from(r_locs).pipe(
+              map(loc => ({
+                l_id: loc.l_id,
+                orders: new Map(
+                  r_orders
+                    .filter(([t_id]) => loc.types.includes(t_id)) // remove type_id
+                    .map(([t_id, t_orders]) =>
+                      tuple(
+                        t_id,
+                        t_orders
+                          .filter(o => o.location_id === loc.l_id) // remove locations
+                          .map(o => this.fromEsiMarketOrderStructureOrRegion(o))
+                      )
+                    )
+                )
+              }))
+            )
+          )
+        )
+      )
     );
   }
 
-  private initCharacterAssetsItemId(assets: EsiAssetsItem[]): EsiAssetsItem[] {
-    this.maxItemId = Math.max(...assets.map(item => item.item_id));
-    return (this._charAssets = assets);
+  loadCharacterWalletTransactions(): Observable<EsiWalletTransaction[]> {
+    return this.esi.getCharacterWalletTransactions(this.character_id);
   }
 
-  generateCharacterAssetsItemId(): number {
-    return ++this.maxItemId;
-  }
-
-  loadCharacterAssets(reload?: boolean): Observable<EsiAssetsItem[]> {
-    if (this._charAssets != undefined && !reload) return of(this.initCharacterAssetsItemId(this._charAssets));
-    return this.esi.getCharacterAssets(this.character_id).pipe(tap(assets => this.initCharacterAssetsItemId(assets)));
-  }
-
-  loadCharacterOrders(reload?: boolean): Observable<EsiCharOrder[]> {
-    if (this._charOrders != undefined && !reload) return of(this._charOrders);
-    return this.esi.getCharacterOrders(this.character_id, false).pipe(tap(orders => (this._charOrders = orders)));
-  }
-
-  loadCharacterWalletTransactions(reload?: boolean): Observable<EsiWalletTransaction[]> {
-    if (this._charWalletTransactions != undefined && !reload) return of(this._charWalletTransactions);
-    return this.esi
-      .getCharacterWalletTransactions(this.character_id)
-      .pipe(tap(transactions => (this._charWalletTransactions = transactions)));
-  }
-
-  loadCharacterAssetsNames(ids: number[]): Observable<never> {
-    return this.esi.getCharacterAssetNames(this.character_id, this.missedIDs(ids, this.charAssetsNames.keys())).pipe(
-      map(id_name => ({
-        item_id: id_name.item_id,
-        name: id_name.name !== 'None' ? id_name.name : undefined // remove 'None' names
-      })),
-      tap(id_name => this.charAssetsNames.set(id_name.item_id, id_name.name)),
-      ignoreElements()
-    );
-  }
-
-  loadLocationsInfo(id_types: [number, string][]): Observable<Map<number, EsiDataLocationInfo>> {
-    const types = new Map(id_types);
-    const ids = this.missedIDs([...types.keys()], this.locationsInfo.keys());
-    //    if (ids.length == 0) return of(this.locationsInfo);
-    return from(ids).pipe(
-      mergeMap(sID => {
-        const type = types.get(sID) || EsiService.getAssetLocationType(sID);
-        let selector;
-        switch (type) {
-          case 'solar_system':
-            selector = 'systems';
-            break;
-          case 'station':
-            selector = 'stations';
-            break;
-          case 'other':
-            selector = 'structures';
-            break;
-          default:
-            this.locationsInfo.set(sID, {
-              name: `*** Unknown '${type}' ***`,
-              type_info: `ID = ${sID}`
-            });
-            return empty();
-        }
-        return this.esi.getInformation<EsiSystemInfo | EsiStructureInfo | EsiStationInfo>(selector, sID).pipe(
-          map(esiInfo => {
-            return (type === 'solar_system'
-              ? {
-                  name: esiInfo.name,
-                  type_info: 'Solar system'
-                }
-              : {
-                  name: esiInfo.name,
-                  type_id: (esiInfo as EsiStructureInfo | EsiStationInfo).type_id
-                }) as EsiDataLocationInfo;
-          }),
-          catchError((err: unknown) => {
-            //            if (err.name == 'EsiError' ...
-            if (err instanceof EsiError && err.status == 403)
-              // some locations are 'forbidden'
-              return of({
-                name: `*** Forbidden '${type}' ***`,
-                type_info: `ID = ${sID}`
-              } as EsiDataLocationInfo); // err.error - server 403 error body
-            return throwError(err);
-          }),
-          tap(info => this.locationsInfo.set(sID, info)),
-          filter(info => info.type_id != undefined),
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          map(info => info.type_id!)
-        );
-      }),
-      toArray(),
-      switchMap(ids => this.loadTypeInfo(ids)),
-      mapTo(this.locationsInfo)
+  loadLocationInfo(id: number): Observable<EsiDataLocationInfo> {
+    const locType = EsiService.getLocationTypeById(id);
+    const selector = {
+      solar_system: 'systems',
+      station: 'stations',
+      other: 'structures',
+      asset_safety: undefined
+    }[locType] as EsiInformationType;
+    if (selector == undefined)
+      return of({
+        name: `*** Unknown '${locType}' ***`,
+        type_id: undefined,
+        type_info: `ID = ${id}`
+      });
+    return this.esi.getInformation<EsiSystemInfo | EsiStructureInfo | EsiStationInfo>(selector, id).pipe(
+      map(esiInfo =>
+        locType === 'solar_system'
+          ? {
+              name: esiInfo.name,
+              type_id: undefined,
+              type_info: 'Solar system'
+            }
+          : {
+              name: esiInfo.name,
+              type_id: (esiInfo as EsiStructureInfo | EsiStationInfo).type_id,
+              type_info: undefined
+            }
+      ),
+      catchError((err: unknown) => {
+        //            if (err.name == 'EsiError' ...
+        if (err instanceof EsiError && err.status == 403)
+          // some location IDs are 'forbidden'
+          return of({
+            name: `*** Forbidden '${locType}' ***`,
+            type_id: undefined,
+            type_info: `ID = ${id}`
+          }); // err.error - server 403 error body
+        return throwError(err);
+      })
     );
   }
 
@@ -293,122 +307,52 @@ export class EsiDataService {
     );
   }
 
-  private remapIDs<T>(ids: number[], type: string, m: (obj: T) => number): Observable<number[]> {
+  private remapIDs<T>(info: EsiInformationType, ids: number[], m: (obj: T) => number): Observable<[number, number][]> {
     return from(ids).pipe(
-      mergeMap(id => this.esi.getInformation<T>(type, id).pipe(map(info => m(info)))),
-      distinct(),
+      mergeMap(id => this.esi.getInformation<T>(info, id).pipe(map(obj => tuple(id, m(obj))))),
       toArray()
     );
   }
 
-  private getLocationRegions(locs: LocationOrdersTypes[]): Observable<number> {
-    return merge(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      from(locs.filter(loc => loc.region_id).map(loc => loc.region_id!)),
-      of(set(locs.filter(loc => !loc.region_id).map(loc => loc.location_id))).pipe(
-        mergeMap(loc_ids => this.remapIDs<EsiStationInfo>(loc_ids, 'stations', s => s.system_id)),
-        mergeMap(sys_ids => this.remapIDs<EsiSystemInfo>(sys_ids, 'systems', s => s.constellation_id)),
-        mergeMap(con_ids => this.remapIDs<EsiConstellationInfo>(con_ids, 'constellations', c => c.region_id)),
-        mergeMap(reg_ids => from(reg_ids))
-      )
-    ).pipe(distinct());
-  }
-
   private resolveIDs<T>(
+    info: EsiInformationType,
     ids: [number, number][],
-    type: string,
-    r: (obj: T) => [number, number]
+    m: (obj: T) => number
   ): Observable<[number, number][]> {
-    return from(set(ids.map(([, id]) => id))).pipe(
-      mergeMap(id => this.esi.getInformation<T>(type, id)),
-      map(info => r(info)), //tuple(info[fields[0]], info[fields[1]])),
-      toArray(),
-      map(arr => new Map(arr)),
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      map(m => ids.map(([loc, id]) => [loc, m.get(id)!]))
-    );
-  }
-
-  private getRegionLocations(locs: LocationOrdersTypes[]): Observable<[number, LocationOrdersTypes[]]> {
-    return of(locs.filter(loc => !loc.region_id).map(loc => tuple(loc.location_id, loc.location_id))).pipe(
-      mergeMap(loc_ids => this.resolveIDs<EsiStationInfo>(loc_ids, 'stations', s => [s.station_id, s.system_id])),
-      mergeMap(sys_ids => this.resolveIDs<EsiSystemInfo>(sys_ids, 'systems', s => [s.system_id, s.constellation_id])),
-      mergeMap(con_ids =>
-        this.resolveIDs<EsiConstellationInfo>(con_ids, 'constellations', c => [c.constellation_id, c.region_id])
-      ),
-      map(reg_ids => new Map(reg_ids)),
-      tap(reg_map => locs.filter(loc => !loc.region_id).forEach(loc => (loc.region_id = reg_map.get(loc.location_id)))),
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      mapTo(set(locs.map(loc => loc.region_id!))),
-      switchMap(r_ids =>
-        from(r_ids).pipe(
-          map(r_id =>
-            tuple(
-              r_id,
-              locs.filter(loc => loc.region_id == r_id)
-            )
-          )
-        )
-      )
-    );
-  }
-
-  loadStationOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
-    return this.getRegionLocations(locs).pipe(
-      mergeMap(([region_id, region_locs]) =>
-        this.esi
-          .getRegionOrdersEx(region_id, set(region_locs.map(loc => loc.types).reduce((s, t) => [...s, ...t])), 'sell')
-          .pipe(
-            toArray(),
-            mergeMap(region_orders =>
-              from(region_locs).pipe(
-                map(region_loc => ({
-                  location_id: region_loc.location_id,
-                  orders: new Map(
-                    region_orders
-                      .map(([type_id, orders]) =>
-                        tuple(
-                          type_id,
-                          orders.filter(o => o.location_id == region_loc.location_id)
-                        )
-                      )
-                      .filter(([, orders]) => orders.length)
-                  )
-                }))
-              )
-            )
-          )
-      )
-    );
-  }
-
-  loadStructureOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
-    return from(locs).pipe(
-      mergeMap(loc =>
-        this.esi.getStructureOrdersEx(loc.location_id, loc.types, 'sell').pipe(
-          toArray(),
-          map(type_orders => ({ location_id: loc.location_id, orders: new Map(type_orders) }))
-        )
-      )
+    return this.remapIDs(info, set(ids.map(([, v]) => v)), m).pipe(
+      map(m => new Map(m)),
+      map(m => ids.map(([id, v]) => tuple(id, m.get(v) as number)))
     );
   }
 
   /**
-   * Returns LocationOrders for locations/types, ensures all related loc_id and type_id are loaded.
-   * @param locs array of location and item types per location
+   * Returns stations grouped by regions
+   * @param locs
    */
-  loadOrders(locs: LocationOrdersTypes[]): Observable<LocationOrders> {
-    const loc_ids = locs.map(loc => loc.location_id);
-    const typ_ids = locs.map(loc => loc.types).reduce((s, a) => [...s, ...a], []);
-    return concat(
-      merge(
-        this.loadLocationsInfo(loc_ids.map(id => [id, EsiService.getAssetLocationType(id)])),
-        this.loadTypeInfo(typ_ids)
-      ).pipe(ignoreElements()),
-      merge(
-        this.loadStationOrders(locs.filter(loc => EsiService.isLocationLocID(loc.location_id))),
-        this.loadStructureOrders(locs.filter(loc => !EsiService.isLocationLocID(loc.location_id)))
-      )
+  private separateStations(locs: EsiDataLocMarketTypes[]): Observable<[number, EsiDataLocMarketTypes[]]> {
+    return of(locs.map(loc => tuple(loc.l_id, loc.l_id))).pipe(
+      mergeMap(loc_sta => this.resolveIDs<EsiStationInfo>('stations', loc_sta, sta => sta.system_id)),
+      mergeMap(loc_sys => this.resolveIDs<EsiSystemInfo>('systems', loc_sys, sys => sys.constellation_id)),
+      mergeMap(loc_con => this.resolveIDs<EsiConstellationInfo>('constellations', loc_con, con => con.region_id)),
+      mergeMap(loc_reg => {
+        const r_ids = set(loc_reg.map(([, v]) => v));
+        const l_map = new Map(loc_reg);
+        return from(r_ids.map(asKeys(locs, (id, loc) => id === (l_map.get(loc.l_id) as number))));
+      })
     );
+  }
+
+  loadMarketOrders(
+    locs: EsiDataLocMarketTypes[],
+    buy_sell?: EsiMarketOrderBuySell
+  ): Observable<EsiDataLocMarketOrders> {
+    const ids = locs.reduce<EsiDataLocMarketTypes[][]>(
+      (s, x) => {
+        s[EsiService.isStationId(x.l_id) ? 1 : 0].push(x);
+        return s;
+      },
+      [[], []]
+    );
+    return merge(this.loadStationsMarketOrders(ids[1], buy_sell), this.loadStructuresMarketOrders(ids[0], buy_sell));
   }
 }
