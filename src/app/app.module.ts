@@ -16,7 +16,7 @@ import { EVEESIModule, EVEESIConfig } from './services/eve-esi/eve-esi.module';
 import { LocationComponent } from './location/location.component';
 import { OrdersComponent } from './orders/orders.component';
 
-import { NgLetDirective } from './utils/ng-let.directive';
+import { AppLetDirective } from './utils/applet.directive';
 
 import { ScalePipe } from './pipes/scale.pipe';
 import { DurationPipe } from './pipes/duration.pipe';
@@ -49,7 +49,7 @@ const ssoConfig: EVESSOConfig = {
     AppComponent,
     LocationComponent,
     OrdersComponent,
-    NgLetDirective,
+    AppLetDirective,
     ScalePipe,
     DurationPipe,
     OrdersListComponent,
@@ -66,6 +66,6 @@ const ssoConfig: EVESSOConfig = {
     EVEESIModule.forRoot(esiConfig)
   ],
   bootstrap: [AppComponent],
-  exports: [NgLetDirective]
+  exports: [AppLetDirective]
 })
 export class AppModule {}
