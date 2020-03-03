@@ -260,7 +260,7 @@ export class EsiService {
   private getData<T>(route: string, parameters: object = {}, retry = EsiService.retry()): Observable<T> {
     const params = new HttpParams({ fromObject: { ...this.defParams, ...parameters } });
     return this.httpClient
-      .get<T>(this.getUrl(route), { params: params })
+      .get<T>(this.getUrl(route), { params })
       .pipe(retryWhen(retry));
   }
 

@@ -23,6 +23,13 @@
           </div>
         </ng-container>
       </mat-card-content>
+      <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
+        <div></div>
+        <ng-container *ngFor="let node of location.content?.route; let idx = index">
+          <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
+          <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]" fxFlexAlign="center">{{node.name}}</button>
+        </ng-container>
+      </mat-card-actions>
     </ng-container>
 
     <ng-template #loading>
@@ -30,14 +37,6 @@
         <mat-progress-bar mode="indeterminate"></mat-progress-bar>
       </mat-card-content>
     </ng-template>
-
-    <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
-      <div></div>
-      <ng-container *ngFor="let node of location.route; let idx = index">
-        <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
-        <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.id]" fxFlexAlign="center">{{node.name}}</button>
-      </ng-container>
-    </mat-card-actions>
 
   </mat-card>
 

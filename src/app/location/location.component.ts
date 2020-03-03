@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { endWith, map, tap, ignoreElements, switchMap, delay, catchError } from 'rxjs/operators';
-import { Observable, of, concat, merge, throwError, empty } from 'rxjs';
+import { map, tap, ignoreElements, switchMap, catchError } from 'rxjs/operators';
+import { Observable, of, merge, throwError, concat } from 'rxjs';
 
 import {
   EsiItem,
@@ -17,6 +17,8 @@ import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 
 import { set, tuple } from '../utils/utils';
+
+const call = <T>(f: () => Observable<T>): Observable<T> => of(f).pipe(switchMap(f => f()));
 
 interface LocationData {
   items: number[]; // content item_id's
@@ -70,7 +72,7 @@ export class LocationComponent {
   }
 
   // Map  loc_id -> LocationData
-  private locations = new Map<number, LocationData>([[0, { items: [], volume: undefined, value: 0 }]]);
+  private locations = new Map<number, LocationData>();
   private loc(id: number): LocationData {
     return this.locations.get(id) as LocationData;
   }
@@ -92,6 +94,7 @@ export class LocationComponent {
     private data: EsiDataService,
     private cache: EsiCacheService
   ) {
+    this.locations.set(0, { items: [], volume: undefined, value: 0 });
     this.dataSource = new MatTableDataSource<ItemData>();
     this.dataSource.sortingDataAccessor = (item: ItemData, property): string | number => {
       switch (property) {
@@ -122,12 +125,22 @@ export class LocationComponent {
     if (this.sort != undefined) this.dataSource.sort = this.sort;
   }
 
-  private buildLocations(): Observable<Map<number, EsiDataLocationInfo>> {
-    this.maxAssetsItemId = this.cache.characterItems.reduce((base, i) => (base > i.item_id ? base : i.item_id), 0);
-    this.linkItemsData(this.cache.characterItems);
-    this.linkMarketData(this.cache.characterMarketOrders.filter(fltBuySell('sell')), this.maxAssetsItemId);
-    this.linkChildren();
-    return this.cache.loadLocationsInfo(this.loc(0).items.filter(id => this.isAssetItem(id)));
+  private buildLocations(): Observable<unknown> {
+    if (this.locations.size !== 1) return of(undefined);
+    return concat(
+      merge(
+        this.cache.loadMarketPrices(),
+        this.cache.loadCharacterItems(),
+        this.cache.loadCharacterMarketOrders()
+      ).pipe(ignoreElements()),
+      call(() => {
+        this.maxAssetsItemId = this.cache.characterItems.reduce((base, i) => (base > i.item_id ? base : i.item_id), 0);
+        this.linkItemsData(this.cache.characterItems);
+        this.linkMarketData(this.cache.characterMarketOrders.filter(fltBuySell('sell')), this.maxAssetsItemId);
+        this.linkChildren();
+        return this.cache.loadLocationsInfo(this.loc(0).items.filter(id => this.isAssetItem(id)));
+      })
+    );
   }
 
   private addLocation(id: number, parent = 0): void {
@@ -225,19 +238,7 @@ export class LocationComponent {
 
   // get assets info for loc_id
   private getAssets(loc_id: number): Observable<ContData> {
-    return concat(
-      this.locations
-        ? empty()
-        : concat(
-            merge(
-              this.cache.loadMarketPrices(),
-              this.cache.loadCharacterItems(),
-              this.cache.loadCharacterMarketOrders()
-            ),
-            this.buildLocations()
-          ).pipe(delay(0), ignoreElements()),
-      this.getLocation(loc_id)
-    );
+    return this.buildLocations().pipe(switchMap(() => this.getLocation(loc_id)));
   }
 
   private getItemInfo(item: EsiItem | number): ItemInfo {
@@ -338,25 +339,27 @@ export class LocationComponent {
     const locItem = this.getItem(loc_id); // location item or null for top/root level location locID
     const locItems = locData.items.map(id => this.getItem(id));
     const usedItems = [locItem, ...locItems].filter(item => !!item) as EsiItem[];
-    return merge(
-      // ensure data is available ...
-      this.loadItemNames(usedItems.map(item => item.item_id)), // ... user names
-      this.cache.loadTypesInfo(usedItems.map(item => item.type_id)) // ... typeInfo
-    ).pipe(
-      ignoreElements(),
-      endWith({
-        item: this.getItemInfo(locItem || loc_id),
-        content: {
-          stat: [
-            { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
-            { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
-            { title: 'Content Value (ISK)', content: locData.value },
-            { title: 'Content Volume (m3)', content: this.getLocationContentVol(locData) }
-          ],
-          route: this.getLocationRoute(loc_id).map(item_id => this.getItemInfoForId(item_id)),
-          items: locData.items.map(item_id => this.assembleItemData(item_id))
-        }
-      })
+    return concat(
+      merge(
+        // ensure data is available ...
+        this.loadItemNames(usedItems.map(item => item.item_id)), // ... user names
+        this.cache.loadTypesInfo(usedItems.map(item => item.type_id)) // ... typeInfo
+      ).pipe(ignoreElements()),
+      call(() =>
+        of({
+          item: this.getItemInfo(locItem || loc_id),
+          content: {
+            stat: [
+              { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
+              { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
+              { title: 'Content Value (ISK)', content: locData.value },
+              { title: 'Content Volume (m3)', content: this.getLocationContentVol(locData) }
+            ],
+            route: this.getLocationRoute(loc_id).map(item_id => this.getItemInfoForId(item_id)),
+            items: locData.items.map(item_id => this.assembleItemData(item_id))
+          }
+        })
+      )
     );
   }
 }
