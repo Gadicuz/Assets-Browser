@@ -1,4 +1,4 @@
-<div class="app-container" fxLayout="column" fxLayoutAlign="start" *appLet="charData as character">
+<div class="app-container" fxLayout="column" fxLayoutAlign="start" *defVar="charData as character">
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
     <ng-container *ngIf="character; else nochar">
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/browse']">Assets</a>
