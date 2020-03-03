@@ -5,9 +5,8 @@ import { endWith, filter, ignoreElements, map, mapTo, mergeMap, switchMap, tap, 
 
 import {
   EsiItem,
-  EsiMarketOrderBuySell,
+  EsiMarketOrderType,
   EsiWalletTransaction,
-  EsiDataMarketOrder,
   EsiDataLocMarketTypes,
   EsiDataLocMarketOrders,
   EsiDataCharMarketOrder,
@@ -19,9 +18,6 @@ import {
 import { EsiService } from './eve-esi.module';
 
 import { set, fltRemoveKeys } from '../../utils/utils';
-
-export const fltBuySell = <T extends EsiDataMarketOrder>(buy_sell: EsiMarketOrderBuySell) => (o: T): boolean =>
-  buy_sell === o.buy_sell;
 
 @Injectable({
   providedIn: 'root'
@@ -112,7 +108,7 @@ export class EsiCacheService {
 
   public loadMarketOrders(
     locs: EsiDataLocMarketTypes[],
-    buy_sell?: EsiMarketOrderBuySell
+    buy_sell?: EsiMarketOrderType
   ): Observable<EsiDataLocMarketOrders> {
     const loc_ids = set(locs.map(x => x.l_id));
     const typ_ids = pluckLocMarketTypes(locs);

@@ -7,9 +7,10 @@ import {
   EsiItem,
   EsiDataService,
   EsiDataLocationInfo,
-  EsiDataCharMarketOrder
+  EsiDataCharMarketOrder,
+  fltBuySell
 } from '../services/eve-esi/eve-esi-data.service';
-import { EsiCacheService, fltBuySell } from '../services/eve-esi/eve-esi-cache.service';
+import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
 
 import { MatSort } from '@angular/material/sort';

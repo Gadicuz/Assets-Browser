@@ -131,7 +131,7 @@ export type EsiMarketOrderRange =
 
 export type EsiMarketOrderState = 'cancelled' | 'expired';
 
-export type EsiMarketOrderBuySell = 'buy' | 'sell'; // 'all'
+export type EsiMarketOrderType = 'buy' | 'sell';
 
 export interface EsiDogmaAttribute {
   attribute_id: number;
@@ -298,7 +298,7 @@ export interface EsiMarketOrderStructure {
 
 export interface EsiDataMarketOrder {
   order_id: number;
-  buy_sell: EsiMarketOrderBuySell;
+  buy_sell: EsiMarketOrderType;
   timestamp: number;
   location_id: number;
   range: EsiMarketOrderRange;

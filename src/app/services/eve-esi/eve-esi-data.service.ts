@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, empty, merge, from, throwError, MonoTypeOperatorFunction } from 'rxjs';
-import { catchError, expand, filter, map, mergeMap, takeWhile, tap, toArray } from 'rxjs/operators';
+import { Observable, of, empty, merge, from, throwError } from 'rxjs';
+import { catchError, expand, filter, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
 import { EVESSOService } from '../eve-sso/eve-sso.module';
 import { EsiService, EsiError, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
@@ -10,7 +10,7 @@ import {
   EsiItem,
   EsiInformationType,
   EsiMarketOrderState,
-  EsiMarketOrderBuySell,
+  EsiMarketOrderType,
   EsiMarketOrderCharacter,
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
@@ -63,9 +63,12 @@ export interface EsiDataLocMarketOrders {
   orders: Map<number, EsiDataMarketOrder[]>;
 }
 
-function filterBuySell<T extends EsiDataMarketOrder>(buy_sell?: EsiMarketOrderBuySell): MonoTypeOperatorFunction<T[]> {
-  return buy_sell !== undefined ? map(orders => orders.filter(o => o.buy_sell === buy_sell)) : tap();
-}
+export const fltBuySell = <T extends EsiDataMarketOrder>(buy_sell: EsiMarketOrderType) => (o: T): boolean =>
+  buy_sell === o.buy_sell;
+
+export const fltBuySellUnk = <T extends EsiDataMarketOrder>(
+  buy_sell: EsiMarketOrderType | undefined
+): ((o: T) => boolean) => (buy_sell == undefined ? (): boolean => true : fltBuySell(buy_sell));
 
 /**
  * maps data array to input keys
@@ -168,22 +171,20 @@ export class EsiDataService {
     };
   }
 
-  loadCharacterMarketOrders(buy_sell?: EsiMarketOrderBuySell): Observable<EsiDataCharMarketOrder[]> {
-    return this.esi.getCharacterOrders(this.character_id).pipe(
-      map(orders => orders.map(o => this.fromEsiMarketOrderCharacter(o))),
-      filterBuySell(buy_sell)
-    );
+  loadCharacterMarketOrders(buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
+    return this.esi
+      .getCharacterOrders(this.character_id)
+      .pipe(map(orders => orders.map(o => this.fromEsiMarketOrderCharacter(o)).filter(fltBuySellUnk(buy_sell))));
   }
 
   loadStructuresMarketOrders(
     locs: EsiDataLocMarketTypes[],
-    buy_sell?: EsiMarketOrderBuySell
+    buy_sell?: EsiMarketOrderType
   ): Observable<EsiDataLocMarketOrders> {
     return merge(
       ...locs.map(loc =>
         this.esi.getStructureOrders(loc.l_id).pipe(
-          map(orders => orders.map(o => this.fromEsiMarketOrderStructureOrRegion(o))),
-          filterBuySell(buy_sell),
+          map(orders => orders.map(o => this.fromEsiMarketOrderStructureOrRegion(o)).filter(fltBuySellUnk(buy_sell))),
           map(orders => ({
             l_id: loc.l_id,
             orders: new Map(loc.types.map(asKeys(orders, (id, o) => id === o.type_id)))
@@ -195,7 +196,7 @@ export class EsiDataService {
 
   loadStationsMarketOrders(
     locs: EsiDataLocMarketTypes[],
-    buy_sell?: EsiMarketOrderBuySell
+    buy_sell?: EsiMarketOrderType
   ): Observable<EsiDataLocMarketOrders> {
     return this.separateStations(locs).pipe(
       mergeMap(([r_id, r_locs]) =>
@@ -342,10 +343,7 @@ export class EsiDataService {
     );
   }
 
-  loadMarketOrders(
-    locs: EsiDataLocMarketTypes[],
-    buy_sell?: EsiMarketOrderBuySell
-  ): Observable<EsiDataLocMarketOrders> {
+  loadMarketOrders(locs: EsiDataLocMarketTypes[], buy_sell?: EsiMarketOrderType): Observable<EsiDataLocMarketOrders> {
     const ids = locs.reduce<EsiDataLocMarketTypes[][]>(
       (s, x) => {
         s[EsiService.isStationId(x.l_id) ? 1 : 0].push(x);
