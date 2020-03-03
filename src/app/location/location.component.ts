@@ -245,10 +245,12 @@ export class LocationComponent {
     if (typeof item !== 'number') {
       const assetName = this.getItemName(item.item_id);
       const typeName = this.getTypeName(item.type_id, item.is_blueprint_copy);
+      const name = (this.isAssetItem(item.item_id) ? assetName || typeName : typeName) || '*undefined*';
+      const comment = this.isAssetItem(item.item_id) ? assetName && typeName : assetName;
       return {
         id: item.item_id,
-        name: assetName || typeName || '*undefined*',
-        comment: assetName && typeName,
+        name,
+        comment,
         type_id: item.type_id,
         image: this.esi.getItemIconURI(item.type_id, 32)
       };
