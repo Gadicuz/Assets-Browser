@@ -79,7 +79,10 @@ export type EsiLocationFlag =
   | 'Unlocked'
   | 'Wardrobe';
 
-export type EsiLocationType = 'station' | 'solar_system' | 'other';
+export type EsiItemLocationType = 'station' | 'solar_system' | 'other';
+
+// see getLocationTypeById()
+export type EsiLocationType = 'asset_safety' | 'station' | 'solar_system' | 'character' | 'unknown' | 'structure';
 
 export type EsiInformationType =
   | 'asteroid_belts'
@@ -104,7 +107,7 @@ export interface EsiItem {
   is_singleton: boolean;
   quantity: number;
   location_id: number;
-  location_type: EsiLocationType;
+  location_type: EsiItemLocationType;
   location_flag: EsiLocationFlag;
 }
 
@@ -143,7 +146,88 @@ export interface EsiDogmaEffect {
   is_default: boolean;
 }
 
-export interface EsiTypeIdInfo {
+export interface EsiPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// Types for EsiInformationType
+// 'asteroid_belts'
+// 'categories'
+// 'constellations'
+export interface EsiConstellationInfo {
+  constellation_id: number;
+  name: string;
+  position: EsiPosition;
+  region_id: number;
+  systems: number[];
+}
+export type EsiDataConstellationInfo = EsiConstellationInfo;
+// 'graphics'
+// 'groups'
+// 'moons'
+// 'planets'
+export interface EsiPlanetInfo {
+  asteroid_belts?: number[];
+  moons?: number[];
+  planet_id: number;
+}
+export type EsiDataPlanetInfo = EsiPlanetInfo;
+// 'regions'
+export interface EsiRegionInfo {
+  constellations: number[];
+  description: string;
+  name: string;
+  region_id: number;
+}
+export type EsiDataRegionInfo = EsiRegionInfo;
+// 'stargates'
+// 'stars'
+// 'stations'
+export interface EsiStationInfo {
+  max_dockable_ship_volume?: number;
+  name: string;
+  office_rental_cost: number;
+  owner?: number;
+  position: EsiPosition;
+  race_id?: number;
+  reprocessing_efficiency: number;
+  reprocessing_stations_take: number;
+  services: string[];
+  station_id: number;
+  system_id: number;
+  type_id: number;
+}
+export type EsiDataStationInfo = EsiStationInfo;
+// 'structures'
+export interface EsiStructureInfo {
+  name: string;
+  owner_id: number;
+  position?: EsiPosition;
+  solar_system_id: number;
+  type_id?: number;
+}
+export interface EsiDataStructureInfo extends EsiStructureInfo {
+  structure_id: number;
+  forbidden?: boolean;
+}
+// 'systems'
+export interface EsiSystemInfo {
+  constellation_id: number;
+  name: string;
+  planets?: EsiPlanetInfo[];
+  position: EsiPosition;
+  security_class: string;
+  security_status: number;
+  star_id?: number;
+  stargates?: number[];
+  stations?: number[];
+  system_id: number;
+}
+export type EsiDataSystemInfo = EsiSystemInfo;
+// 'types'
+export interface EsiTypeInfo {
   capacity?: number;
   description: string;
   dogma_attributes?: EsiDogmaAttribute[];
@@ -161,67 +245,34 @@ export interface EsiTypeIdInfo {
   type_id: number;
   volume?: number;
 }
-
-export interface EsiPosition {
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface EsiStationInfo {
-  station_id: number;
+export interface EsiDataTypeInfo {
   name: string;
-  type_id: number;
-  owner?: number;
-  system_id: number;
-  position: EsiPosition;
-  max_dockable_ship_volume?: number;
-  office_rental_cost: number;
-  race_id?: number;
-  reprocessing_efficiency: number;
-  reprocessing_stations_take: number;
-  services: string[];
+  volume?: number;
+  packaged_volume?: number;
 }
+
+export type EsiUniverseInfo =
+  | EsiConstellationInfo
+  | EsiPlanetInfo
+  | EsiRegionInfo
+  | EsiStationInfo
+  | EsiStructureInfo
+  | EsiSystemInfo
+  | EsiTypeInfo;
+
+export type EsiDataUniverseInfo =
+  | EsiDataConstellationInfo
+  | EsiDataPlanetInfo
+  | EsiDataRegionInfo
+  | EsiDataStationInfo
+  | EsiDataStructureInfo
+  | EsiDataSystemInfo
+  | EsiDataTypeInfo;
 
 export interface EsiMarketPrice {
   adjusted_price?: number;
   average_price?: number;
   type_id: number;
-}
-
-export interface EsiStructureInfo {
-  name: string;
-  type_id?: number;
-  owner_id: number;
-  solar_system_id: number;
-  position?: EsiPosition;
-}
-
-export interface EsiPlanetInfo {
-  planet_id: number;
-  moons?: number[];
-  asteroid_belts?: number[];
-}
-
-export interface EsiSystemInfo {
-  constellation_id: number;
-  name: string;
-  planets?: EsiPlanetInfo[];
-  position: EsiPosition;
-  security_class: string;
-  security_status: number;
-  star_id?: number;
-  stargates?: number[];
-  stations?: number[];
-  system_id: number;
-}
-
-export interface EsiConstellationInfo {
-  constellation_id: number;
-  name: string;
-  position: { x: number; y: number; z: number };
-  region_id: number;
-  systems: number[];
 }
 
 export interface EsiMarketOrderCharacter {
@@ -330,10 +381,4 @@ export interface EsiWalletTransaction {
   transaction_id: number;
   type_id: number;
   unit_price: number;
-}
-
-export interface EsiDataTypeInfo {
-  name: string;
-  volume?: number;
-  packaged_volume?: number;
 }

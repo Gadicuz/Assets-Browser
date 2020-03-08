@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Observable, of, concat, zip } from 'rxjs';
+import { Observable, of, concat, zip, merge, defer } from 'rxjs';
 import { map, mergeMap, toArray, catchError } from 'rxjs/operators';
 
 import {
@@ -9,12 +9,13 @@ import {
   EsiDataMarketOrder,
   EsiWalletTransaction,
   EsiDataService,
-  asKeys
+  EsiMarketOrderType
 } from '../services/eve-esi/eve-esi-data.service';
 
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
+import { EsiService } from '../services/eve-esi/eve-esi.module';
 
-import { set, tuple } from '../utils/utils';
+import { autoMap, set, tuple } from '../utils/utils';
 
 export interface OrderListItem {
   type_id: number;
@@ -72,9 +73,9 @@ export class OrdersComponent {
       ).pipe(
         mergeMap(([loc_types, char_orders, loc_type_sales]) => {
           const ids = char_orders.map(o => o.order_id);
-          return this.cache
-            .loadMarketOrders(loc_types, 'sell')
-            .pipe(map(loc_orders => this.assembleLocationInfo(loc_orders, ids, loc_type_sales)));
+          return this.loadMarketOrders(loc_types, 'sell').pipe(
+            map(loc_orders => this.assembleLocationInfo(loc_orders, ids, loc_type_sales))
+          );
         }),
         toArray(),
         map(data => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
@@ -82,6 +83,38 @@ export class OrdersComponent {
           console.log(err);
           return of({ error: err });
         })
+      )
+    );
+  }
+
+  private loadMarketOrders(
+    locs: EsiDataLocMarketTypes[],
+    buy_sell?: EsiMarketOrderType
+  ): Observable<EsiDataLocMarketOrders> {
+    const l = locs.reduce<{ stations: EsiDataLocMarketTypes[]; others: EsiDataLocMarketTypes[] }>(
+      (s, x) => {
+        (EsiService.isStationId(x.l_id) ? s.stations : s.others).push(x);
+        return s;
+      },
+      { stations: [], others: [] }
+    );
+    const sta = set(l.stations.map(loc => loc.l_id));
+    const str = set(l.others.map(loc => loc.l_id));
+    return concat(
+      this.cache.loadSSSCR({ sta, str }),
+      defer(() => {
+        const sta_types = sta.map(id => this.cache.stationsInfo.get(id)!.type_id);
+        const str_types = str
+          .map(id => this.cache.structuresInfo.get(id)!.type_id)
+          .filter(tid => tid != undefined) as number[];
+        const types = set([...EsiDataService.pluckLocMarketTypes(locs), ...sta_types, ...str_types]);
+        return this.cache.loadTypesInfo(types);
+      }),
+      defer(() =>
+        merge(
+          this.cache.loadStationsMarketOrders(l.stations, buy_sell),
+          this.cache.loadStructuresMarketOrders(l.others, buy_sell)
+        )
       )
     );
   }
@@ -94,9 +127,13 @@ export class OrdersComponent {
       ...orders.map(o => tuple(o.location_id, o.type_id)),
       ...trans.map(t => tuple(t.location_id, t.type_id))
     ];
-    const types = set(loc_id.map(([l_id]) => l_id))
-      .map(asKeys(loc_id, (id, [x_id]) => id === x_id))
-      .map(([l_id, loc_id]) => ({ l_id, types: loc_id.map(([, t]) => t) }));
+    const types = Array.from(
+      loc_id.reduce(
+        autoMap(([l_id]) => l_id),
+        new Map<number, [number, number][]>()
+      ),
+      ([l_id, loc_id]) => ({ l_id, types: loc_id.map(([, t]) => t) })
+    );
 
     const sales = trans.reduce((sales: SalesHistory, wt: EsiWalletTransaction) => {
       if (wt.quantity) {
@@ -174,23 +211,23 @@ export class OrdersComponent {
   }
 
   private assembleLocationInfo(loc_orders: EsiDataLocMarketOrders, ids: number[], sales: SalesHistory): LocationInfo {
+    const l_id = loc_orders.l_id;
+    const name = EsiService.isStationId(l_id)
+      ? this.cache.stationsInfo.get(l_id)!.name
+      : this.cache.structuresInfo.get(l_id)!.name;
     const items = [...loc_orders.orders]
-      .map(([type_id, type_orders]) =>
+      .map(([t_id, type_orders]) =>
         this.assembleItemsInfo(
-          type_id,
+          t_id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.cache.typesInfo.get(type_id)!.name, // type_id loaded by loadMarketOrders()
+          this.cache.typesInfo.get(t_id)!.name, // type_id loaded by loadMarketOrders()
           type_orders,
           ids,
-          sales.get({ l_id: loc_orders.l_id, t_id: type_id })
+          sales.get({ l_id, t_id })
         )
       )
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
-    return {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      name: this.cache.locationsInfo.get(loc_orders.l_id)!.name, // loc_orders.location_id loaded by loadMarketOrders()
-      items: items
-    };
+    return { name, items };
   }
 }

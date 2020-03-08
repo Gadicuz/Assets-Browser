@@ -6,7 +6,7 @@ import { OrdersComponent } from './orders/orders.component';
 
 const routes: Routes = [
   { path: 'browse/:id', canActivate: [AuthGuard], component: LocationComponent },
-  { path: 'browse', redirectTo: 'browse/0', pathMatch: 'full' },
+  { path: 'browse', redirectTo: 'browse/universe', pathMatch: 'full' },
   { path: 'orders', canActivate: [AuthGuard], component: OrdersComponent },
   { path: '', children: [] },
   { path: '**', redirectTo: '/', pathMatch: 'full' }

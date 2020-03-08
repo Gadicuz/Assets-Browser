@@ -24,7 +24,7 @@ import {
   EsiMarketOrderRegion,
   EsiWalletTransaction,
   EsiMarketPrice,
-  EsiTypeIdInfo,
+  EsiTypeInfo,
   EsiStationInfo,
   EsiStructureInfo,
   EsiSystemInfo
@@ -185,51 +185,56 @@ export class EsiService {
     return EsiService.getImage(imageResource.TypeIcon, type_id, size);
   }
 
-  public static getLocationTypeById(id: number): EsiLocationType | 'asset_safety' {
-    // https://github.com/esi/esi-docs/blob/master/docs/asset_location_id.md
-    if (id == EsiService.LOCATION_ID_AssetSafety) return 'asset_safety';
-    if (id >= 30000000 && id < 32000000) return 'solar_system';
-    if (id >= 32000000 && id < 33000000) return 'solar_system'; // Abyssal
-    if (id >= 60000000 && id < 64000000) return 'station';
-    return 'other';
-  }
-
   public static getTypeById(id: number): string {
     // https://github.com/esi/esi-docs/blob/master/docs/id_ranges.md
-    if (id >= 2147483648) return 'other';
+    if (id >= 2147483648) return 'unknown';
     if (id < 10000) return 'special';
     if (id >= 500000 && id < 1000000) return 'faction';
-    if (id >= 1000000 && id < 2000000) return 'corporation'; //NPC
-    if (id >= 3000000 && id < 4000000) return 'character'; //NPC
+    if (id >= 1000000 && id < 2000000) return 'corporation.npc';
+    if (id >= 3000000 && id < 4000000) return 'character.npc';
     if (id >= 9000000 && id < 10000000) return 'universe';
     if (id >= 10000000 && id < 11000000) return 'region';
-    if (id >= 11000000 && id < 12000000) return 'region'; //wormhole
-    if (id >= 12000000 && id < 13000000) return 'region'; //abyssal
+    if (id >= 11000000 && id < 12000000) return 'region.wormhole';
+    if (id >= 12000000 && id < 13000000) return 'region.abyssal';
     if (id >= 20000000 && id < 21000000) return 'constellation';
-    if (id >= 21000000 && id < 22000000) return 'constellation'; //wormhole
-    if (id >= 22000000 && id < 23000000) return 'constellation'; //abyssal
+    if (id >= 21000000 && id < 22000000) return 'constellation.wormhole';
+    if (id >= 22000000 && id < 23000000) return 'constellation.abyssal';
     if (id >= 30000000 && id < 31000000) return 'solar_system';
-    if (id >= 31000000 && id < 32000000) return 'solar_system'; //wormhole
-    if (id >= 32000000 && id < 33000000) return 'solar_system'; //abyssal
+    if (id >= 31000000 && id < 32000000) return 'solar_system.wormhole';
+    if (id >= 32000000 && id < 33000000) return 'solar_system.abyssal';
     if (id >= 40000000 && id < 50000000) return 'celestial';
     if (id >= 50000000 && id < 60000000) return 'stargate';
-    if (id >= 60000000 && id < 61000000) return 'station'; //CCP
-    if (id >= 61000000 && id < 64000000) return 'station'; //outpost
-    if (id >= 68000000 && id < 69000000) return 'folder_station'; //CCP
-    if (id >= 69000000 && id < 70000000) return 'folder_station'; //outpost
+    if (id >= 60000000 && id < 61000000) return 'station.ccp';
+    if (id >= 61000000 && id < 64000000) return 'station.outpost';
+    if (id >= 68000000 && id < 69000000) return 'station_folder.ccp';
+    if (id >= 69000000 && id < 70000000) return 'station_folder.outpost';
     if (id >= 70000000 && id < 80000000) return 'asteroid';
     if (id >= 80000000 && id < 80100000) return 'control_bunker';
     if (id >= 81000000 && id < 82000000) return 'wis_promenade';
     if (id >= 82000000 && id < 85000000) return 'planetary_district';
-    if (id >= 90000000 && id < 98000000) return 'character'; // created after 2010 - 11 - 03
-    if (id >= 98000000 && id < 99000000) return 'corporation'; // created after 2010 - 11 - 03
-    if (id >= 99000000 && id < 100000000) return 'alliance'; // created after 2010 - 11 - 03
-    if (id >= 100000000 && id < 2100000000) return 'character_corporation_alliance'; // EVE characters, corporations and alliances created before 2010 - 11 - 03
-    return 'character';
+    if (id >= 90000000 && id < 98000000) return 'character'; // created after 2010-11-03
+    if (id >= 98000000 && id < 99000000) return 'corporation'; // created after 2010-11-03
+    if (id >= 99000000 && id < 100000000) return 'alliance'; // created after 2010-11-03
+    if (id >= 100000000 && id < 2100000000) return 'character.corporation.alliance'; // EVE characters, corporations and alliances created before 2010-11-03
+    return 'character'; // DUST characters, EVE characters created after 2016-05-30
+  }
+
+  public static getLocationTypeById(id: number): EsiLocationType {
+    // https://github.com/esi/esi-docs/blob/master/docs/asset_location_id.md
+    if (id == EsiService.LOCATION_ID_AssetSafety) return 'asset_safety';
+    const idTypes = EsiService.getTypeById(id).split('.');
+    if (idTypes.includes('solar_system')) return 'solar_system';
+    if (idTypes.includes('station')) return 'station';
+    if (idTypes.includes('character')) return 'character';
+    return 'unknown'; // ItemID, StructureID, CustomOfficeID, CorporationOfficeID
   }
 
   public static isStationId(id: number): boolean {
     return EsiService.getLocationTypeById(id) === 'station';
+  }
+
+  public get serverName(): string {
+    return this.config.datasource || '(default)';
   }
 
   constructor(private httpClient: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
@@ -343,6 +348,7 @@ export class EsiService {
     );
   }
 
+  /*
   public getTypeInformation(type_id: number): Observable<EsiTypeIdInfo> {
     return this.getInformation<EsiTypeIdInfo>('types', type_id);
   }
@@ -358,7 +364,7 @@ export class EsiService {
   public getSolarSystemInformation(solar_system_id: number): Observable<EsiSystemInfo> {
     return this.getInformation<EsiSystemInfo>('systems', solar_system_id);
   }
-
+  */
   public getStructureOrders(structure_id: number): Observable<EsiMarketOrderStructure[]> {
     return this.getData<EsiMarketOrderStructure[]>(`markets/structures/${structure_id}/`);
   }

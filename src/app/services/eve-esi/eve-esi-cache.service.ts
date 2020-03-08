@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, concat, from, merge, of } from 'rxjs';
-import { endWith, filter, ignoreElements, map, mapTo, mergeMap, switchMap, tap, toArray } from 'rxjs/operators';
+import { Observable, concat, defer, from, merge, of } from 'rxjs';
+import { filter, ignoreElements, map, mergeMap, switchMap, tap, toArray } from 'rxjs/operators';
 
 import {
   EsiItem,
@@ -10,30 +10,32 @@ import {
   EsiDataLocMarketTypes,
   EsiDataLocMarketOrders,
   EsiDataCharMarketOrder,
-  EsiDataLocationInfo,
+  EsiDataConstellationInfo,
+  EsiDataPlanetInfo,
+  EsiDataRegionInfo,
+  EsiDataStationInfo,
+  EsiDataStructureInfo,
+  EsiDataSystemInfo,
   EsiDataTypeInfo,
-  EsiDataService,
-  pluckLocMarketTypes
+  EsiDataService
 } from './eve-esi-data.service';
-import { EsiService } from './eve-esi.module';
 
-import { set, fltRemoveKeys } from '../../utils/utils';
+import { autoMap, set, removeKeys } from '../../utils/utils';
+import { EsiService } from './eve-esi.module';
 
 @Injectable({
   providedIn: 'root'
 })
 export class EsiCacheService {
-  constructor(private data: EsiDataService, private http: HttpClient) {
-    this.locationsInfo = new Map<number, EsiDataLocationInfo>([
-      [0, { name: 'Universe', type_info: 'Tranquility' }],
-      [EsiService.LOCATION_ID_AssetSafety, { name: 'Asset Safety', type_info: '' }]
-    ]);
-  }
+  constructor(private data: EsiDataService, private http: HttpClient) {}
 
   // characters/{character_id}/assets/
   public characterItems: EsiItem[] = [];
-  public loadCharacterItems(): Observable<EsiItem[]> {
-    return this.data.loadCharacterItems().pipe(tap(items => (this.characterItems = items)));
+  public loadCharacterItems(): Observable<never> {
+    return this.data.loadCharacterItems().pipe(
+      tap(items => (this.characterItems = items)),
+      ignoreElements()
+    );
   }
 
   public findChararacterItem(item_id: number): EsiItem | undefined {
@@ -41,26 +43,73 @@ export class EsiCacheService {
   }
 
   // MAP: item_id -> name?
-  public characterItemNames = new Map<number, string | undefined>();
-  public loadCharacterItemNames(ids: number[]): Observable<Map<number, string | undefined>> {
-    const removeKeys = (m: Map<number, string | undefined>): number[] => ids.filter(fltRemoveKeys(m));
-    return this.data.loadCharacterItemNames(removeKeys(this.characterItemNames)).pipe(
-      tap(([id, name]) => this.characterItemNames.set(id, name)),
-      ignoreElements(),
-      endWith(this.characterItemNames),
-      tap(names => removeKeys(names).forEach(id => names.set(id, undefined)))
+  public characterItemNames = new Map<number, string | false>();
+  public loadCharacterItemNames(ids: number[] = this.characterItems.map(i => i.item_id)): Observable<never> {
+    ids = removeKeys(ids, this.characterItemNames);
+    return this.data.loadCharacterItemNames(ids).pipe(
+      tap({
+        next: ([id, name]) => this.characterItemNames.set(id, name),
+        complete: () => removeKeys(ids, this.characterItemNames).forEach(id => this.characterItemNames.set(id, false))
+      }),
+      ignoreElements()
     );
   }
 
-  // MAP: type_id -> EsiDataTypeInfo
+  public constellationsInfo = new Map<number, EsiDataConstellationInfo>();
+  public loadConstellationsInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.constellationsInfo)).pipe(
+      mergeMap(id => this.data.loadConstellationInfo(id).pipe(tap(i => this.constellationsInfo.set(id, i)))),
+      ignoreElements()
+    );
+  }
+
+  public planetsInfo = new Map<number, EsiDataPlanetInfo>();
+  public loadPlanetsInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.planetsInfo)).pipe(
+      mergeMap(id => this.data.loadPlanetInfo(id).pipe(tap(i => this.planetsInfo.set(id, i)))),
+      ignoreElements()
+    );
+  }
+
+  public regionsInfo = new Map<number, EsiDataRegionInfo>();
+  public loadRegionsInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.regionsInfo)).pipe(
+      mergeMap(id => this.data.loadRegionInfo(id).pipe(tap(i => this.regionsInfo.set(id, i)))),
+      ignoreElements()
+    );
+  }
+
+  public stationsInfo = new Map<number, EsiDataStationInfo>();
+  public loadStationsInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.stationsInfo)).pipe(
+      mergeMap(id => this.data.loadStationInfo(id).pipe(tap(i => this.stationsInfo.set(id, i)))),
+      ignoreElements()
+    );
+  }
+
+  public structuresInfo = new Map<number, EsiDataStructureInfo>();
+  public loadStructuresInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.structuresInfo)).pipe(
+      mergeMap(id => this.data.loadStructureInfo(id).pipe(tap(i => this.structuresInfo.set(id, i)))),
+      ignoreElements()
+    );
+  }
+
+  public systemsInfo = new Map<number, EsiDataSystemInfo>();
+  public loadSystemsInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.systemsInfo)).pipe(
+      mergeMap(id => this.data.loadSystemInfo(id).pipe(tap(i => this.systemsInfo.set(id, i)))),
+      ignoreElements()
+    );
+  }
+
   public typesInfo = new Map<number, EsiDataTypeInfo>();
-  public loadTypesInfo(ids: number[]): Observable<Map<number, EsiDataTypeInfo>> {
+  public loadTypesInfo(ids: number[]): Observable<never> {
     return this.getTypesInfo().pipe(
       switchMap(typesInfo =>
-        from(ids.filter(fltRemoveKeys(typesInfo))).pipe(
-          mergeMap(id => this.data.loadTypeInformation(id).pipe(tap(info => typesInfo.set(id, info)))),
-          ignoreElements(),
-          endWith(typesInfo)
+        from(removeKeys(ids, typesInfo)).pipe(
+          mergeMap(id => this.data.loadTypeInfo(id).pipe(tap(info => typesInfo.set(id, info)))),
+          ignoreElements()
         )
       )
     );
@@ -73,48 +122,111 @@ export class EsiCacheService {
       : of(this.typesInfo);
   }
 
-  // MAP: (station_id|structure_id) -> {name, type_id, type_info}
-  public locationsInfo: Map<number, EsiDataLocationInfo>;
-  public loadLocationsInfo(ids: number[]): Observable<Map<number, EsiDataLocationInfo>> {
-    return from(ids.filter(fltRemoveKeys(this.locationsInfo))).pipe(
+  /*
+  // MAP: (location_id) -> EsiDataLocationInfo
+  public locationsInfo = new Map<number, EsiDataLocationInfo>();
+  public loadLocationsInfo(ids: number[]): Observable<never> {
+    return from(removeKeys(ids, this.locationsInfo)).pipe(
       mergeMap(id =>
         this.data.loadLocationInfo(id).pipe(
           tap(info => this.locationsInfo.set(id, info)),
-          filter(info => info.type_id != undefined),
-          map(info => info.type_id as number)
+          filter(info => info.type === 'station' || info.type === 'structure'),
+          map(info => (info as EsiDataStructureLocationInfo).type_id)
         )
       ),
       toArray(),
-      switchMap(ids => this.loadTypesInfo(set(ids))),
-      mapTo(this.locationsInfo)
+      switchMap(ids => this.loadTypesInfo(set(ids)))
     );
   }
+  */
 
   // markets/prices/ -> MAP: type_id -> price
   public marketPrices = new Map<number, number>();
-  public loadMarketPrices(): Observable<Map<number, number>> {
-    return this.data.loadMarketPrices().pipe(tap(prices => (this.marketPrices = prices)));
+  public loadMarketPrices(): Observable<never> {
+    return this.data.loadMarketPrices().pipe(
+      tap(prices => (this.marketPrices = prices)),
+      ignoreElements()
+    );
   }
 
   public characterMarketOrders: EsiDataCharMarketOrder[] = [];
-  public loadCharacterMarketOrders(): Observable<EsiDataCharMarketOrder[]> {
-    return this.data.loadCharacterMarketOrders(undefined).pipe(tap(orders => (this.characterMarketOrders = orders)));
+  public loadCharacterMarketOrders(): Observable<never> {
+    return this.data.loadCharacterMarketOrders(undefined).pipe(
+      tap(orders => (this.characterMarketOrders = orders)),
+      ignoreElements()
+    );
   }
 
-  public characterWalletTransactions: EsiWalletTransaction[] = [];
-  public loadCharacterWalletTransactions(): Observable<EsiWalletTransaction[]> {
-    return this.data.loadCharacterWalletTransactions().pipe(tap(wt => (this.characterWalletTransactions = wt)));
-  }
-
-  public loadMarketOrders(
+  public loadStructuresMarketOrders(
     locs: EsiDataLocMarketTypes[],
     buy_sell?: EsiMarketOrderType
   ): Observable<EsiDataLocMarketOrders> {
-    const loc_ids = set(locs.map(x => x.l_id));
-    const typ_ids = pluckLocMarketTypes(locs);
-    return concat(
-      merge(this.loadLocationsInfo(loc_ids), this.loadTypesInfo(typ_ids)).pipe(ignoreElements()), // ensure ids are cached
-      this.data.loadMarketOrders(locs, buy_sell)
+    return merge(...locs.map(loc => this.data.loadStructureMarketOrders(loc, buy_sell)));
+  }
+
+  public loadStationsMarketOrders(
+    locs: EsiDataLocMarketTypes[],
+    buy_sell?: EsiMarketOrderType
+  ): Observable<EsiDataLocMarketOrders> {
+    return from(
+      locs
+        .reduce(
+          autoMap(loc => this.getSCR(loc.l_id).reg),
+          new Map<number, EsiDataLocMarketTypes[]>()
+        )
+        .entries()
+    ).pipe(mergeMap(([r_id, r_locs]) => this.data.loadRegionMarketOrders(r_id, r_locs, buy_sell)));
+  }
+
+  public characterWalletTransactions: EsiWalletTransaction[] = [];
+  public loadCharacterWalletTransactions(): Observable<never> {
+    return this.data.loadCharacterWalletTransactions().pipe(
+      tap(wt => (this.characterWalletTransactions = wt)),
+      ignoreElements()
     );
+  }
+
+  /** Caches StructuresInfo, StationsInfo, SystemsInfo, ConstellationsInfo, RegionsInfo */
+  public loadSSSCR(ssscr: {
+    str?: number[];
+    sta?: number[];
+    sys?: number[];
+    con?: number[];
+    reg?: number[];
+  }): Observable<never> {
+    const str_ids = set(ssscr.str || []);
+    const sta_ids = set(ssscr.sta || []);
+    const sys_ids = ssscr.sys || [];
+    const con_ids = ssscr.con || [];
+    const reg_ids = ssscr.reg || [];
+    let ids: number[];
+    return concat(
+      merge(this.loadStructuresInfo(str_ids), this.loadStationsInfo(sta_ids)),
+      defer(() => {
+        const sys_str = str_ids.map(id => this.structuresInfo.get(id)!.solar_system_id).filter(id => id);
+        const sys_sta = sta_ids.map(id => this.stationsInfo.get(id)!.system_id);
+        ids = set([...sys_ids, ...sys_str, ...sys_sta]);
+        return this.loadSystemsInfo(ids);
+      }),
+      defer(() => {
+        const con_sys = ids.map(id => this.systemsInfo.get(id)!.constellation_id);
+        ids = set([...con_ids, ...con_sys]);
+        return this.loadConstellationsInfo(ids);
+      }),
+      defer(() => {
+        const reg_con = ids.map(id => this.constellationsInfo.get(id)!.region_id);
+        ids = set([...reg_ids, ...reg_con]);
+        return this.loadRegionsInfo(ids);
+      })
+    );
+  }
+
+  public getSCR(ss_id: number): { sys: number; con: number; reg: number } {
+    const sys = EsiService.isStationId(ss_id)
+      ? this.stationsInfo.get(ss_id)!.system_id
+      : this.structuresInfo.get(ss_id)!.solar_system_id;
+    const con = this.systemsInfo.get(sys)!.constellation_id;
+    const reg = this.constellationsInfo.get(con)!.region_id;
+    return { sys, con, reg };
   }
 }

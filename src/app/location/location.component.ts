@@ -1,14 +1,17 @@
 import { Component, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { map, tap, ignoreElements, switchMap, catchError } from 'rxjs/operators';
-import { Observable, of, merge, throwError, concat } from 'rxjs';
+import { Observable, defer, from, of, merge, throwError, concat, empty } from 'rxjs';
+import { concatMap, expand, map, tap, ignoreElements, mergeMap, switchMap, catchError } from 'rxjs/operators';
 
 import {
   EsiItem,
   EsiDataService,
-  EsiDataLocationInfo,
+  EsiDataSystemInfo,
   EsiDataCharMarketOrder,
-  fltBuySell
+  fltBuySell,
+  EsiLocationType,
+  EsiDataStationInfo,
+  EsiDataStructureInfo
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -16,43 +19,62 @@ import { EsiService } from '../services/eve-esi/eve-esi.module';
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 
-import { set, tuple } from '../utils/utils';
+import { LocUID, LocPosition, LocParentLink, LocTypeInfo, LocData } from './location.models';
 
-const call = <T>(f: () => Observable<T>): Observable<T> => of(f).pipe(switchMap(f => f()));
+import { set, tuple, fltRemove } from '../utils/utils';
 
-interface LocationData {
-  items: number[]; // content item_id's
-  value: number; // content gross value
-  volume: number | undefined; // content volume
-  parent?: number; // parent location_id
-  //type: string; // "station" | "solar_system" | "other" | "?"
-}
+const UNIVERSE_UID = 'universe';
+const UNIVERSE_IMAGE_URL = ''; // TODO
+const ASSET_IMAGE_URL = ''; // TODO
+const CHARACTER_IMAGE_URL = ''; // TODO
+const SYSTEM_IMAGE_URL = ''; // TODO
+const PREVIEW_IMAGE_URL = ''; // TODO
+const UNKNOWN_IMAGE_URL = ''; // TODO
+const STRUCTURE_IMAGE_URL = ''; // TODO
 
-interface ItemInfo {
-  id: number;
+interface LocationRouteNode {
   name: string;
   comment?: string;
-  type_id?: number;
-  image?: string;
+  link: string;
 }
 
-interface ItemData {
-  info: ItemInfo;
-  quantity: number;
+interface LocationStat {
+  title: string;
   value: number;
-  volume: number;
-  content_volume: number;
-  content_id: number;
 }
 
-interface ContData {
-  item: ItemInfo;
-  content?: {
-    stat: { title: string; content: number | undefined }[];
-    route: ItemInfo[];
-    items: ItemData[];
-  };
+interface LocationInfo {
+  name: string;
+  comment?: string;
+  image?: string;
+  stats: LocationStat[];
+  route: LocationRouteNode[];
+}
+
+interface ItemRecord {
+  position: string;
+  name: string;
+  comment?: string;
+  link?: string;
+  quantity: number | '';
+  value: number | '';
+  volume: number | string;
+}
+
+interface LocationRecord {
+  info: LocationInfo;
+  data?: ItemRecord[];
   error?: unknown;
+}
+
+/** Converts LocUID to URL parameter */
+function getLink(uid: LocUID): string {
+  return String(uid);
+}
+
+/** Converts URL parameter to LocUID */
+function getUID(link: string | null): LocUID {
+  return link || UNIVERSE_UID;
 }
 
 @Component({
@@ -61,32 +83,21 @@ interface ContData {
   styleUrls: ['./location.component.css']
 })
 export class LocationComponent {
+  location$: Observable<LocationRecord>;
+
   displayedColumns: string[] = ['name', 'quantity', 'value', 'volume'];
-  location$: Observable<ContData>;
-  dataSource: MatTableDataSource<ItemData>;
-
-  private readonly virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap];
-
-  isVirtualContainer(type_id: number): boolean {
-    return this.virtualContainerTypes.includes(type_id);
-  }
-
-  // Map  loc_id -> LocationData
-  private locations = new Map<number, LocationData>();
-  private loc(id: number): LocationData {
-    return this.locations.get(id) as LocationData;
-  }
-
-  private maxAssetsItemId = 0;
-  private isAssetItem(id: number): boolean {
-    return id <= this.maxAssetsItemId;
-  }
-
-  private marketLocations: number[] = []; // loc_id for market location
-  private marketItems: EsiItem[] = [];
-  private marketItemNames: Map<number, string> = new Map();
+  dataSource = new MatTableDataSource<ItemRecord>();
 
   @ViewChild(MatSort) sort?: MatSort;
+
+  ngAfterViewInit(): void {
+    if (this.sort != undefined) this.dataSource.sort = this.sort;
+  }
+
+  private locs = new Map<LocUID, LocData>();
+  private loc(uid: LocUID): LocData {
+    return this.locs.get(uid) as LocData;
+  }
 
   constructor(
     private route: ActivatedRoute,
@@ -94,64 +105,446 @@ export class LocationComponent {
     private data: EsiDataService,
     private cache: EsiCacheService
   ) {
-    this.locations.set(0, { items: [], volume: undefined, value: 0 });
-    this.dataSource = new MatTableDataSource<ItemData>();
-    this.dataSource.sortingDataAccessor = (item: ItemData, property): string | number => {
+    this.dataSource.sortingDataAccessor = (item: ItemRecord, property: string): string | number => {
       switch (property) {
         case 'name':
-          return item.info.name + '\0' + item.info.comment;
+          return item.name + '\0' + item.comment;
+        case 'quantity':
         case 'value':
-        case 'volume':
-          return item[property];
+        case 'volume': {
+          const val = item[property];
+          return typeof val === 'number' ? val : '';
+        }
         default:
           return '';
       }
     };
+
+    // Define 'universe' item
+    this.locs.set(UNIVERSE_UID, {
+      uid: UNIVERSE_UID,
+      info: {
+        name: 'Universe',
+        comment: this.esi.serverName,
+        image: UNIVERSE_IMAGE_URL
+      },
+      content_items: [] // empty so far
+    });
+
     this.location$ = this.route.paramMap.pipe(
-      map(params => +(params.get('id') || '0')),
-      switchMap<number, Observable<ContData>>(id =>
-        concat(of({ item: this.getItemInfoForId(id) }), this.getAssets(id)).pipe(
-          catchError(error => {
-            console.log(error);
-            return of({ item: this.getItemInfoForId(id), error });
-          })
+      map(params => getUID(params.get('id'))),
+      switchMap(uid =>
+        concat(
+          this.buildLocationPreview(uid),
+          this.buildLocationTree(),
+          defer(() =>
+            this.buildLocationData(uid).pipe(
+              catchError(error => {
+                console.log(error);
+                return this.buildLocationPreview(uid, [], error);
+              })
+            )
+          )
         )
       ),
-      tap(loc => (this.dataSource.data = (loc.content && loc.content.items) || []))
+      tap(loc => (this.dataSource.data = loc.data || []))
     );
   }
 
-  ngAfterViewInit(): void {
-    if (this.sort != undefined) this.dataSource.sort = this.sort;
+  /** Emits LocationRecord value (with info and error? fields only) */
+  private buildLocationPreview(uid: LocUID, data?: ItemRecord[], error?: unknown): Observable<LocationRecord> {
+    return of({ info: this.createLocationInfo(uid), data, error });
   }
 
-  private buildLocations(): Observable<unknown> {
-    if (this.locations.size !== 1) return of(undefined);
+  /** Emits LocationRecord value */
+  private buildLocationData(uid: LocUID): Observable<LocationRecord> {
+    const loc = this.locs.get(uid);
+    if (loc == undefined) return throwError(new Error(`Unknown location '${uid}'`));
+    const route = this.getRoute(loc);
+    const content = loc.content_items;
+    const usedLocs = content ? [...route, ...content] : route;
+    const lazyInfos = set(usedLocs.filter(loc => loc.info.loader).map(loc => loc.info));
+    return concat(
+      merge(...lazyInfos.map(info => info.loader!(info))),
+      defer(() =>
+        of({
+          info: this.createLocationInfo(loc, route),
+          data: this.createDataRecords(loc)
+        })
+      )
+    );
+  }
+
+  /** Assembles LocationInfo structure for LocUID/LocData */
+  private createLocationInfo(uid: LocUID | LocData, route: LocData[] = []): LocationInfo {
+    const loc = typeof uid === 'object' ? uid : this.locs.get(uid);
+    if (loc == undefined)
+      return {
+        name: `*** Unknown item '${uid}' *** `,
+        //image: question mark
+        stats: [],
+        route: []
+      };
+    return {
+      name: loc.info.name,
+      comment: loc.info.comment,
+      image: typeof loc.info.image === 'string' ? loc.info.image : this.esi.getItemIconURI(loc.info.image, 32),
+      stats: [],
+      route: route.map(l => ({ name: l.info.name, comment: l.info.comment, link: getLink(l.uid as LocUID) })) //TODO: set position as hint
+    };
+  }
+
+  /** Creates LocData[] route from the top of loc's tree to the loc */
+  private getRoute(loc: LocData, route: LocData[] = []): LocData[] {
+    route = [loc, ...route];
+    const parent = loc.link;
+    return parent == undefined ? route : this.getRoute(this.loc(parent[0]), route);
+  }
+
+  private buildLocationTree(): Observable<never> {
+    return this.locs.size !== 1 ? empty() : this.loadLocations();
+  }
+
+  private createDataRecords(loc: LocData): ItemRecord[] {
+    if (loc.content_items == undefined) return [];
+    return loc.content_items.map(l => ({
+      position: (l.link as [string, string])[1],
+      name: l.info.name,
+      comment: l.info.comment,
+      link: l.uid && getLink(l.uid),
+      quantity: l.quantity || '',
+      value: '',
+      volume: ''
+    }));
+  }
+
+  private loadLocations(): Observable<never> {
+    return merge(
+      this.loadAssets()
+    ).pipe(
+      map(locs => locs.filter(loc => loc.link != undefined)), // console.log(`Location ${loc} has no link data. Ignored.`);
+      concatMap(locs =>
+        this.preloadLocations(locs).pipe(
+          tap({
+            complete: () => locs.forEach(loc => this.addChild(loc))
+          })
+        )
+      )
+    );
+  }
+  private addChild(loc: LocData): void {
+    if (loc.uid != undefined) this.locs.set(loc.uid, loc);
+    const parentLink = loc.link![0];
+    const parent = this.locs.get(parentLink);
+    if (parent == undefined) this.addChild(this.buildLocation(parentLink, [loc]));
+    else {
+      if (parent.content_items) parent.content_items.push(loc);
+      else parent.content_items = [loc];
+    }
+  }
+
+  /** Preload all stations/structures/systems/contellations/regions information */
+  private preloadLocations(locs: LocData[]): Observable<never> {
+    const ids = locs
+      .filter(loc => loc.link != undefined)
+      .map(loc => +loc.link![0])
+      .reduce(
+        (m, id) => {
+          m[EsiService.getLocationTypeById(id)].push(id);
+          return m;
+        },
+        {
+          asset_safety: [],
+          station: [],
+          solar_system: [],
+          character: [],
+          unknown: [],
+          structure: []
+        } as {
+          [key in EsiLocationType]: number[];
+        }
+      );
+    return this.cache.loadSSSCR({ str: [...ids.structure, ...ids.unknown], sta: ids.station, sys: ids.solar_system });
+  }
+
+  private locInfo_TxtId(txt: string, id: number): LocTypeInfo {
+    return {
+      name: `*** ${txt} ID=${id}' ***`,
+      image: UNKNOWN_IMAGE_URL
+    };
+  }
+
+  private locInfo_AssetSafety(): LocTypeInfo {
+    return {
+      name: 'Asset Safety',
+      image: EsiService.LOCATION_ID_AssetSafety
+    };
+  }
+
+  private locInfo_Character(id: number): LocTypeInfo {
+    const idn = this.data.character;
+    if (idn == undefined || idn.id !== id) return this.locInfo_TxtId('Character', id);
+    return {
+      name: idn.name,
+      image: this.esi.getCharacterAvatarURI(id, 32)
+    };
+  }
+
+  private locInfo_System(info: EsiDataSystemInfo): LocTypeInfo {
+    return {
+      name: info.name,
+      image: SYSTEM_IMAGE_URL
+    };
+  }
+
+  private locInfo_Station(info: EsiDataStationInfo): LocTypeInfo {
+    return {
+      name: info.name,
+      image: info.type_id
+    };
+  }
+
+  private locInfo_Structure(info: EsiDataStructureInfo): LocTypeInfo {
+    return {
+      name: info.name,
+      image: info.type_id || STRUCTURE_IMAGE_URL
+    };
+  }
+
+  /** Builds new LocData structure for id */
+  private buildLocation(uid: LocUID, content_items: LocData[]): LocData {
+    const id = +uid;
+    const locType = EsiService.getLocationTypeById(id);
+    const data = {
+      uid,
+      content_items
+    };
+    switch (locType) {
+      case 'asset_safety':
+        return {
+          ...data,
+          info: this.locInfo_AssetSafety(),
+          link: [UNIVERSE_UID]
+        };
+      case 'character':
+        return {
+          ...data,
+          info: this.locInfo_Character(id),
+          link: [UNIVERSE_UID]
+        };
+      case 'solar_system': {
+        const info = this.cache.systemsInfo.get(id)!;
+        return {
+          ...data,
+          info: this.locInfo_System(info),
+          link: [
+            UNIVERSE_UID,
+            this.cache.regionsInfo.get(this.cache.constellationsInfo.get(info.constellation_id)!.region_id)!.name
+          ]
+        };
+      }
+      case 'station': {
+        const info = this.cache.stationsInfo.get(id)!;
+        return {
+          ...data,
+          info: this.locInfo_Station(info),
+          link: [String(info.system_id)]
+        };
+      }
+      case 'unknown': // try as a structure
+      case 'structure': {
+        const info = this.cache.structuresInfo.get(id)!;
+        return info.forbidden
+          ? {
+              ...data,
+              info: this.locInfo_TxtId('Forbidden', id),
+              link: [UNIVERSE_UID]
+            }
+          : {
+              ...data,
+              info: this.locInfo_Structure(info),
+              link: [String(info.solar_system_id)]
+            };
+      }
+      default:
+        return {
+          ...data,
+          info: this.locInfo_TxtId('Unsupported', id),
+          link: [UNIVERSE_UID]
+        };
+    }
+  }
+
+  private loadAssets(): Observable<LocData[]> {
     return concat(
       merge(
         this.cache.loadMarketPrices(),
-        this.cache.loadCharacterItems(),
-        this.cache.loadCharacterMarketOrders()
-      ).pipe(ignoreElements()),
-      call(() => {
-        this.maxAssetsItemId = this.cache.characterItems.reduce((base, i) => (base > i.item_id ? base : i.item_id), 0);
-        this.linkItemsData(this.cache.characterItems);
-        this.linkMarketData(this.cache.characterMarketOrders.filter(fltBuySell('sell')), this.maxAssetsItemId);
-        this.linkChildren();
-        return this.cache.loadLocationsInfo(this.loc(0).items.filter(id => this.isAssetItem(id)));
+        concat(
+          this.cache.loadCharacterItems(),
+          defer(() => this.cache.loadCharacterItemNames())
+        )
+      ),
+      defer(() => {
+        const locs = this.cache.characterItems.map(
+          item =>
+            ({
+              uid: String(item.item_id),
+              info: {
+                name: `type_id=${item.type_id}`,
+                image: item.type_id
+              },
+              link: [String(item.location_id), item.location_flag],
+              quantity: item.quantity
+            } as LocData)
+        );
+        let unlinked = [...locs];
+        locs.forEach(loc => {
+          const linked = unlinked.filter(unloc => (unloc.link as LocParentLink)[0] === loc.uid);
+          if (!linked.length) loc.uid = undefined;
+          else {
+            loc.content_items = linked;
+            unlinked = unlinked.filter(fltRemove(linked));
+          }
+        });
+        return of(unlinked);
+      })
+    );
+  }
+}
+
+////////
+////////
+////////
+////////
+////////
+////////
+
+/*
+
+  private assembleUID(id: number): ItemUID {
+    return `item${id}`;
+  }
+
+  private parseUID(uid: ItemUID): number | false {
+    const prefix = 'item';
+    return uid.startsWith(prefix) && +uid.substring(prefix.length);
+  }
+  
+  private getItemMarketPrice(item: EsiItem): number | undefined {
+    return item.is_blueprint_copy ? undefined : this.cache.marketPrices.get(item.type_id);
+  }
+
+  private addChildren(item: ItemInfo, uids: ItemUID[]): void {
+    if (item.content == undefined) item.content = { value: 0, volume: 0, uids };
+    else item.content.uids = [...item.content.uids, ...uids];
+  }
+
+  private assembleTypeName(item: EsiItem): string | undefined {
+    const info = this.cache.typesInfo.get(item.type_id);
+    if (info == undefined) return undefined;
+    const name = info.name;
+    return item.is_blueprint_copy ? name + ' (Copy)' : name;
+  }
+
+  private updateCharacterItemInfo(item: EsiItem, info: ItemInfo): void {
+    const typeName = this.assembleTypeName(item);
+    if (typeName == undefined) return;
+    const assetName = this.cache.characterItemNames.get(item.item_id);
+    if (assetName == undefined) return;
+    info.name = assetName || typeName;
+    info.comment = (assetName && typeName) || undefined;
+    info.incomplete = undefined;
+  }
+
+  private linkCharacterItems(parent: ItemInfo): Observable<never> {
+    const items = this.cache.characterItems;
+    // add all items
+    items.forEach(item => {
+      const info = {
+        uid: this.assembleUID(item.item_id),
+        name: `Item #${item.item_id}`,
+        imageUrl: item.type_id,
+        value: this.getItemMarketPrice(item),
+        incomplete: true
+      };
+      this.updateCharacterItemInfo(item, info);
+      this.items.set(info.uid, info);
+    });
+    // connect children
+    const locIds = set(items.map(item => item.location_id));
+    locIds.map(asKeys(items, (l_id, item) => l_id === item.location_id)).forEach(([l_id, items]) => {
+      const l_uid = this.assembleUID(l_id);
+      const l_item = this.item(l_uid);
+      this.addChildren(
+        l_item,
+        items.map(item => this.assembleUID(item.item_id))
+      );
+      items.forEach(item => {
+        this.item(this.assembleUID(item.item_id)).loc = {
+          container: l_uid,
+          position: item.location_flag,
+          quantity: item.quantity
+        };
+      });
+    });
+    // connect to parent
+    this.addChildren(
+      parent,
+      items
+        .map(item => item.item_id)
+        .filter(fltRemove(locIds))
+        .map(id => this.assembleUID(id))
+    );
+    //return this.cache.loadLocationsInfo(this.loc(root).items.filter(id => this.isAssetItem(id)));  TODO
+    return empty();
+  }
+
+  private updateCharacterItems(items: ItemInfo[]): Observable<never> {
+    const pairs = items
+      .map(i => tuple(this.parseUID(i.uid), i))
+      .filter(([id]) => id !== false)
+      .map(([id, i]) => tuple(this.cache.characterItems.find(i => id === i.item_id) as EsiItem, i));
+    return concat(
+      merge(
+        this.cache.loadCharacterItemNames(pairs.map(([i]) => i.item_id)),
+        this.cache.loadTypesInfo(pairs.map(([i]) => i.type_id))
+      ),
+      defer(() => {
+        pairs.forEach(([esiItem, item]) => this.updateCharacterItemInfo(esiItem, item));
+        return empty();
       })
     );
   }
 
-  private addLocation(id: number, parent = 0): void {
-    this.locations.set(id, { items: [], volume: undefined, value: 0, parent });
+  //////////////////////
+  //////////////////////
+  //////////////////////
+  //////////////////////
+  //////////////////////
+  
+    /*
+      call(() =>
+        of({
+          item: this.getItemInfo(locItem || loc_id),
+          content: {
+            stat: [
+              { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
+              { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
+              { title: 'Content Value (ISK)', content: locData.value },
+              { title: 'Content Volume (m3)', content: this.getLocationContentVol(locData) }
+            ],
+            route: this.getLocationRoute(loc_id).map(item_id => this.getItemInfoForId(item_id)),
+            items: locData.items.map(item_id => this.assembleItemData(item_id))
+          }
+        })
+      )
+    );
+    ()
+    */
+/*
+  
   }
 
-  private linkChildren(): void {
-    [...this.locations.entries()].forEach(([loc_id, data]) => {
-      if (data.parent != undefined) this.loc(data.parent).items.push(loc_id);
-    });
-  }
 
   private processItems(items: EsiItem[]): void {
     items.forEach(item => {
@@ -161,13 +554,8 @@ export class LocationComponent {
     });
   }
 
-  private linkItemsData(items: EsiItem[]): void {
-    set(items.map(item => item.location_id)).forEach(id => this.addLocation(id));
-    items
-      .map(item => tuple(this.locations.get(item.item_id), item.location_id))
-      .filter(([loc]) => loc != undefined)
-      .forEach(([loc, pid]) => ((loc as LocationData).parent = pid));
-    this.processItems(items);
+  private addLocation(id: number, parent = 0): void {
+    this.locations.set(id, { items: [], volume: undefined, value: 0, parent });
   }
 
   private linkMarket(loc_id: number, orders: EsiDataCharMarketOrder[], id: number): number {
@@ -236,11 +624,6 @@ export class LocationComponent {
     return this.cache.loadCharacterItemNames(ids.filter(id => this.isAssetItem(id)));
   }
 
-  // get assets info for loc_id
-  private getAssets(loc_id: number): Observable<ContData> {
-    return this.buildLocations().pipe(switchMap(() => this.getLocation(loc_id)));
-  }
-
   private getItemInfo(item: EsiItem | number): ItemInfo {
     if (typeof item !== 'number') {
       const assetName = this.getItemName(item.item_id);
@@ -269,25 +652,6 @@ export class LocationComponent {
           name: locInfo.name,
           comment: locInfo.type_info
         };
-  }
-
-  private getItemInfoForId(itemId: number): ItemInfo {
-    return this.getItemInfo(this.getItem(itemId) || itemId);
-  }
-
-  getTypeName(type_id: number, isBPC?: boolean): string | undefined {
-    const info = this.cache.typesInfo.get(type_id);
-    if (info == undefined) return undefined;
-    const name = info.name;
-    return isBPC ? name + ' (Copy)' : name;
-  }
-
-  getItemPrice(item: EsiItem | undefined): number {
-    return item == undefined
-      ? 0
-      : item.is_blueprint_copy
-      ? 0
-      : (this.cache.marketPrices.get(item.type_id) || 0) * item.quantity;
   }
 
   private getItemVol(item: EsiItem | undefined): number | undefined {
@@ -335,33 +699,27 @@ export class LocationComponent {
     } as ItemData;
   }
 
-  private getLocation(loc_id: number): Observable<ContData> {
-    const locData = this.locations.get(loc_id);
-    if (locData == undefined) return throwError(new Error(`Unknown location '${loc_id}'`));
-    const locItem = this.getItem(loc_id); // location item or null for top/root level location locID
-    const locItems = locData.items.map(id => this.getItem(id));
-    const usedItems = [locItem, ...locItems].filter(item => !!item) as EsiItem[];
-    return concat(
-      merge(
-        // ensure data is available ...
-        this.loadItemNames(usedItems.map(item => item.item_id)), // ... user names
-        this.cache.loadTypesInfo(usedItems.map(item => item.type_id)) // ... typeInfo
-      ).pipe(ignoreElements()),
-      call(() =>
-        of({
-          item: this.getItemInfo(locItem || loc_id),
-          content: {
-            stat: [
-              { title: 'Item Value (ISK)', content: this.getItemPrice(locItem) },
-              { title: 'Item Volume (m3)', content: this.getItemVol(locItem) },
-              { title: 'Content Value (ISK)', content: locData.value },
-              { title: 'Content Volume (m3)', content: this.getLocationContentVol(locData) }
-            ],
-            route: this.getLocationRoute(loc_id).map(item_id => this.getItemInfoForId(item_id)),
-            items: locData.items.map(item_id => this.assembleItemData(item_id))
-          }
-        })
-      )
-    );
-  }
+  //  private marketLocations: number[] = []; // loc_id for market location
+//  private marketItems: EsiItem[] = [];
+//  private marketItemNames: Map<number, string> = new Map();
+
+/*
+this.locationsInfo = new Map<number, EsiDataLocationInfo>([
+  [0, { name: 'Universe', type_info: 'Tranquility' }],
+  [EsiService.LOCATION_ID_AssetSafety, { name: 'Asset Safety', type_info: '' }]
+]);
+*/
+
+/*
+const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap];
+
+function isVirtualContainer(type_id: number): boolean {
+  return virtualContainerTypes.includes(type_id);
 }
+*/
+
+//const observe = <T>(f: () => Observable<T>): Observable<T> => of(f).pipe(switchMap(f => f()));
+
+/*
+}
+*/
