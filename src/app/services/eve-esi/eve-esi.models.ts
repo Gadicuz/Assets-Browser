@@ -79,7 +79,7 @@ export type EsiLocationFlag =
   | 'Unlocked'
   | 'Wardrobe';
 
-export type EsiItemLocationType = 'station' | 'solar_system' | 'other';
+export type EsiItemLocationType = 'station' | 'solar_system' | 'item' | 'other';
 
 // see getLocationTypeById()
 export type EsiLocationType = 'asset_safety' | 'station' | 'solar_system' | 'character' | 'unknown' | 'structure';
@@ -101,14 +101,14 @@ export type EsiInformationType =
   | 'types';
 
 export interface EsiItem {
-  item_id: number;
-  type_id: number;
   is_blueprint_copy?: boolean;
   is_singleton: boolean;
-  quantity: number;
+  item_id: number;
   location_id: number;
-  location_type: EsiItemLocationType;
   location_flag: EsiLocationFlag;
+  location_type: EsiItemLocationType;
+  type_id: number;
+  quantity: number;
 }
 
 export interface EsiItemName {
@@ -117,6 +117,10 @@ export interface EsiItemName {
 }
 
 export type EsiDataItemName = [number, string];
+
+export interface EsiDataItem extends EsiItem {
+  name: string;
+}
 
 export type EsiMarketOrderRange =
   | 'station'

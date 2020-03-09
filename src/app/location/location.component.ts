@@ -4,7 +4,7 @@ import { Observable, defer, from, of, merge, throwError, concat, empty } from 'r
 import { concatMap, expand, map, tap, ignoreElements, mergeMap, switchMap, catchError } from 'rxjs/operators';
 
 import {
-  EsiItem,
+  EsiDataItem,
   EsiDataService,
   EsiDataSystemInfo,
   EsiDataCharMarketOrder,
@@ -21,7 +21,7 @@ import { MatTableDataSource } from '@angular/material/table';
 
 import { LocUID, LocPosition, LocParentLink, LocTypeInfo, LocData } from './location.models';
 
-import { set, tuple, fltRemove } from '../utils/utils';
+import { autoMap, set, tuple, fltRemove } from '../utils/utils';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -99,6 +99,33 @@ export class LocationComponent {
     return this.locs.get(uid) as LocData;
   }
 
+  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string): void {
+    const typeInfo = this.cache.typesInfo.get(type_id)!;
+    info.name = name || typeInfo.name;
+    info.comment = (name && typeInfo.name) || undefined;
+    info.image = type_id;
+    info.value = this.cache.marketPrices.get(type_id);
+    info.volume = typeInfo.packaged_volume;
+    info.assembled_volume = typeInfo.volume;
+  }
+
+  private typeInfos = new Map<number, LocTypeInfo>();
+  private typeInfoLoader(item: EsiDataItem): LocTypeInfo {
+    const item_name = item.name;
+    const type_id = item.type_id;
+    const loader = (info: LocTypeInfo): Observable<never> =>
+      this.cache
+        .loadTypesInfo([type_id])
+        .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item_name) }));
+    const infoLoader = { name: '', image: '', loader };
+    if (item_name || item.is_blueprint_copy) return infoLoader;
+    // no name, not bpc
+    const info = this.typeInfos.get(type_id);
+    if (info) return info;
+    this.typeInfos.set(type_id, infoLoader);
+    return infoLoader;
+  }
+
   constructor(
     private route: ActivatedRoute,
     private esi: EsiService,
@@ -163,9 +190,8 @@ export class LocationComponent {
     const route = this.getRoute(loc);
     const content = loc.content_items;
     const usedLocs = content ? [...route, ...content] : route;
-    const lazyInfos = set(usedLocs.filter(loc => loc.info.loader).map(loc => loc.info));
     return concat(
-      merge(...lazyInfos.map(info => info.loader!(info))),
+      merge(...set(usedLocs.map(loc => loc.info).filter(info => info.loader)).map(info => info.loader!(info))),
       defer(() =>
         of({
           info: this.createLocationInfo(loc, route),
@@ -377,31 +403,40 @@ export class LocationComponent {
 
   private loadAssets(): Observable<LocData[]> {
     return concat(
-      merge(
-        this.cache.loadMarketPrices(),
-        concat(
-          this.cache.loadCharacterItems(),
-          defer(() => this.cache.loadCharacterItemNames())
-        )
-      ),
+      merge(this.cache.loadMarketPrices(), this.cache.loadCharacterItems()),
       defer(() => {
-        const locs = this.cache.characterItems.map(
+        const itemKey = (i: EsiDataItem): string =>
+          `${i.item_id}|${i.name}|${i.type_id}|${i.location_id}|${i.location_flag}|${i.is_blueprint_copy}`;
+        const items = [...this.cache.characterItems.values()];
+        const cIds = set(items.map(item => item.location_id));
+        const locs = Array.from(
+          items
+            .map(item => ({
+              ...item,
+              item_id: cIds.includes(item.item_id) ? item.item_id : NaN
+            }))
+            .reduce(autoMap(itemKey), new Map())
+            .values(),
+          items =>
+            items.reduce((s, x) => {
+              const r = x;
+              r.quantity += s.quantity;
+              return r;
+            })
+        ).map(
           item =>
             ({
-              uid: String(item.item_id),
-              info: {
-                name: `type_id=${item.type_id}`,
-                image: item.type_id
-              },
+              uid: isNaN(item.item_id) ? undefined : String(item.item_id),
+              info: this.typeInfoLoader(item),
               link: [String(item.location_id), item.location_flag],
-              quantity: item.quantity
+              quantity: item.quantity,
+              key: itemKey(item)
             } as LocData)
         );
         let unlinked = [...locs];
         locs.forEach(loc => {
           const linked = unlinked.filter(unloc => (unloc.link as LocParentLink)[0] === loc.uid);
-          if (!linked.length) loc.uid = undefined;
-          else {
+          if (linked.length) {
             loc.content_items = linked;
             unlinked = unlinked.filter(fltRemove(linked));
           }

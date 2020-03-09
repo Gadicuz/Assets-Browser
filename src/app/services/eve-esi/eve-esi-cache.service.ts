@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, concat, defer, from, merge, of } from 'rxjs';
-import { filter, ignoreElements, map, mergeMap, switchMap, tap, toArray } from 'rxjs/operators';
+import { ignoreElements, map, mergeMap, switchMap, tap } from 'rxjs/operators';
 
 import {
-  EsiItem,
   EsiMarketOrderType,
   EsiWalletTransaction,
+  EsiDataItem,
   EsiDataLocMarketTypes,
   EsiDataLocMarketOrders,
   EsiDataCharMarketOrder,
@@ -30,27 +30,12 @@ export class EsiCacheService {
   constructor(private data: EsiDataService, private http: HttpClient) {}
 
   // characters/{character_id}/assets/
-  public characterItems: EsiItem[] = [];
+  public characterItems = new Map<number, EsiDataItem>();
   public loadCharacterItems(): Observable<never> {
     return this.data.loadCharacterItems().pipe(
-      tap(items => (this.characterItems = items)),
-      ignoreElements()
-    );
-  }
-
-  public findChararacterItem(item_id: number): EsiItem | undefined {
-    return this.characterItems.find(item => item.item_id == item_id);
-  }
-
-  // MAP: item_id -> name?
-  public characterItemNames = new Map<number, string | false>();
-  public loadCharacterItemNames(ids: number[] = this.characterItems.map(i => i.item_id)): Observable<never> {
-    ids = removeKeys(ids, this.characterItemNames);
-    return this.data.loadCharacterItemNames(ids).pipe(
-      tap({
-        next: ([id, name]) => this.characterItemNames.set(id, name),
-        complete: () => removeKeys(ids, this.characterItemNames).forEach(id => this.characterItemNames.set(id, false))
-      }),
+      tap(items => (this.characterItems = new Map(items.map(i => [i.item_id, { ...i, name: '' }])))),
+      mergeMap(items => this.data.loadCharacterItemNames(items/*.filter(i => !i.is_singleton)*/.map(i => i.item_id))),
+      tap(id_name => ((this.characterItems.get(id_name[0]) as EsiDataItem).name = id_name[1])),
       ignoreElements()
     );
   }

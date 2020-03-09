@@ -18,3 +18,6 @@ export const autoMap = <T, K>(key: (_: T) => K, flt?: K[]) => (m: Map<K, T[]>, x
   a.push(x);
   return m;
 };
+
+export const updateMapValues = <K, T, U>(m: Map<K, T>, upd: (_: T) => U): Map<K, U> =>
+  new Map(Array.from(m).map(([k, v]) => tuple(k, upd(v))));

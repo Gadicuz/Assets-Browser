@@ -15,7 +15,7 @@ import {
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
 
-import { autoMap, set, tuple } from '../utils/utils';
+import { autoMap, set, tuple, updateMapValues } from '../utils/utils';
 
 export interface OrderListItem {
   type_id: number;
@@ -43,9 +43,12 @@ interface LocationInfo {
 interface SalesData {
   quantity: number;
   value: number;
-  date: number;
+  tstamp: number;
 }
-type SalesHistory = Map<{ l_id: number; t_id: number }, SalesData>;
+interface LocSales {
+  l_id: number;
+  tid_sales: Map<number, SalesData>;
+}
 
 @Component({
   selector: 'app-orders',
@@ -71,10 +74,10 @@ export class OrdersComponent {
           ),
         (orders, trans) => this.analyzeData(orders, trans)
       ).pipe(
-        mergeMap(([loc_types, char_orders, loc_type_sales]) => {
-          const ids = char_orders.map(o => o.order_id);
+        mergeMap(([loc_types, char_sales, ids]) => {
+          const sales = new Map(char_sales.map(s => [s.l_id, s.tid_sales]));
           return this.loadMarketOrders(loc_types, 'sell').pipe(
-            map(loc_orders => this.assembleLocationInfo(loc_orders, ids, loc_type_sales))
+            map(loc_orders => this.assembleLocationInfo(loc_orders, sales.get(loc_orders.l_id), ids))
           );
         }),
         toArray(),
@@ -122,7 +125,7 @@ export class OrdersComponent {
   private analyzeData(
     orders: EsiDataCharMarketOrder[],
     trans: EsiWalletTransaction[]
-  ): [EsiDataLocMarketTypes[], EsiDataCharMarketOrder[], SalesHistory] {
+  ): [EsiDataLocMarketTypes[], LocSales[], number[]] {
     const loc_id = [
       ...orders.map(o => tuple(o.location_id, o.type_id)),
       ...trans.map(t => tuple(t.location_id, t.type_id))
@@ -132,42 +135,48 @@ export class OrdersComponent {
         autoMap(([l_id]) => l_id),
         new Map<number, [number, number][]>()
       ),
-      ([l_id, loc_id]) => ({ l_id, types: loc_id.map(([, t]) => t) })
+      ([l_id, l_types]) => ({ l_id, types: set(l_types.map(([, t]) => t)) })
     );
 
-    const sales = trans.reduce((sales: SalesHistory, wt: EsiWalletTransaction) => {
-      if (wt.quantity) {
-        const k = { l_id: wt.location_id, t_id: wt.type_id };
-        const hItem = sales.get(k);
-        const t = new Date(wt.date).getTime();
-        if (hItem) {
-          hItem.quantity += wt.quantity;
-          hItem.value += wt.quantity * wt.unit_price;
-          if (hItem.date < t) hItem.date = t;
-        } else {
-          sales.set(k, {
-            quantity: wt.quantity,
-            value: wt.quantity * wt.unit_price,
-            date: t
-          });
-        }
-      }
-      return sales;
-    }, new Map());
+    const sales = Array.from(
+      trans
+        .filter(wt => wt.quantity)
+        .reduce(
+          autoMap(wt => wt.location_id),
+          new Map<number, EsiWalletTransaction[]>()
+        )
+    ).map(([l_id, wts]) => ({
+      l_id,
+      tid_sales: updateMapValues(
+        wts.reduce(
+          autoMap(wt => wt.type_id),
+          new Map<number, EsiWalletTransaction[]>()
+        ),
+        wts =>
+          wts.reduce(
+            (sd, wt) => ({
+              quantity: sd.quantity + wt.quantity,
+              value: sd.value + wt.quantity * wt.unit_price,
+              tstamp: Math.max(sd.tstamp, new Date(wt.date).getTime())
+            }),
+            { quantity: 0, value: 0, tstamp: 0 }
+          )
+      )
+    }));
 
-    return [types, orders, sales];
+    return [types, sales, orders.map(o => o.order_id)];
   }
 
   private assembleItemsInfo(
     type_id: number,
     name: string,
-    type_orders: EsiDataMarketOrder[],
+    t_orders: EsiDataMarketOrder[],
     ids: number[],
     sd: SalesData | undefined
   ): OrderListItem[] {
     const now = Date.now();
     const dtime = 1 * 24 * 60 * 60 * 1000;
-    const lines: OrderListItem[] = type_orders
+    const lines: OrderListItem[] = t_orders
       .map(o => {
         const duration = now - o.timestamp;
         return {
@@ -191,7 +200,7 @@ export class OrdersComponent {
       .reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
     const sold = sd ? sd.quantity : 0;
     const icons = [];
-    if (sd && now - sd.date < dtime) icons.push('attach_money');
+    if (sd && now - sd.tstamp < dtime) icons.push('attach_money');
     if (lines.find(x => x.icons.length)) icons.push('new_releases');
     if (!has_owned && has_other) icons.push('people_outline');
     if (has_owned && !has_other) icons.push('person');
@@ -210,24 +219,28 @@ export class OrdersComponent {
     ].concat(lines);
   }
 
-  private assembleLocationInfo(loc_orders: EsiDataLocMarketOrders, ids: number[], sales: SalesHistory): LocationInfo {
-    const l_id = loc_orders.l_id;
+  private assembleLocationInfo(
+    orders: EsiDataLocMarketOrders,
+    sales: Map<number, SalesData> | undefined,
+    ids: number[]
+  ): LocationInfo {
+    const l_id = orders.l_id;
     const name = EsiService.isStationId(l_id)
       ? this.cache.stationsInfo.get(l_id)!.name
       : this.cache.structuresInfo.get(l_id)!.name;
-    const items = [...loc_orders.orders]
-      .map(([t_id, type_orders]) =>
-        this.assembleItemsInfo(
-          t_id,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.cache.typesInfo.get(t_id)!.name, // type_id loaded by loadMarketOrders()
-          type_orders,
-          ids,
-          sales.get({ l_id, t_id })
-        )
+
+    const items = Array.from(orders.orders, ([t_id, t_orders]) =>
+      this.assembleItemsInfo(
+        t_id,
+        this.cache.typesInfo.get(t_id)!.name, // type_id loaded by loadMarketOrders()
+        t_orders,
+        ids,
+        sales && sales.get(t_id)
       )
+    )
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
       .reduce((s, a) => s.concat(a), []);
+
     return { name, items };
   }
 }

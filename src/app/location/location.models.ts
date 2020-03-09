@@ -16,7 +16,7 @@ export interface LocTypeInfo {
 }
 
 export interface LocData {
-  uid?: LocUID; // undefined for pure item
+  uid: LocUID | undefined; // undefined for pure item
   // Location information
   info: LocTypeInfo;
   // Link to parent container
