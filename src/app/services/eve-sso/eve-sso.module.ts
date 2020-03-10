@@ -112,11 +112,11 @@ export class EVESSOModule {
     return {
       ngModule: EVESSOModule,
       providers: [
-        {
-          provide: HTTP_INTERCEPTORS,
-          useClass: CodeVerifierInterceptorService,
-          multi: true
-        },
+        //{
+        //  provide: HTTP_INTERCEPTORS,
+        //  useClass: CodeVerifierInterceptorService,
+        //  multi: true
+        //},
         { provide: EVESSO_CONFIG, useValue: cfg }
       ]
     };
