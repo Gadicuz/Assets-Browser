@@ -24,6 +24,7 @@ export interface LocData {
   // Item data (item value/volume are calculated)
   quantity?: number; // undefined if pure location
   // Content (if type of uid is LocUID, value/volume are calculated and cached)
+  is_virtual_container?: true;
   content_items?: LocData[];
   content_value?: number;
   content_volume?: number;

@@ -10,11 +10,11 @@
     </mat-card-header>
 
     <mat-card-content fxLayout="row wrap" fxLayoutAlign="start stretch">
-      <div *ngFor="let stat of location.info.stat">
+      <div *ngFor="let stat of location.info.stats">
         <mat-card class="gap-margin">
           <div fxLayout="column">
             <div class="mat-caption">{{stat.title}}</div>
-            <div class="mat-display-1 no-margin">{{stat.value | scale:'.2-2'}}</div>
+            <div class="mat-display-1 no-margin">{{(stat.value | scale:'.2-2') || 'N/A'}}</div>
           </div>
         </mat-card>
       </div>
@@ -33,15 +33,19 @@
 
   <mat-table [dataSource]="dataSource" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>
 
+    <ng-container matColumnDef="link">
+      <mat-header-cell *matHeaderCellDef></mat-header-cell>
+      <mat-cell *matCellDef="let rec">
+        <button *ngIf="rec.link" mat-icon-button [routerLink]="['/browse',rec.link]">
+          <mat-icon>open_in_new</mat-icon>
+        </button>
+      </mat-cell>
+    </ng-container>
+
     <ng-container matColumnDef="name">
       <mat-header-cell *matHeaderCellDef mat-sort-header> Name </mat-header-cell>
       <mat-cell *matCellDef="let rec">
-        <ng-container *ngIf="rec.link; else nolink">
-          <a [routerLink]="['/browse',rec.link]">{{rec.name}}</a>
-        </ng-container>
-        <ng-template #nolink>
-          {{rec.name}}
-        </ng-template>
+        {{rec.name}}
         <font *ngIf="rec.comment" size="-2">
           {{rec.comment}}
         </font>
@@ -61,9 +65,11 @@
     <ng-container matColumnDef="volume">
       <mat-header-cell *matHeaderCellDef mat-sort-header> Volume </mat-header-cell>
       <mat-cell *matCellDef="let rec">
-        {{(rec.volume | number:'.2-2') || 'n/a'}}
-        <font *ngIf="rec.content_volume !== undefined" size="-2">
-          {{(rec.content_volume | number:'.2-2') || 'pending...'}}
+        <ng-container *ngIf="rec.volume !== 'NaN'">
+          {{(rec.volume | number:'.2-2') || 'n/a'}}
+        </ng-container>
+        <font *ngIf="rec.content_volume !== 'NaN'" size="-2">
+          {{(rec.content_volume | number:'.2-2') || 'n/a'}}
         </font>
       </mat-cell>
     </ng-container>

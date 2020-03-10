@@ -40,7 +40,7 @@ interface LocationRouteNode {
 
 interface LocationStat {
   title: string;
-  value: number;
+  value: number | ''; // '' - no data
 }
 
 interface LocationInfo {
@@ -51,14 +51,17 @@ interface LocationInfo {
   route: LocationRouteNode[];
 }
 
+type ItemVolume = number | undefined; // number - volume, NaN - 'n/a', undefined - 'not ready'
+
 interface ItemRecord {
   position: string;
   name: string;
   comment?: string;
   link?: string;
-  quantity: number | '';
-  value: number | '';
-  volume: number | string;
+  quantity?: number;
+  value?: number;
+  volume: number | '' | 'NaN';
+  content_volume: number | '' | 'NaN';
 }
 
 interface LocationRecord {
@@ -77,6 +80,11 @@ function getUID(link: string | null): LocUID {
   return link || UNIVERSE_UID;
 }
 
+const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap];
+function isVirtualContainer(type_id: number): boolean {
+  return virtualContainerTypes.includes(type_id);
+}
+
 @Component({
   selector: 'app-location',
   templateUrl: './location.component.html',
@@ -85,7 +93,7 @@ function getUID(link: string | null): LocUID {
 export class LocationComponent {
   location$: Observable<LocationRecord>;
 
-  displayedColumns: string[] = ['name', 'quantity', 'value', 'volume'];
+  displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume'];
   dataSource = new MatTableDataSource<ItemRecord>();
 
   @ViewChild(MatSort) sort?: MatSort;
@@ -97,33 +105,6 @@ export class LocationComponent {
   private locs = new Map<LocUID, LocData>();
   private loc(uid: LocUID): LocData {
     return this.locs.get(uid) as LocData;
-  }
-
-  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string): void {
-    const typeInfo = this.cache.typesInfo.get(type_id)!;
-    info.name = name || typeInfo.name;
-    info.comment = (name && typeInfo.name) || undefined;
-    info.image = type_id;
-    info.value = this.cache.marketPrices.get(type_id);
-    info.volume = typeInfo.packaged_volume;
-    info.assembled_volume = typeInfo.volume;
-  }
-
-  private typeInfos = new Map<number, LocTypeInfo>();
-  private typeInfoLoader(item: EsiDataItem): LocTypeInfo {
-    const item_name = item.name;
-    const type_id = item.type_id;
-    const loader = (info: LocTypeInfo): Observable<never> =>
-      this.cache
-        .loadTypesInfo([type_id])
-        .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item_name) }));
-    const infoLoader = { name: '', image: '', loader };
-    if (item_name || item.is_blueprint_copy) return infoLoader;
-    // no name, not bpc
-    const info = this.typeInfos.get(type_id);
-    if (info) return info;
-    this.typeInfos.set(type_id, infoLoader);
-    return infoLoader;
   }
 
   constructor(
@@ -154,8 +135,7 @@ export class LocationComponent {
         name: 'Universe',
         comment: this.esi.serverName,
         image: UNIVERSE_IMAGE_URL
-      },
-      content_items: [] // empty so far
+      }
     });
 
     this.location$ = this.route.paramMap.pipe(
@@ -201,6 +181,12 @@ export class LocationComponent {
     );
   }
 
+  private convetVolume(volume: ItemVolume): number | '' | 'NaN' {
+    if (volume == undefined) return '';
+    if (Number.isNaN(volume)) return 'NaN';
+    return volume;
+  }
+
   /** Assembles LocationInfo structure for LocUID/LocData */
   private createLocationInfo(uid: LocUID | LocData, route: LocData[] = []): LocationInfo {
     const loc = typeof uid === 'object' ? uid : this.locs.get(uid);
@@ -211,11 +197,24 @@ export class LocationComponent {
         stats: [],
         route: []
       };
+    const stats: LocationStat[] = [];
+    const totalValue = this.calcItemValue(loc) == undefined ? undefined : this.calcTotalValue(loc);
+    if (totalValue != undefined) stats.push({ title: 'Value (ISK)', value: totalValue });
+    const contValue = this.calcContentValue(loc);
+    if (contValue != undefined) stats.push({ title: 'Content Value (ISK)', value: contValue });
+    if (!loc.is_virtual_container) {
+      const itemVolume = this.calcItemVolume(loc);
+      if (itemVolume == undefined || !Number.isNaN(itemVolume))
+        stats.push({ title: 'Item Volume (m3)', value: this.convetVolume(itemVolume) as number | '' });
+    }
+    const contVolume = this.calcContentVolume(loc);
+    if (contVolume == undefined || !Number.isNaN(contVolume))
+      stats.push({ title: 'Content Volume (m3)', value: this.convetVolume(contVolume) as number | '' });
     return {
       name: loc.info.name,
       comment: loc.info.comment,
       image: typeof loc.info.image === 'string' ? loc.info.image : this.esi.getItemIconURI(loc.info.image, 32),
-      stats: [],
+      stats,
       route: route.map(l => ({ name: l.info.name, comment: l.info.comment, link: getLink(l.uid as LocUID) })) //TODO: set position as hint
     };
   }
@@ -231,6 +230,48 @@ export class LocationComponent {
     return this.locs.size !== 1 ? empty() : this.loadLocations();
   }
 
+  /** Calculates item q-pack value */
+  private calcItemValue(item: LocData): number | undefined {
+    if (item.quantity == undefined) return undefined; // N/A
+    if (item.info.value == undefined) return NaN; // error
+    return item.quantity * item.info.value;
+  }
+
+  /** Calculates total item value */
+  private calcTotalValue(item: LocData): number {
+    return (this.calcContentValue(item) || 0) + (this.calcItemValue(item) || 0);
+  }
+
+  /** Calculates item's content value */
+  private calcContentValue(item: LocData): number | undefined {
+    if (item.content_value == undefined)
+      item.content_value = item.content_items && item.content_items.reduce((s, i) => s + this.calcTotalValue(i), 0);
+    return item.content_value;
+  }
+
+  /** Calculates item q-pack volume */
+  private calcItemVolume(item: LocData): ItemVolume {
+    if (!item.quantity) return NaN;
+    if (item.is_virtual_container) return this.calcContentVolume(item);
+    const volume = item.content_items ? item.info.assembled_volume : item.info.volume;
+    return volume && volume * item.quantity;
+  }
+
+  /** Calculates item's content volume */
+  private calcContentVolume(item: LocData): ItemVolume {
+    if (!item.content_items) return NaN;
+    if (item.content_volume == undefined) {
+      item.content_volume = item.content_items.reduce<ItemVolume>((s, i) => {
+        if (s == undefined) return undefined;
+        const v = this.calcItemVolume(i);
+        if (v == undefined) return undefined;
+        if (Number.isNaN(s) && Number.isNaN(v)) return NaN; // NaN + NaN => NaN
+        return (Number.isNaN(s) ? 0 : s) + (Number.isNaN(v) ? 0 : v); // NaN + number => number
+      }, NaN);
+    }
+    return item.content_volume;
+  }
+
   private createDataRecords(loc: LocData): ItemRecord[] {
     if (loc.content_items == undefined) return [];
     return loc.content_items.map(l => ({
@@ -238,9 +279,10 @@ export class LocationComponent {
       name: l.info.name,
       comment: l.info.comment,
       link: l.uid && getLink(l.uid),
-      quantity: l.quantity || '',
-      value: '',
-      volume: ''
+      quantity: l.quantity,
+      value: this.calcTotalValue(l),
+      volume: this.convetVolume(this.calcItemVolume(l)),
+      content_volume: this.convetVolume(this.calcContentVolume(l))
     }));
   }
 
@@ -266,6 +308,14 @@ export class LocationComponent {
     else {
       if (parent.content_items) parent.content_items.push(loc);
       else parent.content_items = [loc];
+      this.resetContentCache(parent);
+    }
+  }
+  private resetContentCache(loc: LocData | undefined): void {
+    while (loc != undefined) {
+      loc.content_value = undefined;
+      loc.content_volume = undefined;
+      loc = loc.link && this.locs.get(loc.link[0]);
     }
   }
 
@@ -295,7 +345,7 @@ export class LocationComponent {
 
   private locInfo_TxtId(txt: string, id: number): LocTypeInfo {
     return {
-      name: `*** ${txt} ID=${id}' ***`,
+      name: `*** ${txt} ID=${id} ***`,
       image: UNKNOWN_IMAGE_URL
     };
   }
@@ -401,12 +451,39 @@ export class LocationComponent {
     }
   }
 
+  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string): void {
+    const typeInfo = this.cache.typesInfo.get(type_id)!;
+    info.name = name || typeInfo.name;
+    info.comment = (name && typeInfo.name) || undefined;
+    info.image = type_id;
+    //info.value = this.cache.marketPrices.get(type_id);
+    info.volume = typeInfo.packaged_volume;
+    info.assembled_volume = typeInfo.volume;
+  }
+
+  private typeInfos = new Map<number, LocTypeInfo>();
+  private typeInfoLoader(item: EsiDataItem): LocTypeInfo {
+    const item_name = item.name;
+    const type_id = item.type_id;
+    const loader = (info: LocTypeInfo): Observable<never> =>
+      this.cache
+        .loadTypesInfo([type_id])
+        .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item_name) }));
+    const infoLoader = { name: '', image: '', value: this.cache.marketPrices.get(type_id) || 0, loader };
+    if (item_name || item.is_blueprint_copy) return infoLoader;
+    // no name, not bpc
+    const info = this.typeInfos.get(type_id);
+    if (info) return info;
+    this.typeInfos.set(type_id, infoLoader);
+    return infoLoader;
+  }
+
   private loadAssets(): Observable<LocData[]> {
     return concat(
       merge(this.cache.loadMarketPrices(), this.cache.loadCharacterItems()),
       defer(() => {
         const itemKey = (i: EsiDataItem): string =>
-          `${i.item_id}|${i.name}|${i.type_id}|${i.location_id}|${i.location_flag}|${i.is_blueprint_copy}`;
+          `${i.item_id}|${i.name}|${i.type_id}|${i.location_id}|${i.location_flag}|${i.is_blueprint_copy || false}`;
         const items = [...this.cache.characterItems.values()];
         const cIds = set(items.map(item => item.location_id));
         const locs = Array.from(
@@ -417,20 +494,15 @@ export class LocationComponent {
             }))
             .reduce(autoMap(itemKey), new Map())
             .values(),
-          items =>
-            items.reduce((s, x) => {
-              const r = x;
-              r.quantity += s.quantity;
-              return r;
-            })
+          items => items.reduce((s, x) => ({ ...x, quantity: x.quantity + s.quantity }))
         ).map(
           item =>
             ({
-              uid: isNaN(item.item_id) ? undefined : String(item.item_id),
+              uid: Number.isNaN(item.item_id) ? undefined : String(item.item_id),
               info: this.typeInfoLoader(item),
               link: [String(item.location_id), item.location_flag],
               quantity: item.quantity,
-              key: itemKey(item)
+              is_virtual_container: isVirtualContainer(item.type_id) || undefined
             } as LocData)
         );
         let unlinked = [...locs];
@@ -744,17 +816,6 @@ this.locationsInfo = new Map<number, EsiDataLocationInfo>([
   [EsiService.LOCATION_ID_AssetSafety, { name: 'Asset Safety', type_info: '' }]
 ]);
 */
-
-/*
-const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap];
-
-function isVirtualContainer(type_id: number): boolean {
-  return virtualContainerTypes.includes(type_id);
-}
-*/
-
-//const observe = <T>(f: () => Observable<T>): Observable<T> => of(f).pipe(switchMap(f => f()));
-
 /*
 }
 */
