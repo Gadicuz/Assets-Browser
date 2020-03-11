@@ -24,7 +24,7 @@
   flex: 0 1 160px;
   justify-content: flex-end
 }
-.mat-column-volume {
+.mat-column-volume, .mat-column-content {
   flex: 0 1 100px;
   flex-direction: column;
   align-items: flex-end;

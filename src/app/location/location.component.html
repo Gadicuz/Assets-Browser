@@ -58,19 +58,25 @@
     </ng-container>
 
     <ng-container matColumnDef="value">
-      <mat-header-cell *matHeaderCellDef mat-sort-header> Value </mat-header-cell>
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Value<br>(ISK) </mat-header-cell>
       <mat-cell *matCellDef="let rec"> {{rec.value | currency:'':'':'.2-2':'en-US'}} </mat-cell>
     </ng-container>
 
     <ng-container matColumnDef="volume">
-      <mat-header-cell *matHeaderCellDef mat-sort-header> Volume </mat-header-cell>
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Volume<br>(m3) </mat-header-cell>
       <mat-cell *matCellDef="let rec">
         <ng-container *ngIf="rec.volume !== 'NaN'">
           {{(rec.volume | number:'.2-2') || 'n/a'}}
         </ng-container>
-        <font *ngIf="rec.content_volume !== 'NaN'" size="-2">
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="content">
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Content<br>(m3) </mat-header-cell>
+      <mat-cell *matCellDef="let rec">
+        <ng-container *ngIf="rec.content_volume !== 'NaN'">
           {{(rec.content_volume | number:'.2-2') || 'n/a'}}
-        </font>
+        </ng-container>
       </mat-cell>
     </ng-container>
 

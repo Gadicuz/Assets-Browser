@@ -93,7 +93,7 @@ function isVirtualContainer(type_id: number): boolean {
 export class LocationComponent {
   location$: Observable<LocationRecord>;
 
-  displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume'];
+  displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume', 'content'];
   dataSource = new MatTableDataSource<ItemRecord>();
 
   @ViewChild(MatSort) sort?: MatSort;
