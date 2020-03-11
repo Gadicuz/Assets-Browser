@@ -20,7 +20,7 @@ import { MatSort, Sort } from '@angular/material/sort';
 import { CollectionViewer, DataSource } from '@angular/cdk/collections';
 import { MatTableDataSource } from '@angular/material/table';
 
-import { LocUID, LocPosition, LocParentLink, LocTypeInfo, LocData } from './location.models';
+import { LocUID, LocParentLink, LocTypeInfo, LocData } from './location.models';
 
 import { autoMap, set, tuple, fltRemove } from '../utils/utils';
 
@@ -71,6 +71,16 @@ interface LocationRecord {
   data?: ItemRecord[];
   error?: unknown;
 }
+
+interface LocationItem {
+  is_bpc: boolean;
+  item_id?: number;
+  name: string;
+  location_id: number;
+  location_pos?: string;
+  type_id: number;
+  quantity: number;
+};
 
 /** Converts LocUID to URL parameter */
 function getLink(uid: LocUID): string {
@@ -137,8 +147,8 @@ class LocationDataSource implements DataSource<ItemRecord> {
           let r;
           switch (sort.active) {
             case 'name': {
-              const s1 = r1.name + '\0' + r1.comment;
-              const s2 = r2.name + '\0' + r2.comment;
+              const s1 = [r1.name, r1.comment].join('\0');
+              const s2 = [r2.name, r2.comment].join('\0');
               r = s1.localeCompare(s2);
               break;
             }
@@ -388,7 +398,7 @@ export class LocationComponent {
   private createDataRecords(loc: LocData): ItemRecord[] {
     if (loc.content_items == undefined) return [];
     return loc.content_items.map(l => ({
-      position: (l.link as [string, string])[1],
+      position: l.link![1] || '',
       name: l.info.name,
       comment: l.info.comment,
       link: l.uid && getLink(l.uid),
@@ -575,15 +585,15 @@ export class LocationComponent {
   }
 
   private typeInfos = new Map<number, LocTypeInfo>();
-  private typeInfoLoader(item: EsiDataItem): LocTypeInfo {
+  private typeInfoLoader(item: LocationItem): LocTypeInfo {
     const item_name = item.name;
     const type_id = item.type_id;
     const loader = (info: LocTypeInfo): Observable<never> =>
       this.cache
         .loadTypesInfo([type_id])
         .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item_name) }));
-    const infoLoader = { name: '', image: '', value: this.cache.marketPrices.get(type_id) || 0, loader };
-    if (item_name || item.is_blueprint_copy) return infoLoader;
+    const infoLoader = { name: '', image: '', value: this.cache.marketPrices.get(type_id), loader };
+    if (item_name || item.is_bpc) return infoLoader;
     // no name, not bpc
     const info = this.typeInfos.get(type_id);
     if (info) return info;
@@ -595,15 +605,23 @@ export class LocationComponent {
     return concat(
       merge(this.cache.loadMarketPrices(), this.cache.loadCharacterItems()),
       defer(() => {
-        const itemKey = (i: EsiDataItem): string =>
-          `${i.item_id}|${i.name}|${i.type_id}|${i.location_id}|${i.location_flag}|${i.is_blueprint_copy || false}`;
+        const itemKey = (i: LocationItem): string =>
+          `${i.item_id}|${i.name}|${i.type_id}|${i.location_id}|${i.location_pos}|${i.is_bpc}`;
         const items = [...this.cache.characterItems.values()];
         const cIds = set(items.map(item => item.location_id));
         const locs = Array.from(
           items
             .map(item => ({
-              ...item,
-              item_id: cIds.includes(item.item_id) ? item.item_id : NaN
+              is_bpc: item.is_blueprint_copy || false,
+              item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
+              name: item.name,
+              location_id: item.location_id,
+              location_pos: item.location_flag
+                .split(/(?=\p{Lu})|\d+/u) // /(?=[A-Z])|\d+/
+                .filter(w => w)
+                .join(' '),
+              type_id: item.type_id,
+              quantity: item.quantity
             }))
             .reduce(autoMap(itemKey), new Map())
             .values(),
@@ -611,9 +629,9 @@ export class LocationComponent {
         ).map(
           item =>
             ({
-              uid: Number.isNaN(item.item_id) ? undefined : String(item.item_id),
+              uid: item.item_id == undefined ? undefined : String(item.item_id),
               info: this.typeInfoLoader(item),
-              link: [String(item.location_id), item.location_flag],
+              link: [String(item.location_id), item.location_pos],
               quantity: item.quantity,
               is_virtual_container: isVirtualContainer(item.type_id) || undefined
             } as LocData)

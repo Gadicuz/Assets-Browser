@@ -1,8 +1,7 @@
 import { Observable } from 'rxjs';
 
 export type LocUID = string; // location unique identifer
-export type LocPosition = string; // location position
-export type LocParentLink = [LocUID, LocPosition?]; // location and position
+export type LocParentLink = [LocUID, string?]; // location and position
 
 export interface LocTypeInfo {
   loader?: (info: LocTypeInfo) => Observable<never>; // Lazy loader for the data structure
