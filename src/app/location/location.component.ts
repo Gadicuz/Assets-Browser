@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Observable, defer, from, of, merge, throwError, concat, empty } from 'rxjs';
-import { concatMap, expand, map, tap, ignoreElements, mergeMap, switchMap, catchError } from 'rxjs/operators';
+import { Observable, BehaviorSubject, combineLatest, defer, from, fromEvent, of, merge, throwError, concat, empty, Subject } from 'rxjs';
+import { concatMap, expand, map, tap, ignoreElements, mergeMap, switchAll, switchMap, catchError } from 'rxjs/operators';
 
 import {
   EsiDataItem,
@@ -16,7 +16,8 @@ import {
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
 
-import { MatSort } from '@angular/material/sort';
+import { MatSort, Sort } from '@angular/material/sort';
+import { CollectionViewer, DataSource } from '@angular/cdk/collections';
 import { MatTableDataSource } from '@angular/material/table';
 
 import { LocUID, LocPosition, LocParentLink, LocTypeInfo, LocData } from './location.models';
@@ -62,6 +63,7 @@ interface ItemRecord {
   value?: number;
   volume: number | '' | 'NaN';
   content_volume: number | '' | 'NaN';
+  is_header?: boolean;
 }
 
 interface LocationRecord {
@@ -85,6 +87,110 @@ function isVirtualContainer(type_id: number): boolean {
   return virtualContainerTypes.includes(type_id);
 }
 
+class LocationDataSource implements DataSource<ItemRecord> {
+  private _data = new BehaviorSubject<ItemRecord[]>([]);
+  private _sort = new BehaviorSubject<Observable<Sort>>(of({ active: '', direction: '' }));
+
+  
+  private sumItems(
+    items: ItemRecord[]
+  ): { value?: number; volume: number | '' | 'NaN'; content_volume: number | '' | 'NaN' } {
+    const r = (s: number | '' | 'NaN', v: number | '' | 'NaN'): number | '' | 'NaN' => {
+      if (v === 'NaN') return s;
+      if (v === '' || s === '') return '';
+      if (s === 'NaN') return v;
+      return s + v;
+    };
+    return {
+      value: items
+        .map(i => i.value)
+        .reduce((s, v) => {
+          if (v === undefined) return s;
+          if (s === undefined) return v;
+          return s + v;
+        }, undefined),
+      volume: items.map(i => i.volume).reduce(r, 'NaN'),
+      content_volume: 'NaN'
+    };
+  }
+  /*
+  private sumItems(
+    items: ItemRecord[]
+  ): { value?: number; volume: number | '' | 'NaN'; content_volume: number | '' | 'NaN' } {
+    return {
+      value: undefined,
+      volume: 'NaN',
+      content_volume: 'NaN'
+    };
+  }
+  */
+  connect(): Observable<ItemRecord[]> {
+    console.log('connect');
+    return combineLatest(
+      this._data.asObservable().pipe(tap(d=>console.log(`data=${d.length}`))),
+      this._sort.asObservable().pipe(switchAll(), tap(s=>console.log(`sort=${JSON.stringify(s)}`)))
+    ).pipe(
+      tap(([data, sort]) => console.log(`d=${data.length} s=${JSON.stringify(sort)}`)),
+      map(([data, sort]) => {
+        const cmpItems = (r1: ItemRecord, r2: ItemRecord): number => {
+          if (sort.direction === '') return 0;
+          let r;
+          switch (sort.active) {
+            case 'name': {
+              const s1 = r1.name + '\0' + r1.comment;
+              const s2 = r2.name + '\0' + r2.comment;
+              r = s1.localeCompare(s2);
+              break;
+            }
+            case 'value':
+              r = (r1.value || 0) - (r2.value || 0);
+              break;
+            case 'volume':
+              r = (typeof r1.volume === 'number' ? r1.volume : 0) - (typeof r2.volume === 'number' ? r2.volume : 0);
+              break;
+            case 'content':
+              r = (typeof r1.content_volume === 'number' ? r1.content_volume : 0) - (typeof r2.content_volume === 'number' ? r2.content_volume : 0);
+              break;
+            default:
+              return 0;
+          }
+          if (r && sort.direction === 'desc') return -r;
+          return r;
+        };
+        const groups = data.reduce(
+          autoMap(item => item.position),
+          new Map()
+        );
+        const items = Array.from(groups.entries())
+          .map(([pos, items]) => [
+            { position: '', name: pos, ...this.sumItems(items), is_header: true } as ItemRecord,
+            ...items.sort(cmpItems)
+          ])
+          .sort(([p1], [p2]) => cmpItems(p1, p2))
+          .reduce((s, a) => s.concat(a), []);
+        return items;
+      })
+    );
+  }
+
+  disconnect(): void {
+    console.log('disconnect');
+    this._data.complete();
+    this._sort.complete();
+  }
+
+  set data(data: ItemRecord[]) {
+    console.log('set(data)');
+    this._data.next(data);
+  }
+
+  set sort(sort: MatSort) {
+    console.log('set(sort)');
+    this._sort.next(sort.sortChange.asObservable());
+    sort.sortChange.emit({ active: sort.active, direction: sort.direction });
+  }
+}
+
 @Component({
   selector: 'app-location',
   templateUrl: './location.component.html',
@@ -94,12 +200,18 @@ export class LocationComponent {
   location$: Observable<LocationRecord>;
 
   displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume', 'content'];
-  dataSource = new MatTableDataSource<ItemRecord>();
+  displayedHeaderColumns: string[] = ['name'];
+  //displayedHeaderColumns: string[] = ['name', 'value', 'volume', 'content'];
+  dataSource = new LocationDataSource();
 
   @ViewChild(MatSort) sort?: MatSort;
 
   ngAfterViewInit(): void {
     if (this.sort != undefined) this.dataSource.sort = this.sort;
+  }
+
+  isHeader(index: number, item: ItemRecord): boolean {
+    return item.is_header || false;
   }
 
   private locs = new Map<LocUID, LocData>();
@@ -113,6 +225,7 @@ export class LocationComponent {
     private data: EsiDataService,
     private cache: EsiCacheService
   ) {
+    /*
     this.dataSource.sortingDataAccessor = (item: ItemRecord, property: string): string | number => {
       switch (property) {
         case 'name':
@@ -127,7 +240,7 @@ export class LocationComponent {
           return '';
       }
     };
-
+    */
     // Define 'universe' item
     this.locs.set(UNIVERSE_UID, {
       uid: UNIVERSE_UID,

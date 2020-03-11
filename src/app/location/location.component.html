@@ -81,7 +81,8 @@
     </ng-container>
 
     <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-    <mat-row *matRowDef="let rec; columns: displayedColumns;" [class.mat-row-link]="rec.link"></mat-row>
+    <mat-row *matRowDef="let rec; columns: displayedColumns;" [class.mat-row-record]="true"></mat-row>
+    <mat-row *matRowDef="let rec; columns: displayedHeaderColumns; when: isHeader" [class.mat-row-header]="true"></mat-row>
 
   </mat-table>
 

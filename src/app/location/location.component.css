@@ -1,12 +1,12 @@
 .mat-row {
   min-height: 40px;
 }
-/*
-.mat-row-link {
-  //background-color: mat-color($tab-focus-color, lighter, 0.3);
+.mat-row-header {
+  min-height: 36px;
+  font-style: italic;
+  /*background-color: mat-color($tab-focus-color, lighter, 0.3);*/
   background-color:rgba(209,196,233,.3)
 }
-*/
 .mat-column-link {
   flex: 0 0 40px;
   justify-content: center
