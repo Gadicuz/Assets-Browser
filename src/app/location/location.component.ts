@@ -20,9 +20,10 @@ import { MatSort, Sort } from '@angular/material/sort';
 import { CollectionViewer, DataSource } from '@angular/cdk/collections';
 import { MatTableDataSource } from '@angular/material/table';
 
-import { LocUID, LocParentLink, LocTypeInfo, LocData } from './location.models';
+import { LocUID, LocLink, LocTypeInfo, LocData } from './location.models';
 
 import { autoMap, set, tuple, fltRemove } from '../utils/utils';
+import { OrdersComponent } from '../orders/orders.component';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -76,8 +77,7 @@ interface LocationItem {
   is_bpc: boolean;
   item_id?: number;
   name: string;
-  location_id: number;
-  location_pos?: string;
+  location: LocLink;
   type_id: number;
   quantity: number;
 };
@@ -410,9 +410,7 @@ export class LocationComponent {
   }
 
   private loadLocations(): Observable<never> {
-    return merge(
-      this.loadAssets()
-    ).pipe(
+    return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(), this.loadSellOrders())).pipe(
       map(locs => locs.filter(loc => loc.link != undefined)), // console.log(`Location ${loc} has no link data. Ignored.`);
       concatMap(locs =>
         this.preloadLocations(locs).pipe(
@@ -601,51 +599,92 @@ export class LocationComponent {
     return infoLoader;
   }
 
+  private createLocData = (item: LocationItem): LocData => ({
+    uid: item.item_id == undefined ? undefined : String(item.item_id),
+    info: this.typeInfoLoader(item),
+    link: item.location,
+    quantity: item.quantity,
+    is_virtual_container: isVirtualContainer(item.type_id) || undefined
+  });
+
+  private createLocContent<T>(items: T[], fnMap: (i: T) => LocationItem): LocData[] {
+    const itemKey = (i: LocationItem): string =>
+      `${i.item_id}|${i.name}|${i.type_id}|${i.location[0]}|${i.location[1]}|${i.is_bpc}`;
+    return Array.from(
+      items
+        .map(fnMap)
+        .reduce(autoMap(itemKey), new Map())
+        .values(),
+      item_group => this.createLocData(item_group.reduce((s, x) => ({ ...x, quantity: x.quantity + s.quantity })))
+    );
+  }
+
   private loadAssets(): Observable<LocData[]> {
     return concat(
-      merge(this.cache.loadMarketPrices(), this.cache.loadCharacterItems()),
+      this.cache.loadCharacterItems(),
       defer(() => {
-        const itemKey = (i: LocationItem): string =>
-          `${i.item_id}|${i.name}|${i.type_id}|${i.location_id}|${i.location_pos}|${i.is_bpc}`;
         const items = [...this.cache.characterItems.values()];
         const cIds = set(items.map(item => item.location_id));
-        const locs = Array.from(
-          items
-            .map(item => ({
-              is_bpc: item.is_blueprint_copy || false,
-              item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
-              name: item.name,
-              location_id: item.location_id,
-              location_pos: item.location_flag
-                .split(/(?=\p{Lu})|\d+/u) // /(?=[A-Z])|\d+/
-                .filter(w => w)
-                .join(' '),
-              type_id: item.type_id,
-              quantity: item.quantity
-            }))
-            .reduce(autoMap(itemKey), new Map())
-            .values(),
-          items => items.reduce((s, x) => ({ ...x, quantity: x.quantity + s.quantity }))
-        ).map(
-          item =>
-            ({
-              uid: item.item_id == undefined ? undefined : String(item.item_id),
-              info: this.typeInfoLoader(item),
-              link: [String(item.location_id), item.location_pos],
-              quantity: item.quantity,
-              is_virtual_container: isVirtualContainer(item.type_id) || undefined
-            } as LocData)
-        );
-        let unlinked = [...locs];
-        locs.forEach(loc => {
-          const linked = unlinked.filter(unloc => (unloc.link as LocParentLink)[0] === loc.uid);
+        let locs = this.createLocContent(items, item => ({
+          is_bpc: item.is_blueprint_copy || false,
+          item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
+          name: item.name,
+          location: tuple(
+            String(item.location_id),
+            item.location_flag
+              .split(/(?=[A-Z])|\d+/) // /(?=\p{Lu})|\d+/u
+              .filter(w => w)
+              .join(' ')
+          ),
+          type_id: item.type_id,
+          quantity: item.quantity
+        }));
+        [...locs].forEach(loc => {
+          const linked = locs.filter(unloc => (unloc.link as LocLink)[0] === loc.uid);
           if (linked.length) {
             loc.content_items = linked;
-            unlinked = unlinked.filter(fltRemove(linked));
+            locs = locs.filter(fltRemove(linked));
           }
         });
-        return of(unlinked);
+        return of(locs);
       })
+    );
+  }
+
+  private loadSellOrders(): Observable<LocData[]> {
+    return concat(
+      this.cache.loadCharacterMarketOrders(),
+      defer(() =>
+        of(
+          Array.from(
+            this.cache.characterMarketOrders
+              .filter(fltBuySell('sell'))
+              .reduce(
+                autoMap(o => o.location_id),
+                new Map()
+              )
+              .entries(),
+            ([l_id, orders]) => {
+              const location = tuple(`ord${l_id}`, 'Sell');
+              return {
+                uid: location[0],
+                info: {
+                  name: 'Market orders',
+                  image: ''
+                },
+                link: tuple(String(l_id), 'Marketplace'),
+                content_items: this.createLocContent<EsiDataCharMarketOrder>(orders, o => ({
+                  is_bpc: false,
+                  name: '',
+                  location,
+                  type_id: o.type_id,
+                  quantity: o.volume_remain
+                }))
+              };
+            }
+          )
+        )
+      )
     );
   }
 }
