@@ -116,10 +116,13 @@ export interface EsiItemName {
   name: string | '' | 'None';
 }
 
-export type EsiDataItemName = [number, string];
+export interface EsiDataItemName {
+  item_id: number;
+  name: string | undefined;
+}
 
 export interface EsiDataItem extends EsiItem {
-  name: string;
+  name?: string;
 }
 
 export type EsiMarketOrderRange =

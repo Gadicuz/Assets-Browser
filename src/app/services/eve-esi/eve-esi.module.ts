@@ -1,7 +1,7 @@
 import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { Observable, from, throwError, timer } from 'rxjs';
-import { map, mergeMap, mergeAll, bufferCount, retryWhen } from 'rxjs/operators';
+import { map, mergeMap, mergeAll, bufferCount, reduce, retryWhen } from 'rxjs/operators';
 
 import { tuple } from '../../utils/utils';
 
@@ -323,11 +323,11 @@ export class EsiService {
     return this.postData<EsiItemName[]>(`characters/${character_id}/assets/names/`, item_ids);
   }
 
-  public getCharacterItemNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName> {
+  public getCharacterItemNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName[]> {
     return from(item_ids).pipe(
       bufferCount(chunk <= 1000 ? chunk : 1000),
       mergeMap(ids => this._getCharacterItemNames(character_id, ids)),
-      mergeMap(ans => from(ans))
+      reduce((r, n) => r.concat(n), [] as EsiItemName[])
     );
   }
 

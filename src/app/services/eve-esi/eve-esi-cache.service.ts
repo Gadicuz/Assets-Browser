@@ -30,12 +30,15 @@ export class EsiCacheService {
   constructor(private data: EsiDataService, private http: HttpClient) {}
 
   // characters/{character_id}/assets/
+  // characters/{character_id}/assets/names/   - for is_singleton items only
   public characterItems = new Map<number, EsiDataItem>();
   public loadCharacterItems(): Observable<never> {
     return this.data.loadCharacterItems().pipe(
-      tap(items => (this.characterItems = new Map(items.map(i => [i.item_id, { ...i, name: '' }])))),
-      mergeMap(items => this.data.loadCharacterItemNames(items/*.filter(i => !i.is_singleton)*/.map(i => i.item_id))),
-      tap(id_name => ((this.characterItems.get(id_name[0]) as EsiDataItem).name = id_name[1])),
+      tap(items => (this.characterItems = new Map(items.map(i => [i.item_id, i])))),
+      mergeMap(items => this.data.loadCharacterItemNames(items.filter(i => i.is_singleton).map(i => i.item_id))),
+      tap(names =>
+        names.filter(n => n.name).forEach(n => ((this.characterItems.get(n.item_id) as EsiDataItem).name = n.name))
+      ),
       ignoreElements()
     );
   }

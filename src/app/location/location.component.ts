@@ -80,7 +80,7 @@ interface LocationItem {
   location: LocLink;
   type_id: number;
   quantity: number;
-};
+}
 
 /** Converts LocUID to URL parameter */
 function getLink(uid: LocUID): string {
@@ -628,7 +628,7 @@ export class LocationComponent {
         let locs = this.createLocContent(items, item => ({
           is_bpc: item.is_blueprint_copy || false,
           item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
-          name: item.name,
+          name: item.name || '',
           location: tuple(
             String(item.location_id),
             item.location_flag

@@ -165,10 +165,14 @@ export class EsiDataService {
     return this.esi.getCharacterItems(this.character.id);
   }
 
-  loadCharacterItemNames(ids: number[]): Observable<EsiDataItemName> {
+  loadCharacterItemNames(ids: number[]): Observable<EsiDataItemName[]> {
     return this.esi.getCharacterItemNames(this.character.id, ids).pipe(
-      filter(itemName => itemName.name !== 'None'),
-      map(itemName => tuple(itemName.item_id, itemName.name))
+      map(names =>
+        names.map(n => ({
+          item_id: n.item_id,
+          name: n.name === 'None' ? undefined : n.name
+        }))
+      )
     );
   }
 
