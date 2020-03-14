@@ -303,24 +303,34 @@ export class LocationComponent {
     }));
   }
 
+  private addChild(loc: LocData): void {
+    const p_uid = loc.parent!.uid;
+    const p_loc = this.locs.get(p_uid);
+    if (p_loc != undefined) p_loc.AddItems([loc], this.locs)
+    else {
+      loc = this.buildStdLocation(p_uid, [loc]);
+      this.locs.set(p_uid, loc);
+      this.addChild(loc);
+    }
+  }
   private loadLocations(): Observable<never> {
     return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(), this.loadSellOrders())).pipe(
       map(locs => locs.filter(loc => loc.parent)), // console.log(`Location ${loc} has no link data. Ignored.`);
       concatMap(locs =>
         this.preloadLocations(locs).pipe(
           tap({
-            complete: () => locs.forEach(loc => this.addChild(loc))
+            complete: () => {
+              function flatten(l: LocData[]): LocData[] {
+                l = l.filter(i => i.content_uid);
+                return l.length ? l.map(i => [i, ...flatten(i.content_items || [])]).reduce((s, i) => s.concat(i)) : [];
+              }
+              locs.filter(l => l.parent).forEach(loc => this.addChild(loc));
+              flatten(locs).forEach(loc => this.locs.set(loc.content_uid!, loc));
+            }
           })
         )
       )
     );
-  }
-  private addChild(loc: LocData): void {
-    if (loc.content_uid != undefined) this.locs.set(loc.content_uid, loc);
-    const p_uid = loc.parent!.uid;
-    const p_loc = this.locs.get(p_uid);
-    if (p_loc == undefined) this.addChild(this.buildLocation(p_uid, [loc]));
-    else p_loc.AddItems([loc], this.locs);
   }
 
   /** Preload all stations/structures/systems/contellations/regions information */
@@ -356,7 +366,7 @@ export class LocationComponent {
 
   private locInfo_AssetSafety(): LocTypeInfo {
     return {
-      name: 'Asset Safety',
+      name: 'Asset Safety Delivery System',
       icon: ASSET_IMAGE_URL
     };
   }
@@ -392,7 +402,7 @@ export class LocationComponent {
   }
 
   /** Builds new LocData structure for id */
-  private buildLocation(uid: LocUID, items: LocData[]): LocData {
+  private buildStdLocation(uid: LocUID, items: LocData[]): LocData {
     const locData = (info: LocTypeInfo, parent: LocPos = { uid: UNIVERSE_UID }): LocData =>
       new LocData(info, parent, uid, items);
     const id = +uid;
@@ -490,14 +500,18 @@ export class LocationComponent {
             quantity: item.quantity
           }))
         );
-        [...locs].forEach(loc => {
-          const linked = locs.filter(unloc => (unloc.parent as LocPos).uid === loc.content_uid);
-          if (linked.length) {
-            loc.content_items = linked;
-            locs = locs.filter(fltRemove(linked));
-          }
-        });
-        return of(locs);
+        [...locs]
+          .filter(loc => loc.content_uid)
+          .forEach(loc => {
+            [locs, loc.content_items] = locs.reduce(
+              (s, l) => {
+                s[(l.parent as LocPos).uid === loc.content_uid ? 1 : 0].push(l);
+                return s;
+              },
+              [[], []] as [LocData[], LocData[]]
+            );
+          });
+        return of(locs); // unlinked top level locations
       })
     );
   }
