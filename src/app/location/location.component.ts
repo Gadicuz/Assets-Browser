@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Observable, BehaviorSubject, combineLatest, defer, of, merge, throwError, concat, empty, Subject } from 'rxjs';
-import { concatMap, map, tap, switchAll, switchMap, catchError } from 'rxjs/operators';
+import { Observable, BehaviorSubject, combineLatest, defer, of, merge, throwError, concat, empty, Subject, from } from 'rxjs';
+import { concatMap, map, tap, mergeMap, switchAll, switchMap, reduce, catchError, ignoreElements } from 'rxjs/operators';
 
 import {
   EsiDataService,
@@ -9,7 +9,8 @@ import {
   fltBuySell,
   EsiLocationType,
   EsiDataStationInfo,
-  EsiDataStructureInfo
+  EsiDataStructureInfo,
+  EsiDataItem
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -477,11 +478,28 @@ export class LocationComponent {
     });
   }
 
+  private shipTIDs: number[] = [];
+  private loadShipsTIDs(): Observable<never> {
+    return of(EsiService.CATEGORY_ID_Ship).pipe(
+      mergeMap(cid => this.data.loadCategoryInfo(cid)),
+      mergeMap(cat => from(cat.groups)),
+      mergeMap(gid => this.data.loadGroupInfo(gid)),
+      reduce((arr, grp) => [...arr, ...grp.types], [] as number[]),
+      tap(types => (this.shipTIDs = types)),
+      ignoreElements()
+    );
+  }
+  private moveShips(items: EsiDataItem[]): void {
+    items
+      .filter(i => i.location_flag === 'Hangar' && this.shipTIDs.includes(i.type_id)) // move all ships from 'Hangar' ...
+      .forEach(i => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
+  }
   private loadAssets(): Observable<LocData[]> {
     return concat(
-      this.cache.loadCharacterItems(),
+      merge(this.cache.loadCharacterItems(), this.loadShipsTIDs()),
       defer(() => {
         const items = [...this.cache.characterItems.values()];
+        this.moveShips(items);
         const cIds = set(items.map(item => item.location_id));
         let locs = this.createLocContentItems(
           items.map(item => ({
@@ -533,7 +551,7 @@ export class LocationComponent {
               const location = { uid: `ord${l_id}`, pos: 'Sell' };
               return new LocData(
                 { name: 'Market orders', icon: '' },
-                { uid: String(l_id), pos: 'Marketplace' },
+                { uid: String(l_id), pos: 'Market Hangar' },
                 location.uid,
                 this.createLocContentItems(
                   orders.map(o => ({
