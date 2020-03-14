@@ -20,6 +20,7 @@ import { DefVarDirective } from './utils/defvar.directive';
 
 import { ScalePipe } from './pipes/scale.pipe';
 import { DurationPipe } from './pipes/duration.pipe';
+import { UndefPipe } from './pipes/undef.pipe';
 
 import { OrdersListComponent } from './orders.list/orders.list.component';
 import { ErrorComponent } from './error/error.component';
@@ -52,6 +53,7 @@ const ssoConfig: EVESSOConfig = {
     DefVarDirective,
     ScalePipe,
     DurationPipe,
+    UndefPipe,
     OrdersListComponent,
     ErrorComponent
   ],
