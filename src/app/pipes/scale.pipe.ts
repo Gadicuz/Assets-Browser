@@ -1,20 +1,22 @@
 import { Pipe, PipeTransform, Inject } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { formatNumber } from '@angular/common';
 import { LOCALE_ID } from '@angular/core';
 
 @Pipe({ name: 'scale' })
 export class ScalePipe implements PipeTransform {
   constructor(@Inject(LOCALE_ID) private locale: string) {}
 
-  transform(value: unknown, digitsInfo?: string, locale?: string): unknown {
-    if (typeof value !== 'number') return value;
-    const letter = ['', ' k', ' M', ' B'];
-    let index = 0;
-    while (value >= 1000 && index < letter.length - 1) {
+  transform(value: unknown, sfx: string, digitsInfo?: string, locale?: string): string | undefined {
+    if (value == undefined || value === '' || value !== value) return undefined;
+    locale = locale || this.locale;
+    if (typeof value === 'string') value = Number(value);
+    if (typeof value !== 'number') throw new Error(value + 'is not a number');
+    let i = 0;
+    while (value >= 1000 && i < sfx.length) {
       value /= 1000;
-      index++;
+      i++;
     }
-    const res = new DecimalPipe(this.locale).transform(value, digitsInfo, locale);
-    return res && res + letter[index];
+    const r = formatNumber(value, locale, digitsInfo);
+    return r ? (i ? r + ' ' + sfx[i - 1] : r) : undefined;
   }
 }
