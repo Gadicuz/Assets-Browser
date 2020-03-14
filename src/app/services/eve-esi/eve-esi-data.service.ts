@@ -10,6 +10,8 @@ import {
   EsiItem,
   EsiLocationType,
   EsiInformationType,
+  EsiDataCategoryInfo,
+  EsiDataGroupInfo,
   EsiDataPlanetInfo,
   EsiDataRegionInfo,
   EsiDataStationInfo,
@@ -24,7 +26,9 @@ import {
   EsiWalletTransaction,
   EsiTypeInfo,
   EsiSystemInfo,
+  EsiCategoryInfo,
   EsiConstellationInfo,
+  EsiGroupInfo,
   EsiPlanetInfo,
   EsiRegionInfo,
   EsiStructureInfo,
@@ -112,8 +116,14 @@ export class EsiDataService {
     };
   }
 
+  loadCategoryInfo(id: number): Observable<EsiDataCategoryInfo> {
+    return this.esi.getInformation<EsiCategoryInfo>('categories', id);
+  }
   loadConstellationInfo(id: number): Observable<EsiDataConstellationInfo> {
     return this.esi.getInformation<EsiConstellationInfo>('constellations', id);
+  }
+  loadGroupInfo(id: number): Observable<EsiDataGroupInfo> {
+    return this.esi.getInformation<EsiGroupInfo>('groups', id);
   }
   loadPlanetInfo(id: number): Observable<EsiDataPlanetInfo> {
     return this.esi.getInformation<EsiPlanetInfo>('planets', id);

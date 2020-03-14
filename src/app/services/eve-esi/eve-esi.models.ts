@@ -162,6 +162,13 @@ export interface EsiPosition {
 // Types for EsiInformationType
 // 'asteroid_belts'
 // 'categories'
+export interface EsiCategoryInfo {
+  category_id: number;
+  groups: number[];
+  name: string;
+  published: boolean;
+}
+export type EsiDataCategoryInfo = EsiCategoryInfo;
 // 'constellations'
 export interface EsiConstellationInfo {
   constellation_id: number;
@@ -173,6 +180,14 @@ export interface EsiConstellationInfo {
 export type EsiDataConstellationInfo = EsiConstellationInfo;
 // 'graphics'
 // 'groups'
+export interface EsiGroupInfo {
+  category_id: number;
+  group_id: number;
+  name: string;
+  published: boolean;
+  types: number[];
+}
+export type EsiDataGroupInfo = EsiGroupInfo;
 // 'moons'
 // 'planets'
 export interface EsiPlanetInfo {
@@ -259,6 +274,7 @@ export interface EsiDataTypeInfo {
 }
 
 export type EsiUniverseInfo =
+  | EsiCategoryInfo
   | EsiConstellationInfo
   | EsiPlanetInfo
   | EsiRegionInfo
