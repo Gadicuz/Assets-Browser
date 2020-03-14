@@ -11,10 +11,13 @@
 
     <mat-card-content fxLayout="row wrap" fxLayoutAlign="start stretch">
       <div *ngFor="let stat of location.info.stats">
-        <mat-card class="gap-margin">
+        <mat-card *ngIf="stat.value !== ''" class="gap-margin">
           <div fxLayout="column">
             <div class="mat-caption">{{stat.title}}</div>
-            <div class="mat-display-1 no-margin">{{(stat.value | scale:'.2-2') || 'N/A'}}</div>
+            <div class="mat-display-1 no-margin">
+              <ng-container *ngIf="isNum(stat.value)">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
+              <ng-container *ngIf="!isNum(stat.value)">{{stat.value}}</ng-container>
+            </div>
           </div>
         </mat-card>
       </div>
@@ -54,29 +57,30 @@
 
     <ng-container matColumnDef="quantity">
       <mat-header-cell *matHeaderCellDef> Quantity </mat-header-cell>
-      <mat-cell *matCellDef="let rec"> {{rec.quantity}} </mat-cell>
+      <mat-cell *matCellDef="let rec">{{rec.quantity}}</mat-cell>
     </ng-container>
 
     <ng-container matColumnDef="value">
       <mat-header-cell *matHeaderCellDef mat-sort-header> Value<br>(ISK) </mat-header-cell>
-      <mat-cell *matCellDef="let rec"> {{rec.value | currency:'':'':'.2-2':'en-US'}} </mat-cell>
+      <mat-cell *matCellDef="let rec">
+        <ng-container *ngIf="isNum(rec.value)">{{rec.value | currency:'':'':'.2-2':'en-US'}}</ng-container>
+        <ng-container *ngIf="!isNum(rec.value)">{{rec.value}}</ng-container>
+      </mat-cell>
     </ng-container>
 
     <ng-container matColumnDef="volume">
       <mat-header-cell *matHeaderCellDef mat-sort-header> Volume<br>(m3) </mat-header-cell>
       <mat-cell *matCellDef="let rec">
-        <ng-container *ngIf="rec.volume !== 'NaN'">
-          {{(rec.volume | number:'.2-2') || 'n/a'}}
-        </ng-container>
+        <ng-container *ngIf="isNum(rec.volume)">{{rec.volume | number:'.2-2'}}</ng-container>
+        <ng-container *ngIf="!isNum(rec.volume)">{{rec.volume}}</ng-container>
       </mat-cell>
     </ng-container>
 
     <ng-container matColumnDef="content">
       <mat-header-cell *matHeaderCellDef mat-sort-header> Content<br>(m3) </mat-header-cell>
       <mat-cell *matCellDef="let rec">
-        <ng-container *ngIf="rec.content_volume !== 'NaN'">
-          {{(rec.content_volume | number:'.2-2') || 'n/a'}}
-        </ng-container>
+        <ng-container *ngIf="isNum(rec.content_volume)">{{rec.content_volume | number:'.2-2'}}</ng-container>
+        <ng-container *ngIf="!isNum(rec.content_volume)">{{rec.content_volume}}</ng-container>
       </mat-cell>
     </ng-container>
 

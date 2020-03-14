@@ -159,6 +159,7 @@ enum imageResource {
 })
 export class EsiService {
   static TYPE_ID_AssetSafetyWrap = 60;
+  static TYPE_ID_PlasticWrap = 3468;
   static LOCATION_ID_AssetSafety = 2004;
 
   static STD_MAIL_LABEL_ID_Inbox = 1;
