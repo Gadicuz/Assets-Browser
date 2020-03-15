@@ -1,7 +1,18 @@
 import { Component, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Observable, BehaviorSubject, combineLatest, defer, of, merge, throwError, concat, empty, Subject, from } from 'rxjs';
-import { concatMap, map, tap, mergeMap, switchAll, switchMap, reduce, catchError, ignoreElements } from 'rxjs/operators';
+import { Observable, BehaviorSubject, Subject } from 'rxjs';
+import { combineLatest, defer, of, merge, throwError, concat, empty } from 'rxjs';
+import {
+  concatMap,
+  map,
+  tap,
+  mergeMap,
+  switchAll,
+  switchMap,
+  reduce,
+  catchError,
+  ignoreElements
+} from 'rxjs/operators';
 
 import {
   EsiDataService,
@@ -18,20 +29,26 @@ import { EsiService } from '../services/eve-esi/eve-esi.module';
 import { MatSort, Sort } from '@angular/material/sort';
 import { DataSource } from '@angular/cdk/collections';
 
-import { LocUID, LocPos, LocTypeInfo, LocData, LocPropVal, locPropVal, locPropAdd } from './location.models';
+import {
+  LocUID,
+  LocPos,
+  LocTypeInfo,
+  fnInfoLoader,
+  LocData,
+  LocPropVal,
+  locPropVal,
+  locPropAdd
+} from './location.models';
 
-import { autoMap, set, fltRemove } from '../utils/utils';
+import { autoMap, set, mapGet } from '../utils/utils';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
 const ASSET_IMAGE_URL = ''; // TODO
-const CHARACTER_IMAGE_URL = ''; // TODO
 const SYSTEM_IMAGE_URL = ''; // TODO
-const PREVIEW_IMAGE_URL = ''; // TODO
 const UNKNOWN_IMAGE_URL = ''; // TODO
 const STRUCTURE_IMAGE_URL = ''; // TODO
 const MARKET_IMAGE_URL = ''; // TODO
-const WRAP_IMAGE_ID = 3468; // Plastic Wrap
 
 const TRADE_POS = 'Trade Hangar';
 
@@ -107,16 +124,6 @@ interface LocationItem {
 }
 const locItemHash = (i: LocationItem): string =>
   `${i.item_id}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos}|${i.is_bpc}`;
-
-/** Converts LocUID to URL parameter */
-function getLink(uid: LocUID | undefined): string | undefined {
-  return uid && String(uid);
-}
-
-/** Converts URL parameter to LocUID */
-function getUID(link: string | null): LocUID {
-  return link || UNIVERSE_UID;
-}
 
 const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap, EsiService.TYPE_ID_PlasticWrap];
 function isVirtualContainer(type_id: number): boolean {
@@ -210,14 +217,14 @@ export class LocationComponent {
       UNIVERSE_UID,
       new LocData(
         { name: 'Universe', comment: this.esi.serverName, icon: UNIVERSE_IMAGE_URL },
-        undefined,
+        { uid: '' },
         UNIVERSE_UID,
         []
       )
     );
 
     this.location$ = this.route.paramMap.pipe(
-      map(params => getUID(params.get('id'))),
+      map(params => params.get('id') || UNIVERSE_UID),
       switchMap(uid =>
         concat(
           this.buildLocationPreview(uid),
@@ -249,7 +256,11 @@ export class LocationComponent {
     const content = loc.content_items;
     const usedLocs = content ? [...route, ...content] : route;
     return concat(
-      merge(...set(usedLocs.map(loc => loc.info).filter(info => info.loader)).map(info => info.loader!(info))),
+      merge(
+        ...set(usedLocs.map(loc => loc.info).filter(info => info.loader)).map(info =>
+          (info.loader as fnInfoLoader)(info)
+        )
+      ),
       defer(() =>
         of({
           info: this.createLocationInfo(loc, route),
@@ -279,14 +290,13 @@ export class LocationComponent {
         { title: 'Item Volume (m3)', value: loc.Volume },
         { title: 'Content Volume (m3)', value: loc.ContentVolume }
       ],
-      route: route.map(l => ({ name: l.info.name, comment: l.info.comment, link: getLink(l.content_uid)! })) //TODO: set position as hint
+      route: route.map(l => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })) //TODO: set position as hint
     };
   }
 
   /** Creates LocData[] route from the top of loc's tree to the loc */
-  private getRoute(loc: LocData, route: LocData[] = []): LocData[] {
-    route = [loc, ...route];
-    return loc.parent == undefined ? route : this.getRoute(this.loc(loc.parent.uid), route);
+  private getRoute(loc: LocData | undefined, route: LocData[] = []): LocData[] {
+    return loc != undefined ? this.getRoute(this.locs.get(loc.ploc.uid), [loc, ...route]) : route;
   }
 
   private buildLocationTree(): Observable<never> {
@@ -296,10 +306,10 @@ export class LocationComponent {
   private createDataRecords(loc: LocData): ItemRecord[] {
     if (loc.content_items == undefined) return [];
     return loc.content_items.map(i => ({
-      position: (i.parent as LocPos).pos || '',
+      position: i.ploc.pos || '',
       name: i.info.name,
       comment: i.info.comment,
-      link: getLink(i.content_uid),
+      link: i.Link,
       quantity: i.quantity || '',
       value: i.TotalValue,
       volume: i.Volume,
@@ -308,9 +318,9 @@ export class LocationComponent {
   }
 
   private addChild(loc: LocData): void {
-    const p_uid = loc.parent!.uid;
+    const p_uid = loc.ploc.uid;
     const p_loc = this.locs.get(p_uid);
-    if (p_loc != undefined) p_loc.AddItems([loc], this.locs)
+    if (p_loc != undefined) p_loc.AddItems([loc], this.locs);
     else {
       loc = this.buildStdLocation(p_uid, [loc]);
       this.locs.set(p_uid, loc);
@@ -319,7 +329,7 @@ export class LocationComponent {
   }
   private loadLocations(): Observable<never> {
     return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(), this.loadSellOrders())).pipe(
-      map(locs => locs.filter(loc => loc.parent)), // console.log(`Location ${loc} has no link data. Ignored.`);
+      map(locs => locs.filter(loc => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
       concatMap(locs =>
         this.preloadLocations(locs).pipe(
           tap({
@@ -328,8 +338,8 @@ export class LocationComponent {
                 l = l.filter(i => i.content_uid);
                 return l.length ? l.map(i => [i, ...flatten(i.content_items || [])]).reduce((s, i) => s.concat(i)) : [];
               }
-              locs.filter(l => l.parent).forEach(loc => this.addChild(loc));
-              flatten(locs).forEach(loc => this.locs.set(loc.content_uid!, loc));
+              locs.forEach(loc => this.addChild(loc));
+              flatten(locs).forEach(loc => this.locs.set(loc.content_uid as LocUID, loc));
             }
           })
         )
@@ -340,8 +350,7 @@ export class LocationComponent {
   /** Preload all stations/structures/systems/contellations/regions information */
   private preloadLocations(locs: LocData[]): Observable<never> {
     const ids = locs
-      .filter(loc => loc.parent != undefined)
-      .map(loc => +(loc.parent as LocPos).uid)
+      .map(loc => +loc.ploc.uid)
       .reduce(
         (m, id) => {
           m[EsiService.getLocationTypeById(id)].push(id);
@@ -377,9 +386,8 @@ export class LocationComponent {
 
   private locInfo_Character(id: number): LocTypeInfo {
     const idn = this.data.character;
-    if (idn == undefined || idn.id !== id) return this.locInfo_TxtId('Character', id);
     return {
-      name: idn.name,
+      name: idn && idn.id === id ? idn.name : `Character #${id}`,
       icon: this.esi.getCharacterAvatarURI(id, 32)
     };
   }
@@ -417,19 +425,20 @@ export class LocationComponent {
       case 'character':
         return locData(this.locInfo_Character(id));
       case 'solar_system': {
-        const info = this.cache.systemsInfo.get(id)!;
+        const info = mapGet(this.cache.systemsInfo, id);
         return locData(this.locInfo_System(info), {
           uid: UNIVERSE_UID,
-          pos: this.cache.regionsInfo.get(this.cache.constellationsInfo.get(info.constellation_id)!.region_id)!.name
+          pos: mapGet(this.cache.regionsInfo, mapGet(this.cache.constellationsInfo, info.constellation_id).region_id)
+            .name
         });
       }
       case 'station': {
-        const info = this.cache.stationsInfo.get(id)!;
+        const info = mapGet(this.cache.stationsInfo, id);
         return locData(this.locInfo_Station(info), { uid: String(info.system_id) });
       }
       case 'unknown': // try as a structure
       case 'structure': {
-        const info = this.cache.structuresInfo.get(id)!;
+        const info = mapGet(this.cache.structuresInfo, id);
         return info.forbidden
           ? locData(this.locInfo_TxtId('Forbidden', id))
           : locData(this.locInfo_Structure(info), { uid: String(info.solar_system_id) });
@@ -440,7 +449,7 @@ export class LocationComponent {
   }
 
   private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string): void {
-    const typeInfo = this.cache.typesInfo.get(type_id)!;
+    const typeInfo = mapGet(this.cache.typesInfo, type_id);
     info.name = name || typeInfo.name;
     info.comment = (name && typeInfo.name) || undefined;
     info.icon = type_id;
@@ -519,12 +528,12 @@ export class LocationComponent {
             quantity: item.quantity
           }))
         );
-        [...locs]
+        locs
           .filter(loc => loc.content_uid)
           .forEach(loc => {
-            [locs, loc.content_items] = locs.reduce(
+            [loc.content_items, locs] = locs.reduce(
               (s, l) => {
-                s[(l.parent as LocPos).uid === loc.content_uid ? 1 : 0].push(l);
+                s[l.ploc.uid === loc.content_uid ? 0 : 1].push(l);
                 return s;
               },
               [[], []] as [LocData[], LocData[]]

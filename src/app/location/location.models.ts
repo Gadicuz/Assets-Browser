@@ -1,9 +1,11 @@
 import { Observable } from 'rxjs';
 
-export type LocUID = string; // location unique identifer
+export type LocUID = string | ''; // location unique identifer
+
+export type fnInfoLoader = (info: LocTypeInfo) => Observable<never>;
 
 export interface LocTypeInfo {
-  loader?: (info: LocTypeInfo) => Observable<never>; // Lazy loader for the data structure
+  loader?: fnInfoLoader; // Lazy loader for the data structure
   name: string;
   comment?: string;
   icon?: string | number; // undefined, string = URI, number = type_id
@@ -34,9 +36,9 @@ export function locPropAdd(s: LocPropVal, p: LocPropVal): LocPropVal {
 }
 
 export class LocData {
-  constructor(info: LocTypeInfo, parent?: LocPos, uid?: LocUID, items?: LocData[], is_vcont?: boolean) {
+  constructor(info: LocTypeInfo, ploc: LocPos, uid?: LocUID, items?: LocData[], is_vcont?: boolean) {
     this.info = info;
-    this.parent = parent;
+    this.ploc = ploc;
     this.content_uid = uid;
     this.content_items = items;
     this.is_vcont = is_vcont;
@@ -81,6 +83,11 @@ export class LocData {
     return this.content_cache_vol;
   }
 
+  /** Returns URL parameter for this location, undefined if no conten available */
+  get Link(): string | undefined {
+    return this.content_uid;
+  }
+
   AddItems(items: LocData[], locs: Map<LocUID, LocData>): void {
     if (this.content_items) this.content_items = this.content_items.concat(items);
     else this.content_items = items;
@@ -90,14 +97,14 @@ export class LocData {
   private InvalidateCache(locs: Map<LocUID, LocData>): void {
     this.content_cache_val = undefined;
     this.content_cache_vol = undefined;
-    const parent = this.parent && locs.get(this.parent.uid);
-    if (parent) parent.InvalidateCache(locs);
+    const p = locs.get(this.ploc.uid);
+    if (p) p.InvalidateCache(locs);
   }
 
   // Location information
   info: LocTypeInfo;
   // Link to parent container
-  parent?: LocPos;
+  ploc: LocPos;
   // Item data (item value/volume are calculated)
   quantity?: number; // undefined if pure location
   // Content data (value/volume are calculated and cached)
