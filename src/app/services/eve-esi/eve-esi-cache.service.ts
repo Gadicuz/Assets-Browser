@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, concat, defer, from, merge, of } from 'rxjs';
 import { ignoreElements, map, mergeMap, switchMap, tap } from 'rxjs/operators';
+import { mapGet } from '../../utils/utils';
 
 import {
   EsiMarketOrderType,
@@ -191,18 +192,18 @@ export class EsiCacheService {
     return concat(
       merge(this.loadStructuresInfo(str_ids), this.loadStationsInfo(sta_ids)),
       defer(() => {
-        const sys_str = str_ids.map(id => this.structuresInfo.get(id)!.solar_system_id).filter(id => id);
-        const sys_sta = sta_ids.map(id => this.stationsInfo.get(id)!.system_id);
+        const sys_str = str_ids.map(id => mapGet(this.structuresInfo, id).solar_system_id).filter(id => id);
+        const sys_sta = sta_ids.map(id => mapGet(this.stationsInfo, id).system_id);
         ids = set([...sys_ids, ...sys_str, ...sys_sta]);
         return this.loadSystemsInfo(ids);
       }),
       defer(() => {
-        const con_sys = ids.map(id => this.systemsInfo.get(id)!.constellation_id);
+        const con_sys = ids.map(id => mapGet(this.systemsInfo, id).constellation_id);
         ids = set([...con_ids, ...con_sys]);
         return this.loadConstellationsInfo(ids);
       }),
       defer(() => {
-        const reg_con = ids.map(id => this.constellationsInfo.get(id)!.region_id);
+        const reg_con = ids.map(id => mapGet(this.constellationsInfo, id).region_id);
         ids = set([...reg_ids, ...reg_con]);
         return this.loadRegionsInfo(ids);
       })
@@ -211,10 +212,10 @@ export class EsiCacheService {
 
   public getSCR(ss_id: number): { sys: number; con: number; reg: number } {
     const sys = EsiService.isStationId(ss_id)
-      ? this.stationsInfo.get(ss_id)!.system_id
-      : this.structuresInfo.get(ss_id)!.solar_system_id;
-    const con = this.systemsInfo.get(sys)!.constellation_id;
-    const reg = this.constellationsInfo.get(con)!.region_id;
+      ? mapGet(this.stationsInfo, ss_id).system_id
+      : mapGet(this.structuresInfo, ss_id).solar_system_id;
+    const con = mapGet(this.systemsInfo, sys).constellation_id;
+    const reg = mapGet(this.constellationsInfo, con).region_id;
     return { sys, con, reg };
   }
 }
