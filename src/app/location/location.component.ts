@@ -30,7 +30,10 @@ const SYSTEM_IMAGE_URL = ''; // TODO
 const PREVIEW_IMAGE_URL = ''; // TODO
 const UNKNOWN_IMAGE_URL = ''; // TODO
 const STRUCTURE_IMAGE_URL = ''; // TODO
+const MARKET_IMAGE_URL = ''; // TODO
 const WRAP_IMAGE_ID = 3468; // Plastic Wrap
+
+const TRADE_POS = 'Trade Hangar';
 
 interface LocationRouteNode {
   name: string;
@@ -480,11 +483,9 @@ export class LocationComponent {
 
   private shipTIDs: number[] = [];
   private loadShipsTIDs(): Observable<never> {
-    return of(EsiService.CATEGORY_ID_Ship).pipe(
-      mergeMap(cid => this.data.loadCategoryInfo(cid)),
-      mergeMap(cat => from(cat.groups)),
-      mergeMap(gid => this.data.loadGroupInfo(gid)),
-      reduce((arr, grp) => [...arr, ...grp.types], [] as number[]),
+    return this.data.loadCategoryInfo(EsiService.CATEGORY_ID_Ship).pipe(
+      mergeMap(cat => merge(...cat.groups.map(gid => this.data.loadGroupInfo(gid)))),
+      reduce((types, grp) => [...types, ...grp.types], [] as number[]),
       tap(types => (this.shipTIDs = types)),
       ignoreElements()
     );
@@ -550,8 +551,8 @@ export class LocationComponent {
             ([l_id, orders]) => {
               const location = { uid: `ord${l_id}`, pos: 'Sell' };
               return new LocData(
-                { name: 'Market orders', icon: '' },
-                { uid: String(l_id), pos: 'Market Hangar' },
+                { name: 'Market orders', icon: MARKET_IMAGE_URL },
+                { uid: String(l_id), pos: TRADE_POS },
                 location.uid,
                 this.createLocContentItems(
                   orders.map(o => ({
