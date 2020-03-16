@@ -125,8 +125,11 @@ export class EsiDataService {
     };
   }
 
-  // This code, doesn't work. TS doesn't narrow 'T extends ...' parameter. Separate methods for EsiDataXXXInfo are implemented.
+  // Generics extending unions cannot be narrowed #13995
+  // https://github.com/microsoft/TypeScript/issues/13995
   //
+  // This code, doesn't work. TS doesn't narrow 'T extends ...' parameter. Separate methods for EsiDataXXXInfo are implemented.
+  // 
   // loadInfo<T extends EsiInfoSelector>(selector: T, id: number): Observable<EsiDataInfo<T>> {
   //   if (selector === 'structures') ...
   //   else if (selector === 'types') ...
