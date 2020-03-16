@@ -1,47 +1,79 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, empty, merge, from, throwError } from 'rxjs';
-import { catchError, expand, filter, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
+import { Observable, of, empty, from, throwError } from 'rxjs';
+import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
 import { EVESSOService } from '../eve-sso/eve-sso.module';
 import { EsiService, EsiError, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
 
 import {
   EsiItem,
-  EsiLocationType,
-  EsiInformationType,
-  EsiDataCategoryInfo,
-  EsiDataGroupInfo,
-  EsiDataPlanetInfo,
-  EsiDataRegionInfo,
-  EsiDataStationInfo,
-  EsiDataStructureInfo,
-  EsiDataSystemInfo,
-  EsiDataTypeInfo,
+  EsiInformation,
+  EsiInfoSelector,
+  EsiInfo,
   EsiMarketOrderState,
   EsiMarketOrderType,
   EsiMarketOrderCharacter,
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
   EsiWalletTransaction,
-  EsiTypeInfo,
-  EsiSystemInfo,
-  EsiCategoryInfo,
-  EsiConstellationInfo,
-  EsiGroupInfo,
-  EsiPlanetInfo,
-  EsiRegionInfo,
-  EsiStructureInfo,
-  EsiStationInfo,
-  EsiDataItemName,
-  EsiDataMarketOrder,
-  EsiDataCharMarketOrder,
-  EsiDataConstellationInfo
+  EsiMarketOrderRange
 } from './eve-esi.models';
+
+import { autoMap, set, tuple } from '../../utils/utils';
+import { isArray } from 'util';
 
 export * from './eve-esi.models';
 
-import { autoMap, set, tuple } from '../../utils/utils';
+export interface EsiDataItemName {
+  item_id: number;
+  name: string | undefined;
+}
+
+export interface EsiDataItem extends EsiItem {
+  name?: string;
+}
+
+type EsiDataInfoSelectors = 'structures' | 'types';
+export type EsiDataInformation =
+  | Exclude<EsiInformation, { selector: EsiDataInfoSelectors }>
+  | { selector: 'structures'; data: EsiDataStructureInfo }
+  | { selector: 'types'; data: EsiDataTypeInfo };
+
+export type EsiDataInfo<T> = Extract<EsiDataInformation, { selector: T }>['data'];
+
+interface EsiDataStructureInfo extends EsiInfo<'structures'> {
+  structure_id: number;
+  forbidden?: boolean;
+}
+interface EsiDataTypeInfo {
+  name: string;
+  volume?: number;
+  packaged_volume?: number;
+}
+
+export interface EsiDataMarketOrder {
+  order_id: number;
+  buy_sell: EsiMarketOrderType;
+  timestamp: number;
+  location_id: number;
+  range: EsiMarketOrderRange;
+  duration: number;
+  type_id: number;
+  price: number;
+  min_volume: number;
+  volume_remain: number;
+  volume_total: number;
+  region_id?: number;
+}
+
+export interface EsiDataCharMarketOrder extends EsiDataMarketOrder {
+  issued_by: number;
+  is_corporation: boolean;
+  escrow: number;
+  wallet_division: number;
+  status: EsiMarketOrderState | undefined;
+}
 
 export interface EsiDataMailHeader {
   mail_id: number;
@@ -56,29 +88,6 @@ export interface EsiDataMailHeader {
 export interface EsiDataMail extends EsiDataMailHeader {
   body: string;
 }
-
-/*
-// 'asset_safety', 'character', 'unknown'
-export interface EsiDataBasicLocationInfo {
-  name: string;
-  type: EsiLocationType;
-}
-
-// 'station', 'structure'
-export interface EsiDataStructureLocationInfo extends EsiDataBasicLocationInfo {
-  type_id: number;
-  system_id: number;
-  position: [number, number, number];
-}
-
-// 'solar_system'
-export interface EsiDataSystemLocationInfo extends EsiDataBasicLocationInfo {
-  region_id: number;
-  region_name: string;
-}
-
-export type EsiDataLocationInfo = EsiDataBasicLocationInfo | EsiDataStructureLocationInfo | EsiDataSystemLocationInfo;
-*/
 
 export interface EsiDataLocMarketTypes {
   l_id: number; // station or structure
@@ -116,26 +125,29 @@ export class EsiDataService {
     };
   }
 
-  loadCategoryInfo(id: number): Observable<EsiDataCategoryInfo> {
-    return this.esi.getInformation<EsiCategoryInfo>('categories', id);
+  // This code, doesn't work. TS doesn't narrow 'T extends ...' parameter. Separate methods for EsiDataXXXInfo are implemented.
+  //
+  // loadInfo<T extends EsiInfoSelector>(selector: T, id: number): Observable<EsiDataInfo<T>> {
+  //   if (selector === 'structures') ...
+  //   else if (selector === 'types') ...
+  //   else ...
+  // }
+
+  loadInfo<T extends Exclude<EsiInfoSelector, EsiDataInfoSelectors>>(selector: T, id: number): Observable<EsiInfo<T>> {
+    return this.esi.getInformation<T>(selector, id);
   }
-  loadConstellationInfo(id: number): Observable<EsiDataConstellationInfo> {
-    return this.esi.getInformation<EsiConstellationInfo>('constellations', id);
-  }
-  loadGroupInfo(id: number): Observable<EsiDataGroupInfo> {
-    return this.esi.getInformation<EsiGroupInfo>('groups', id);
-  }
-  loadPlanetInfo(id: number): Observable<EsiDataPlanetInfo> {
-    return this.esi.getInformation<EsiPlanetInfo>('planets', id);
-  }
-  loadRegionInfo(id: number): Observable<EsiDataRegionInfo> {
-    return this.esi.getInformation<EsiRegionInfo>('regions', id);
-  }
-  loadStationInfo(id: number): Observable<EsiDataStationInfo> {
-    return this.esi.getInformation<EsiStationInfo>('stations', id);
-  }
+
+  loadBeltInfo = (id: number): Observable<EsiInfo<'asteroid_belts'>> => this.loadInfo('asteroid_belts', id);
+  loadCategoryInfo = (id: number): Observable<EsiInfo<'categories'>> => this.loadInfo('categories', id);
+  loadConstellationInfo = (id: number): Observable<EsiInfo<'constellations'>> => this.loadInfo('constellations', id);
+  loadGroupInfo = (id: number): Observable<EsiInfo<'groups'>> => this.loadInfo('groups', id);
+  loadMoonInfo = (id: number): Observable<EsiInfo<'moons'>> => this.loadInfo('moons', id);
+  loadPlanetInfo = (id: number): Observable<EsiInfo<'planets'>> => this.loadInfo('planets', id);
+  loadRegionInfo = (id: number): Observable<EsiInfo<'regions'>> => this.loadInfo('regions', id);
+  loadStationInfo = (id: number): Observable<EsiInfo<'stations'>> => this.loadInfo('stations', id);
+  loadStargateInfo = (id: number): Observable<EsiInfo<'stargates'>> => this.loadInfo('stargates', id);
   loadStructureInfo(id: number): Observable<EsiDataStructureInfo> {
-    return this.esi.getInformation<EsiStructureInfo>('structures', id).pipe(
+    return this.esi.getInformation('structures', id).pipe(
       map(info => ({
         ...info,
         structure_id: id
@@ -154,21 +166,15 @@ export class EsiDataService {
       })
     );
   }
-  loadSystemInfo(id: number): Observable<EsiDataSystemInfo> {
-    return this.esi.getInformation<EsiSystemInfo>('systems', id);
-  }
+  loadSystemInfo = (id: number): Observable<EsiInfo<'systems'>> => this.loadInfo('systems', id);
   loadTypeInfo(id: number): Observable<EsiDataTypeInfo> {
-    return this.esi.getInformation<EsiTypeInfo>('types', id).pipe(
+    return this.esi.getInformation('types', id).pipe(
       map(info => ({
         name: info.name,
         volume: info.volume,
         packaged_volume: info.packaged_volume
       }))
     );
-  }
-
-  loadInformation<T>(infoType: EsiInformationType, id: number): Observable<T> {
-    return this.esi.getInformation<T>(infoType, id);
   }
 
   loadCharacterItems(): Observable<EsiItem[]> {
@@ -331,24 +337,6 @@ export class EsiDataService {
           : this.getCharacterMailHeadersFromId(Math.min(...headers.map(h => h.mail_id)), labels, up_to_date)
       ),
       mergeMap(headers => from(headers))
-    );
-  }
-
-  private remapIDs<T>(info: EsiInformationType, ids: number[], m: (obj: T) => number): Observable<[number, number][]> {
-    return from(ids).pipe(
-      mergeMap(id => this.esi.getInformation<T>(info, id).pipe(map(obj => tuple(id, m(obj))))),
-      toArray()
-    );
-  }
-
-  private resolveIDs<T>(
-    info: EsiInformationType,
-    ids: [number, number][],
-    m: (obj: T) => number
-  ): Observable<[number, number][]> {
-    return this.remapIDs(info, set(ids.map(([, v]) => v)), m).pipe(
-      map(m => new Map(m)),
-      map(m => ids.map(([id, v]) => tuple(id, m.get(v) as number)))
     );
   }
 }

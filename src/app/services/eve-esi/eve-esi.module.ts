@@ -16,18 +16,16 @@ import { noAuthRoutes } from './eve-esi.public';
 import {
   EsiItem,
   EsiItemName,
-  EsiInformationType,
+  EsiInfoSelector,
+  EsiInfo,
   EsiLocationType,
+  EsiMarketOrderType,
   EsiMarketOrderCharacter,
   EsiMarketHistoryOrderCharacter,
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
   EsiWalletTransaction,
-  EsiMarketPrice,
-  EsiTypeInfo,
-  EsiStationInfo,
-  EsiStructureInfo,
-  EsiSystemInfo
+  EsiMarketPrice
 } from './eve-esi.models';
 
 export { EVEESIConfig } from './eve-esi.config';
@@ -337,8 +335,11 @@ export class EsiService {
     return this.getData<EsiMarketPrice[]>('markets/prices/');
   }
 
-  public getInformation<T>(type: EsiInformationType, id: number): Observable<T> {
-    return this.getData<T>(`universe/${type}/${id}/`);
+  //public getInformation<T>(type: EsiInformationType, id: number): Observable<T> {
+  //  return this.getData<T>(`universe/${type}/${id}/`);
+  //}
+  public getInformation<T extends EsiInfoSelector>(selector: T, id: number): Observable<EsiInfo<T>> {
+    return this.getData<EsiInfo<T>>(`universe/${selector}/${id}/`);
   }
 
   public getIdsInformation(item_ids: number[]): Observable<EsiIdInfo> {
@@ -350,23 +351,6 @@ export class EsiService {
     );
   }
 
-  /*
-  public getTypeInformation(type_id: number): Observable<EsiTypeIdInfo> {
-    return this.getInformation<EsiTypeIdInfo>('types', type_id);
-  }
-
-  public getStationInformation(station_id: number): Observable<EsiStationInfo> {
-    return this.getInformation<EsiStationInfo>('stations', station_id);
-  }
-
-  public getStructureInformation(structure_id: number): Observable<EsiStructureInfo> {
-    return this.getInformation<EsiStructureInfo>('structures', structure_id);
-  }
-
-  public getSolarSystemInformation(solar_system_id: number): Observable<EsiSystemInfo> {
-    return this.getInformation<EsiSystemInfo>('systems', solar_system_id);
-  }
-  */
   public getStructureOrders(structure_id: number): Observable<EsiMarketOrderStructure[]> {
     return this.getData<EsiMarketOrderStructure[]>(`markets/structures/${structure_id}/`);
   }
@@ -374,7 +358,7 @@ export class EsiService {
   public getRegionOrders(
     region_id: number,
     type_id?: number,
-    order_type: 'buy' | 'sell' | 'all' = 'all'
+    order_type: EsiMarketOrderType | 'all' = 'all'
   ): Observable<EsiMarketOrderRegion[]> {
     if (type_id == undefined && order_type !== 'all')
       throw Error(`Invalid parameters: order_type = ${order_type} without type_id`);
@@ -387,7 +371,7 @@ export class EsiService {
   public getRegionOrdersEx(
     region_id: number,
     type_ids: number[],
-    order_type: 'buy' | 'sell' | 'all' = 'all'
+    order_type: EsiMarketOrderType | 'all' = 'all'
   ): Observable<[number, EsiMarketOrderRegion[]]> {
     return from(type_ids).pipe(
       mergeMap(type_id =>

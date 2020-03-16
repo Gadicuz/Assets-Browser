@@ -16,12 +16,10 @@ import {
 
 import {
   EsiDataService,
-  EsiDataSystemInfo,
   fltBuySell,
   EsiLocationType,
-  EsiDataStationInfo,
-  EsiDataStructureInfo,
-  EsiDataItem
+  EsiDataItem,
+  EsiDataInfo
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -392,21 +390,21 @@ export class LocationComponent {
     };
   }
 
-  private locInfo_System(info: EsiDataSystemInfo): LocTypeInfo {
+  private locInfo_System(info: EsiDataInfo<'systems'>): LocTypeInfo {
     return {
       name: info.name,
       icon: SYSTEM_IMAGE_URL
     };
   }
 
-  private locInfo_Station(info: EsiDataStationInfo): LocTypeInfo {
+  private locInfo_Station(info: EsiDataInfo<'stations'>): LocTypeInfo {
     return {
       name: info.name,
       icon: info.type_id
     };
   }
 
-  private locInfo_Structure(info: EsiDataStructureInfo): LocTypeInfo {
+  private locInfo_Structure(info: EsiDataInfo<'structures'>): LocTypeInfo {
     return {
       name: info.name,
       icon: info.type_id || STRUCTURE_IMAGE_URL

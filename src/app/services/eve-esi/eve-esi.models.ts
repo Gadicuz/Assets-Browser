@@ -84,22 +84,6 @@ export type EsiItemLocationType = 'station' | 'solar_system' | 'item' | 'other';
 // see getLocationTypeById()
 export type EsiLocationType = 'asset_safety' | 'station' | 'solar_system' | 'character' | 'unknown' | 'structure';
 
-export type EsiInformationType =
-  | 'asteroid_belts'
-  | 'categories'
-  | 'constellations'
-  | 'graphics'
-  | 'groups'
-  | 'moons'
-  | 'planets'
-  | 'regions'
-  | 'stargates'
-  | 'stars'
-  | 'stations'
-  | 'structures'
-  | 'systems'
-  | 'types';
-
 export interface EsiItem {
   is_blueprint_copy?: boolean;
   is_singleton: boolean;
@@ -114,15 +98,6 @@ export interface EsiItem {
 export interface EsiItemName {
   item_id: number;
   name: string | '' | 'None';
-}
-
-export interface EsiDataItemName {
-  item_id: number;
-  name: string | undefined;
-}
-
-export interface EsiDataItem extends EsiItem {
-  name?: string;
 }
 
 export type EsiMarketOrderRange =
@@ -159,55 +134,81 @@ export interface EsiPosition {
   z: number;
 }
 
-// Types for EsiInformationType
-// 'asteroid_belts'
-// 'categories'
-export interface EsiCategoryInfo {
+export type EsiInformation =
+  | { selector: 'asteroid_belts'; data: EsiBeltInfo }
+  | { selector: 'categories'; data: EsiCategoryInfo }
+  | { selector: 'constellations'; data: EsiConstellationInfo }
+  //| { selector: 'graphics'; data:  }
+  | { selector: 'groups'; data: EsiGroupInfo }
+  | { selector: 'moons'; data: EsiMoonInfo }
+  | { selector: 'planets'; data: EsiPlanetInfo }
+  | { selector: 'regions'; data: EsiRegionInfo }
+  | { selector: 'stargates'; data: EsiStargateInfo }
+  //| { selector: 'stars'; data:  }
+  | { selector: 'stations'; data: EsiStationInfo }
+  | { selector: 'structures'; data: EsiStructureInfo }
+  | { selector: 'systems'; data: EsiSystemInfo }
+  | { selector: 'types'; data: EsiTypeInfo };
+
+export type EsiInfoSelector = EsiInformation['selector'];
+export type EsiInfo<T> = Extract<EsiInformation, { selector: T }>['data'];
+
+interface EsiBeltInfo {
+  name: string;
+  position: EsiPosition;
+  system_id: number;
+}
+interface EsiCategoryInfo {
   category_id: number;
   groups: number[];
   name: string;
   published: boolean;
 }
-export type EsiDataCategoryInfo = EsiCategoryInfo;
-// 'constellations'
-export interface EsiConstellationInfo {
+interface EsiConstellationInfo {
   constellation_id: number;
   name: string;
   position: EsiPosition;
   region_id: number;
   systems: number[];
 }
-export type EsiDataConstellationInfo = EsiConstellationInfo;
 // 'graphics'
-// 'groups'
-export interface EsiGroupInfo {
+interface EsiGroupInfo {
   category_id: number;
   group_id: number;
   name: string;
   published: boolean;
   types: number[];
 }
-export type EsiDataGroupInfo = EsiGroupInfo;
-// 'moons'
-// 'planets'
-export interface EsiPlanetInfo {
+interface EsiMoonInfo {
+  moon_id: number;
+  name: string;
+  position: EsiPosition;
+  system_id: number;
+}
+interface EsiPlanetInfo {
   asteroid_belts?: number[];
   moons?: number[];
   planet_id: number;
 }
-export type EsiDataPlanetInfo = EsiPlanetInfo;
-// 'regions'
-export interface EsiRegionInfo {
+interface EsiRegionInfo {
   constellations: number[];
   description: string;
   name: string;
   region_id: number;
 }
-export type EsiDataRegionInfo = EsiRegionInfo;
-// 'stargates'
+interface EsiStargateInfo {
+  destination: {
+    stargate_id: number;
+    system_id: number;
+  };
+  name: string;
+  position: EsiPosition;
+  stargate_id: number;
+  system_id: number;
+  type_id: number;
+}
 // 'stars'
-// 'stations'
-export interface EsiStationInfo {
+interface EsiStationInfo {
   max_dockable_ship_volume?: number;
   name: string;
   office_rental_cost: number;
@@ -221,21 +222,14 @@ export interface EsiStationInfo {
   system_id: number;
   type_id: number;
 }
-export type EsiDataStationInfo = EsiStationInfo;
-// 'structures'
-export interface EsiStructureInfo {
+interface EsiStructureInfo {
   name: string;
   owner_id: number;
   position?: EsiPosition;
   solar_system_id: number;
   type_id?: number;
 }
-export interface EsiDataStructureInfo extends EsiStructureInfo {
-  structure_id: number;
-  forbidden?: boolean;
-}
-// 'systems'
-export interface EsiSystemInfo {
+interface EsiSystemInfo {
   constellation_id: number;
   name: string;
   planets?: EsiPlanetInfo[];
@@ -247,9 +241,7 @@ export interface EsiSystemInfo {
   stations?: number[];
   system_id: number;
 }
-export type EsiDataSystemInfo = EsiSystemInfo;
-// 'types'
-export interface EsiTypeInfo {
+interface EsiTypeInfo {
   capacity?: number;
   description: string;
   dogma_attributes?: EsiDogmaAttribute[];
@@ -267,30 +259,6 @@ export interface EsiTypeInfo {
   type_id: number;
   volume?: number;
 }
-export interface EsiDataTypeInfo {
-  name: string;
-  volume?: number;
-  packaged_volume?: number;
-}
-
-export type EsiUniverseInfo =
-  | EsiCategoryInfo
-  | EsiConstellationInfo
-  | EsiPlanetInfo
-  | EsiRegionInfo
-  | EsiStationInfo
-  | EsiStructureInfo
-  | EsiSystemInfo
-  | EsiTypeInfo;
-
-export type EsiDataUniverseInfo =
-  | EsiDataConstellationInfo
-  | EsiDataPlanetInfo
-  | EsiDataRegionInfo
-  | EsiDataStationInfo
-  | EsiDataStructureInfo
-  | EsiDataSystemInfo
-  | EsiDataTypeInfo;
 
 export interface EsiMarketPrice {
   adjusted_price?: number;
@@ -368,29 +336,6 @@ export interface EsiMarketOrderStructure {
   type_id: number;
   volume_remain: number;
   volume_total: number;
-}
-
-export interface EsiDataMarketOrder {
-  order_id: number;
-  buy_sell: EsiMarketOrderType;
-  timestamp: number;
-  location_id: number;
-  range: EsiMarketOrderRange;
-  duration: number;
-  type_id: number;
-  price: number;
-  min_volume: number;
-  volume_remain: number;
-  volume_total: number;
-  region_id?: number;
-}
-
-export interface EsiDataCharMarketOrder extends EsiDataMarketOrder {
-  issued_by: number;
-  is_corporation: boolean;
-  escrow: number;
-  wallet_division: number;
-  status: EsiMarketOrderState | undefined;
 }
 
 export interface EsiWalletTransaction {

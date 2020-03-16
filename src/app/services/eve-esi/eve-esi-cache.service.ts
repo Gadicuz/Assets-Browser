@@ -11,14 +11,8 @@ import {
   EsiDataLocMarketTypes,
   EsiDataLocMarketOrders,
   EsiDataCharMarketOrder,
-  EsiDataConstellationInfo,
-  EsiDataPlanetInfo,
-  EsiDataRegionInfo,
-  EsiDataStationInfo,
-  EsiDataStructureInfo,
-  EsiDataSystemInfo,
-  EsiDataTypeInfo,
-  EsiDataService
+  EsiDataService,
+  EsiDataInfo
 } from './eve-esi-data.service';
 
 import { autoMap, set, removeKeys } from '../../utils/utils';
@@ -44,7 +38,7 @@ export class EsiCacheService {
     );
   }
 
-  public constellationsInfo = new Map<number, EsiDataConstellationInfo>();
+  public constellationsInfo = new Map<number, EsiDataInfo<'constellations'>>();
   public loadConstellationsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.constellationsInfo)).pipe(
       mergeMap(id => this.data.loadConstellationInfo(id).pipe(tap(i => this.constellationsInfo.set(id, i)))),
@@ -52,7 +46,7 @@ export class EsiCacheService {
     );
   }
 
-  public planetsInfo = new Map<number, EsiDataPlanetInfo>();
+  public planetsInfo = new Map<number, EsiDataInfo<'planets'>>();
   public loadPlanetsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.planetsInfo)).pipe(
       mergeMap(id => this.data.loadPlanetInfo(id).pipe(tap(i => this.planetsInfo.set(id, i)))),
@@ -60,7 +54,7 @@ export class EsiCacheService {
     );
   }
 
-  public regionsInfo = new Map<number, EsiDataRegionInfo>();
+  public regionsInfo = new Map<number, EsiDataInfo<'regions'>>();
   public loadRegionsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.regionsInfo)).pipe(
       mergeMap(id => this.data.loadRegionInfo(id).pipe(tap(i => this.regionsInfo.set(id, i)))),
@@ -68,7 +62,7 @@ export class EsiCacheService {
     );
   }
 
-  public stationsInfo = new Map<number, EsiDataStationInfo>();
+  public stationsInfo = new Map<number, EsiDataInfo<'stations'>>();
   public loadStationsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.stationsInfo)).pipe(
       mergeMap(id => this.data.loadStationInfo(id).pipe(tap(i => this.stationsInfo.set(id, i)))),
@@ -76,7 +70,7 @@ export class EsiCacheService {
     );
   }
 
-  public structuresInfo = new Map<number, EsiDataStructureInfo>();
+  public structuresInfo = new Map<number, EsiDataInfo<'structures'>>();
   public loadStructuresInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.structuresInfo)).pipe(
       mergeMap(id => this.data.loadStructureInfo(id).pipe(tap(i => this.structuresInfo.set(id, i)))),
@@ -84,7 +78,7 @@ export class EsiCacheService {
     );
   }
 
-  public systemsInfo = new Map<number, EsiDataSystemInfo>();
+  public systemsInfo = new Map<number, EsiDataInfo<'systems'>>();
   public loadSystemsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.systemsInfo)).pipe(
       mergeMap(id => this.data.loadSystemInfo(id).pipe(tap(i => this.systemsInfo.set(id, i)))),
@@ -92,7 +86,7 @@ export class EsiCacheService {
     );
   }
 
-  public typesInfo = new Map<number, EsiDataTypeInfo>();
+  public typesInfo = new Map<number, EsiDataInfo<'types'>>();
   public loadTypesInfo(ids: number[]): Observable<never> {
     return this.getTypesInfo().pipe(
       switchMap(typesInfo =>
@@ -103,11 +97,11 @@ export class EsiCacheService {
       )
     );
   }
-  private getTypesInfo(): Observable<Map<number, EsiDataTypeInfo>> {
+  private getTypesInfo(): Observable<Map<number, EsiDataInfo<'types'>>> {
     return this.typesInfo == undefined
       ? this.http
-          .get<[number, EsiDataTypeInfo][]>('/assets/sde/universe-types.json')
-          .pipe(map(data => (this.typesInfo = new Map<number, EsiDataTypeInfo>(data))))
+          .get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json')
+          .pipe(map(data => (this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data))))
       : of(this.typesInfo);
   }
 
