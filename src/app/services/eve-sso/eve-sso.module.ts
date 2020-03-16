@@ -1,6 +1,7 @@
 import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
-import { OAuthModule, JwksValidationHandler, ValidationParams } from 'angular-oauth2-oidc';
+import { JwksValidationHandler } from 'angular-oauth2-oidc-jwks';
+import { OAuthModule, ValidationParams } from 'angular-oauth2-oidc';
 import { OAuthService } from 'angular-oauth2-oidc';
 
 import { EVESSO_CONFIG, EVESSOConfig } from './eve-sso.config';
