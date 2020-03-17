@@ -42,6 +42,8 @@ export type EsiLocationFlag =
   | 'MedSlot5'
   | 'MedSlot6'
   | 'MedSlot7'
+  | 'Module'
+  | 'ServiceModule' // non-standard flag for blueprints being used
   | 'QuafeBay'
   | 'RigSlot0'
   | 'RigSlot1'
@@ -336,6 +338,17 @@ export interface EsiMarketOrderStructure {
   type_id: number;
   volume_remain: number;
   volume_total: number;
+}
+
+export interface EsiBlueprint {
+  item_id: number;
+  location_flag: EsiLocationFlag;
+  location_id: number;
+  material_efficiency: number;
+  quantity: number;
+  runs: number;
+  time_efficiency: number;
+  type_id: number;
 }
 
 export interface EsiWalletTransaction {

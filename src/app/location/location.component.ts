@@ -19,7 +19,8 @@ import {
   fltBuySell,
   EsiLocationType,
   EsiDataItem,
-  EsiDataInfo
+  EsiDataInfo,
+  EsiDataBpd
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -112,16 +113,16 @@ interface LocationRecord {
 }
 
 interface LocationItem {
-  is_bpc: boolean;
   is_vcont: boolean;
   item_id?: number;
   name: string;
   location: LocPos;
   type_id: number;
   quantity: number;
+  bpd?: EsiDataBpd;
 }
 const locItemHash = (i: LocationItem): string =>
-  `${i.item_id}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos}|${i.is_bpc}`;
+  `${i.item_id}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos}`;
 
 const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap, EsiService.TYPE_ID_PlasticWrap];
 function isVirtualContainer(type_id: number): boolean {
@@ -446,10 +447,15 @@ export class LocationComponent {
     }
   }
 
-  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string): void {
+  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string, bpd?: EsiDataBpd): void {
     const typeInfo = mapGet(this.cache.typesInfo, type_id);
-    info.name = name || typeInfo.name;
-    info.comment = (name && typeInfo.name) || undefined;
+    if (bpd) {
+      info.name = typeInfo.name;
+      info.comment = (bpd.runs ? `Copy (${bpd.runs})` : 'Original') + ` - ${bpd.me}/${bpd.te}`;
+    } else {
+      info.name = name || typeInfo.name;
+      info.comment = (name && typeInfo.name) || undefined;
+    }
     info.icon = type_id;
     //info.value = this.cache.marketPrices.get(type_id);
     info.volume = typeInfo.packaged_volume;
@@ -458,15 +464,14 @@ export class LocationComponent {
 
   private typeInfos = new Map<number, LocTypeInfo>();
   private typeInfoLoader(item: LocationItem): LocTypeInfo {
-    const item_name = item.name;
     const type_id = item.type_id;
     const loader = (info: LocTypeInfo): Observable<never> =>
       this.cache
         .loadTypesInfo([type_id])
-        .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item_name) }));
+        .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item.name, item.bpd) }));
     const infoLoader = { name: '', image: '', value: this.cache.marketPrices.get(type_id), loader };
-    if (item_name || item.is_bpc) return infoLoader;
-    // no name, not bpc
+    if (item.name || item.bpd) return infoLoader;
+    // common type_id loader
     const info = this.typeInfos.get(type_id);
     if (info) return info;
     this.typeInfos.set(type_id, infoLoader);
@@ -511,7 +516,6 @@ export class LocationComponent {
         const cIds = set(items.map(item => item.location_id));
         let locs = this.createLocContentItems(
           items.map(item => ({
-            is_bpc: item.is_blueprint_copy || false,
             is_vcont: isVirtualContainer(item.type_id),
             item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
             name: item.name || '',
@@ -523,7 +527,8 @@ export class LocationComponent {
                 .join(' ')
             },
             type_id: item.type_id,
-            quantity: item.quantity
+            quantity: item.quantity,
+            bpd: item.bpd
           }))
         );
         locs
@@ -563,7 +568,6 @@ export class LocationComponent {
                 location.uid,
                 this.createLocContentItems(
                   orders.map(o => ({
-                    is_bpc: false,
                     is_vcont: false,
                     name: '',
                     location,

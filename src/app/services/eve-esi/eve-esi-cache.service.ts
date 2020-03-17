@@ -26,15 +26,56 @@ export class EsiCacheService {
 
   // characters/{character_id}/assets/
   // characters/{character_id}/assets/names/   - for is_singleton items only
+  // characters/{character_id}/blueprints/
   public characterItems = new Map<number, EsiDataItem>();
   public loadCharacterItems(): Observable<never> {
-    return this.data.loadCharacterItems().pipe(
-      tap(items => (this.characterItems = new Map(items.map(i => [i.item_id, i])))),
-      mergeMap(items => this.data.loadCharacterItemNames(items.filter(i => i.is_singleton).map(i => i.item_id))),
-      tap(names =>
-        names.filter(n => n.name).forEach(n => ((this.characterItems.get(n.item_id) as EsiDataItem).name = n.name))
+    return concat(
+      this.data.loadCharacterItems().pipe(
+        tap(items => (this.characterItems = new Map(items.map(i => [i.item_id, i])))),
+        mergeMap(items =>
+          this.data
+            .loadCharacterItemNames(items.filter(i => i.is_singleton).map(i => i.item_id))
+            .pipe(
+              tap(names =>
+                names
+                  .filter(n => n.name)
+                  .forEach(n => ((this.characterItems.get(n.item_id) as EsiDataItem).name = n.name))
+              )
+            )
+        ),
+        ignoreElements()
       ),
-      ignoreElements()
+      this.data.loadCharacterBlueprints().pipe(
+        tap(bps => {
+          bps.forEach(bp => {
+            let item = this.characterItems.get(bp.item_id);
+            const in_use = item == undefined;
+            if (!item)
+              this.characterItems.set(
+                bp.item_id,
+                (item = {
+                  // Add currently used blueprints
+                  is_blueprint_copy: bp.quantity === -2,
+                  is_singleton: true,
+                  item_id: bp.item_id,
+                  location_id: bp.location_id,
+                  location_flag: 'ServiceModule', //bp.location_flag,
+                  location_type: 'other',
+                  type_id: bp.type_id,
+                  quantity: bp.quantity > 0 ? bp.quantity : 1
+                })
+              );
+            item.name = `${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
+            item.bpd = {
+              me: bp.material_efficiency,
+              te: bp.time_efficiency,
+              runs: bp.runs > 0 ? bp.runs : undefined,
+              in_use
+            };
+          });
+        }),
+        ignoreElements()
+      )
     );
   }
 

@@ -17,7 +17,8 @@ import {
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
   EsiWalletTransaction,
-  EsiMarketOrderRange
+  EsiMarketOrderRange,
+  EsiBlueprint
 } from './eve-esi.models';
 
 import { autoMap, set, tuple } from '../../utils/utils';
@@ -30,8 +31,16 @@ export interface EsiDataItemName {
   name: string | undefined;
 }
 
+export interface EsiDataBpd {
+  me: number;
+  te: number;
+  runs?: number;
+  in_use?: boolean;
+}
+
 export interface EsiDataItem extends EsiItem {
   name?: string;
+  bpd?: EsiDataBpd;
 }
 
 type EsiDataInfoSelectors = 'structures' | 'types';
@@ -301,6 +310,10 @@ export class EsiDataService {
         )
       )
     );
+  }
+
+  loadCharacterBlueprints(): Observable<EsiBlueprint[]> {
+    return this.esi.getCharacterBlueprints(this.character.id);
   }
 
   loadCharacterWalletTransactions(): Observable<EsiWalletTransaction[]> {

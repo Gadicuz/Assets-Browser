@@ -41,7 +41,8 @@ const ssoConfig: EVESSOConfig = {
     'esi-markets.read_character_orders.v1',
     'esi-markets.structure_markets.v1',
     'esi-wallet.read_character_wallet.v1',
-    'esi-mail.read_mail.v1'
+    'esi-mail.read_mail.v1',
+    'esi-characters.read_blueprints.v1'
   ]
 };
 

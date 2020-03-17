@@ -25,7 +25,8 @@ import {
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
   EsiWalletTransaction,
-  EsiMarketPrice
+  EsiMarketPrice,
+  EsiBlueprint
 } from './eve-esi.models';
 
 export { EVEESIConfig } from './eve-esi.config';
@@ -294,6 +295,10 @@ export class EsiService {
 
   public getCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
     return this.getCharacterInformation<EsiWalletTransaction[]>(character_id, 'wallet/transactions/');
+  }
+
+  public getCharacterBlueprints(character_id: number): Observable<EsiBlueprint[]> {
+    return this.getCharacterInformation<EsiBlueprint[]>(character_id, 'blueprints/');
   }
 
   public getCharacterMailHeaders(
