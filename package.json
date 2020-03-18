@@ -29,7 +29,7 @@
     "rxjs": "~6.5.4",
     "rxjs-compat": "^6.5.4",
     "tslib": "^1.11.1",
-    "zone.js": "~0.10.2"
+    "zone.js": "^0.10.3"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^0.900.6",
@@ -40,7 +40,7 @@
     "@types/jasminewd2": "^2.0.8",
     "@types/node": "^13.9.1",
     "@typescript-eslint/eslint-plugin": "^2.24.0",
-    "@typescript-eslint/parser": "^2.24.0",
+    "@typescript-eslint/parser": "^2.23.0",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.0",
     "eslint-plugin-no-null": "^1.0.2",

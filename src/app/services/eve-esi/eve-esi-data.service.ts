@@ -22,7 +22,6 @@ import {
 } from './eve-esi.models';
 
 import { autoMap, set, tuple } from '../../utils/utils';
-import { isArray } from 'util';
 
 export * from './eve-esi.models';
 
@@ -138,7 +137,7 @@ export class EsiDataService {
   // https://github.com/microsoft/TypeScript/issues/13995
   //
   // This code, doesn't work. TS doesn't narrow 'T extends ...' parameter. Separate methods for EsiDataXXXInfo are implemented.
-  // 
+  //
   // loadInfo<T extends EsiInfoSelector>(selector: T, id: number): Observable<EsiDataInfo<T>> {
   //   if (selector === 'structures') ...
   //   else if (selector === 'types') ...

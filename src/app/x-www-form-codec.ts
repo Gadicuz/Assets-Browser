@@ -1,10 +1,15 @@
 import { HttpUrlEncodingCodec, HttpParameterCodec } from '@angular/common/http';
 
+// eslint-disable-next-line @typescript-eslint/class-name-casing
 export class X_WWW_FORM_UrlEncodingCodec implements HttpParameterCodec {
   static hook(): void {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     HttpUrlEncodingCodec.prototype.decodeKey = X_WWW_FORM_UrlEncodingCodec.prototype.decodeKey;
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     HttpUrlEncodingCodec.prototype.encodeKey = X_WWW_FORM_UrlEncodingCodec.prototype.encodeKey;
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     HttpUrlEncodingCodec.prototype.decodeValue = X_WWW_FORM_UrlEncodingCodec.prototype.decodeValue;
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     HttpUrlEncodingCodec.prototype.encodeValue = X_WWW_FORM_UrlEncodingCodec.prototype.encodeValue;
   }
 

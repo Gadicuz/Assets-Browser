@@ -9,7 +9,8 @@ import {
   EsiDataMarketOrder,
   EsiWalletTransaction,
   EsiDataService,
-  EsiMarketOrderType
+  EsiMarketOrderType,
+  EsiDataInfo
 } from '../services/eve-esi/eve-esi-data.service';
 
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
@@ -106,9 +107,9 @@ export class OrdersComponent {
     return concat(
       this.cache.loadSSSCR({ sta, str }),
       defer(() => {
-        const sta_types = sta.map(id => this.cache.stationsInfo.get(id)!.type_id);
+        const sta_types = sta.map(id => (this.cache.stationsInfo.get(id) as EsiDataInfo<'stations'>).type_id);
         const str_types = str
-          .map(id => this.cache.structuresInfo.get(id)!.type_id)
+          .map(id => (this.cache.structuresInfo.get(id) as EsiDataInfo<'structures'>).type_id)
           .filter(tid => tid != undefined) as number[];
         const types = set([...EsiDataService.pluckLocMarketTypes(locs), ...sta_types, ...str_types]);
         return this.cache.loadTypesInfo(types);
@@ -226,13 +227,13 @@ export class OrdersComponent {
   ): LocationInfo {
     const l_id = orders.l_id;
     const name = EsiService.isStationId(l_id)
-      ? this.cache.stationsInfo.get(l_id)!.name
-      : this.cache.structuresInfo.get(l_id)!.name;
+      ? (this.cache.stationsInfo.get(l_id) as EsiDataInfo<'stations'>).name
+      : (this.cache.structuresInfo.get(l_id) as EsiDataInfo<'structures'>).name;
 
     const items = Array.from(orders.orders, ([t_id, t_orders]) =>
       this.assembleItemsInfo(
         t_id,
-        this.cache.typesInfo.get(t_id)!.name, // type_id loaded by loadMarketOrders()
+        (this.cache.typesInfo.get(t_id) as EsiDataInfo<'types'>).name, // type_id loaded by loadMarketOrders()
         t_orders,
         ids,
         sales && sales.get(t_id)

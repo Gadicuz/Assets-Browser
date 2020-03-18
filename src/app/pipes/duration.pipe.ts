@@ -5,8 +5,8 @@ import { LOCALE_ID } from '@angular/core';
 export class DurationPipe implements PipeTransform {
   constructor(@Inject(LOCALE_ID) private locale: string) {}
 
-  transform(value: number | null): string | null {
-    if (value == null) return null;
+  transform(value: number | undefined): string | undefined {
+    if (value == undefined) return undefined;
     value = value / 1000;
     if (value > 24 * 60 * 60) return (value / (24 * 60 * 60)).toFixed(0) + ' d';
     if (value > 60 * 60) return (value / (60 * 60)).toFixed(0) + ' h';

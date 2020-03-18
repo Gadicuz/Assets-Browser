@@ -1,12 +1,10 @@
 import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { JwksValidationHandler } from 'angular-oauth2-oidc-jwks';
 import { OAuthModule, ValidationParams } from 'angular-oauth2-oidc';
 import { OAuthService } from 'angular-oauth2-oidc';
 
 import { EVESSO_CONFIG, EVESSOConfig } from './eve-sso.config';
-import { AccessTokenV2, AccessTokenV2Payload } from './eve-sso.model';
-import { CodeVerifierInterceptorService } from './code-verifier.interceptor.service';
+import { AccessTokenV2Payload } from './eve-sso.model';
 
 import { b64urlDecode } from '@waiting/base64';
 
