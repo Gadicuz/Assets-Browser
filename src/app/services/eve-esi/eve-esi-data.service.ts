@@ -34,7 +34,7 @@ export interface EsiDataItemName {
 export interface EsiDataBpd {
   me: number;
   te: number;
-  runs?: number;
+  copy?: number; // 0/undefined - original, >0 - copy
   in_use?: boolean;
 }
 

@@ -83,22 +83,19 @@ export class LocData {
     return this.content_cache_vol;
   }
 
-  /** Returns URL parameter for this location, undefined if no conten available */
+  /** Returns URL parameter for this location, undefined if no content is available */
   get Link(): string | undefined {
     return this.content_uid;
   }
 
-  AddItems(items: LocData[], locs: Map<LocUID, LocData>): void {
+  AddItems(items: LocData[]): void {
     if (this.content_items) this.content_items = this.content_items.concat(items);
     else this.content_items = items;
-    this.InvalidateCache(locs);
   }
 
-  private InvalidateCache(locs: Map<LocUID, LocData>): void {
+  InvalidateCache(): void {
     this.content_cache_val = undefined;
     this.content_cache_vol = undefined;
-    const p = locs.get(this.ploc.uid);
-    if (p) p.InvalidateCache(locs);
   }
 
   // Location information

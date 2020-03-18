@@ -69,7 +69,7 @@ export class EsiCacheService {
             item.bpd = {
               me: bp.material_efficiency,
               te: bp.time_efficiency,
-              runs: bp.runs > 0 ? bp.runs : undefined,
+              copy: bp.runs > 0 ? bp.runs : undefined,
               in_use
             };
           });

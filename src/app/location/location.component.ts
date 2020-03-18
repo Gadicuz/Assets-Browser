@@ -316,11 +316,22 @@ export class LocationComponent {
     }));
   }
 
+  private invalidateLoc(loc: LocData): void {
+    const path = (p: LocData[]): LocData[] => {
+      const p_uid = p[0].ploc.uid;
+      const p_loc = p_uid ? this.locs.get(p_uid) : undefined;
+      return p_loc == undefined ? p : path([p_loc, ...p]);
+    };
+    path([loc]).forEach(l => l.InvalidateCache());
+  }
+
   private addChild(loc: LocData): void {
     const p_uid = loc.ploc.uid;
     const p_loc = this.locs.get(p_uid);
-    if (p_loc != undefined) p_loc.AddItems([loc], this.locs);
-    else {
+    if (p_loc != undefined) {
+      p_loc.AddItems([loc]);
+      this.invalidateLoc(p_loc);
+    } else {
       loc = this.buildStdLocation(p_uid, [loc]);
       this.locs.set(p_uid, loc);
       this.addChild(loc);
@@ -451,7 +462,7 @@ export class LocationComponent {
     const typeInfo = mapGet(this.cache.typesInfo, type_id);
     if (bpd) {
       info.name = typeInfo.name;
-      info.comment = (bpd.runs ? `Copy (${bpd.runs})` : 'Original') + ` - ${bpd.me}/${bpd.te}`;
+      info.comment = (bpd.copy ? `Copy (${bpd.copy})` : 'Original') + ` - ${bpd.me}/${bpd.te}`;
     } else {
       info.name = name || typeInfo.name;
       info.comment = (name && typeInfo.name) || undefined;
@@ -469,7 +480,12 @@ export class LocationComponent {
       this.cache
         .loadTypesInfo([type_id])
         .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item.name, item.bpd) }));
-    const infoLoader = { name: '', image: '', value: this.cache.marketPrices.get(type_id), loader };
+    const infoLoader = {
+      name: '',
+      image: '',
+      value: item.bpd && item.bpd.copy ? undefined : this.cache.marketPrices.get(type_id),
+      loader
+    };
     if (item.name || item.bpd) return infoLoader;
     // common type_id loader
     const info = this.typeInfos.get(type_id);
