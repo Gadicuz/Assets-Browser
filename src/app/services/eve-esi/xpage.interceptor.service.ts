@@ -11,7 +11,7 @@ export class XpageInterceptorService implements HttpInterceptor {
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     return next.handle(request).pipe(
-      mergeMap(event => {
+      mergeMap((event) => {
         if (!(event instanceof HttpResponse) || request.params.has('page') || !request.url.startsWith(this.cfg.url))
           return of(event);
         const response = event as HttpResponse<unknown[]>;
@@ -19,11 +19,11 @@ export class XpageInterceptorService implements HttpInterceptor {
         const maxPage = +(response.headers.get('X-Pages') || '0');
         if (maxPage <= 1) return of(event);
         return range(2, maxPage - 1).pipe(
-          mergeMap(page => next.handle(request.clone({ params: request.params.set('page', String(page)) }))),
-          filter(ev => ev instanceof HttpResponse),
-          map(ev => (ev as HttpResponse<unknown[]>).body),
+          mergeMap((page) => next.handle(request.clone({ params: request.params.set('page', String(page)) }))),
+          filter((ev) => ev instanceof HttpResponse),
+          map((ev) => (ev as HttpResponse<unknown[]>).body),
           toArray(),
-          map(tail => response.clone({ body: (response.body || []).concat(...tail) }))
+          map((tail) => response.clone({ body: (response.body || []).concat(...tail) }))
         );
       })
     );

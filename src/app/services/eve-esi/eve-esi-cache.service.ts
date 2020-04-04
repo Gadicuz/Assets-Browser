@@ -31,23 +31,23 @@ export class EsiCacheService {
   public loadCharacterItems(): Observable<never> {
     return concat(
       this.data.loadCharacterItems().pipe(
-        tap(items => (this.characterItems = new Map(items.map(i => [i.item_id, i])))),
-        mergeMap(items =>
+        tap((items) => (this.characterItems = new Map(items.map((i) => [i.item_id, i])))),
+        mergeMap((items) =>
           this.data
-            .loadCharacterItemNames(items.filter(i => i.is_singleton).map(i => i.item_id))
+            .loadCharacterItemNames(items.filter((i) => i.is_singleton).map((i) => i.item_id))
             .pipe(
-              tap(names =>
+              tap((names) =>
                 names
-                  .filter(n => n.name)
-                  .forEach(n => ((this.characterItems.get(n.item_id) as EsiDataItem).name = n.name))
+                  .filter((n) => n.name)
+                  .forEach((n) => ((this.characterItems.get(n.item_id) as EsiDataItem).name = n.name))
               )
             )
         ),
         ignoreElements()
       ),
       this.data.loadCharacterBlueprints().pipe(
-        tap(bps => {
-          bps.forEach(bp => {
+        tap((bps) => {
+          bps.forEach((bp) => {
             let item = this.characterItems.get(bp.item_id);
             const in_use = item == undefined;
             if (!item)
@@ -82,7 +82,7 @@ export class EsiCacheService {
   public constellationsInfo = new Map<number, EsiDataInfo<'constellations'>>();
   public loadConstellationsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.constellationsInfo)).pipe(
-      mergeMap(id => this.data.loadConstellationInfo(id).pipe(tap(i => this.constellationsInfo.set(id, i)))),
+      mergeMap((id) => this.data.loadConstellationInfo(id).pipe(tap((i) => this.constellationsInfo.set(id, i)))),
       ignoreElements()
     );
   }
@@ -90,7 +90,7 @@ export class EsiCacheService {
   public planetsInfo = new Map<number, EsiDataInfo<'planets'>>();
   public loadPlanetsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.planetsInfo)).pipe(
-      mergeMap(id => this.data.loadPlanetInfo(id).pipe(tap(i => this.planetsInfo.set(id, i)))),
+      mergeMap((id) => this.data.loadPlanetInfo(id).pipe(tap((i) => this.planetsInfo.set(id, i)))),
       ignoreElements()
     );
   }
@@ -98,7 +98,7 @@ export class EsiCacheService {
   public regionsInfo = new Map<number, EsiDataInfo<'regions'>>();
   public loadRegionsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.regionsInfo)).pipe(
-      mergeMap(id => this.data.loadRegionInfo(id).pipe(tap(i => this.regionsInfo.set(id, i)))),
+      mergeMap((id) => this.data.loadRegionInfo(id).pipe(tap((i) => this.regionsInfo.set(id, i)))),
       ignoreElements()
     );
   }
@@ -106,7 +106,7 @@ export class EsiCacheService {
   public stationsInfo = new Map<number, EsiDataInfo<'stations'>>();
   public loadStationsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.stationsInfo)).pipe(
-      mergeMap(id => this.data.loadStationInfo(id).pipe(tap(i => this.stationsInfo.set(id, i)))),
+      mergeMap((id) => this.data.loadStationInfo(id).pipe(tap((i) => this.stationsInfo.set(id, i)))),
       ignoreElements()
     );
   }
@@ -114,7 +114,7 @@ export class EsiCacheService {
   public structuresInfo = new Map<number, EsiDataInfo<'structures'>>();
   public loadStructuresInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.structuresInfo)).pipe(
-      mergeMap(id => this.data.loadStructureInfo(id).pipe(tap(i => this.structuresInfo.set(id, i)))),
+      mergeMap((id) => this.data.loadStructureInfo(id).pipe(tap((i) => this.structuresInfo.set(id, i)))),
       ignoreElements()
     );
   }
@@ -122,7 +122,7 @@ export class EsiCacheService {
   public systemsInfo = new Map<number, EsiDataInfo<'systems'>>();
   public loadSystemsInfo(ids: number[]): Observable<never> {
     return from(removeKeys(ids, this.systemsInfo)).pipe(
-      mergeMap(id => this.data.loadSystemInfo(id).pipe(tap(i => this.systemsInfo.set(id, i)))),
+      mergeMap((id) => this.data.loadSystemInfo(id).pipe(tap((i) => this.systemsInfo.set(id, i)))),
       ignoreElements()
     );
   }
@@ -130,9 +130,9 @@ export class EsiCacheService {
   public typesInfo = new Map<number, EsiDataInfo<'types'>>();
   public loadTypesInfo(ids: number[]): Observable<never> {
     return this.getTypesInfo().pipe(
-      switchMap(typesInfo =>
+      switchMap((typesInfo) =>
         from(removeKeys(ids, typesInfo)).pipe(
-          mergeMap(id => this.data.loadTypeInfo(id).pipe(tap(info => typesInfo.set(id, info)))),
+          mergeMap((id) => this.data.loadTypeInfo(id).pipe(tap((info) => typesInfo.set(id, info)))),
           ignoreElements()
         )
       )
@@ -142,7 +142,7 @@ export class EsiCacheService {
     return this.typesInfo == undefined
       ? this.http
           .get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json')
-          .pipe(map(data => (this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data))))
+          .pipe(map((data) => (this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data))))
       : of(this.typesInfo);
   }
 
@@ -168,7 +168,7 @@ export class EsiCacheService {
   public marketPrices = new Map<number, number>();
   public loadMarketPrices(): Observable<never> {
     return this.data.loadMarketPrices().pipe(
-      tap(prices => (this.marketPrices = prices)),
+      tap((prices) => (this.marketPrices = prices)),
       ignoreElements()
     );
   }
@@ -176,7 +176,7 @@ export class EsiCacheService {
   public characterMarketOrders: EsiDataCharMarketOrder[] = [];
   public loadCharacterMarketOrders(): Observable<never> {
     return this.data.loadCharacterMarketOrders(undefined).pipe(
-      tap(orders => (this.characterMarketOrders = orders)),
+      tap((orders) => (this.characterMarketOrders = orders)),
       ignoreElements()
     );
   }
@@ -185,7 +185,7 @@ export class EsiCacheService {
     locs: EsiDataLocMarketTypes[],
     buy_sell?: EsiMarketOrderType
   ): Observable<EsiDataLocMarketOrders> {
-    return merge(...locs.map(loc => this.data.loadStructureMarketOrders(loc, buy_sell)));
+    return merge(...locs.map((loc) => this.data.loadStructureMarketOrders(loc, buy_sell)));
   }
 
   public loadStationsMarketOrders(
@@ -195,7 +195,7 @@ export class EsiCacheService {
     return from(
       locs
         .reduce(
-          autoMap(loc => this.getSCR(loc.l_id).reg),
+          autoMap((loc) => this.getSCR(loc.l_id).reg),
           new Map<number, EsiDataLocMarketTypes[]>()
         )
         .entries()
@@ -205,7 +205,7 @@ export class EsiCacheService {
   public characterWalletTransactions: EsiWalletTransaction[] = [];
   public loadCharacterWalletTransactions(): Observable<never> {
     return this.data.loadCharacterWalletTransactions().pipe(
-      tap(wt => (this.characterWalletTransactions = wt)),
+      tap((wt) => (this.characterWalletTransactions = wt)),
       ignoreElements()
     );
   }
@@ -227,18 +227,18 @@ export class EsiCacheService {
     return concat(
       merge(this.loadStructuresInfo(str_ids), this.loadStationsInfo(sta_ids)),
       defer(() => {
-        const sys_str = str_ids.map(id => mapGet(this.structuresInfo, id).solar_system_id).filter(id => id);
-        const sys_sta = sta_ids.map(id => mapGet(this.stationsInfo, id).system_id);
+        const sys_str = str_ids.map((id) => mapGet(this.structuresInfo, id).solar_system_id).filter((id) => id);
+        const sys_sta = sta_ids.map((id) => mapGet(this.stationsInfo, id).system_id);
         ids = set([...sys_ids, ...sys_str, ...sys_sta]);
         return this.loadSystemsInfo(ids);
       }),
       defer(() => {
-        const con_sys = ids.map(id => mapGet(this.systemsInfo, id).constellation_id);
+        const con_sys = ids.map((id) => mapGet(this.systemsInfo, id).constellation_id);
         ids = set([...con_ids, ...con_sys]);
         return this.loadConstellationsInfo(ids);
       }),
       defer(() => {
-        const reg_con = ids.map(id => mapGet(this.constellationsInfo, id).region_id);
+        const reg_con = ids.map((id) => mapGet(this.constellationsInfo, id).region_id);
         ids = set([...reg_ids, ...reg_con]);
         return this.loadRegionsInfo(ids);
       })

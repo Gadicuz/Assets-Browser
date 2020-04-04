@@ -69,21 +69,21 @@ export class OrdersComponent {
         this.data
           .loadCharacterWalletTransactions()
           .pipe(
-            map(wts =>
-              wts.filter(wt => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth)
+            map((wts) =>
+              wts.filter((wt) => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth)
             )
           ),
         (orders, trans) => this.analyzeData(orders, trans)
       ).pipe(
         mergeMap(([loc_types, char_sales, ids]) => {
-          const sales = new Map(char_sales.map(s => [s.l_id, s.tid_sales]));
+          const sales = new Map(char_sales.map((s) => [s.l_id, s.tid_sales]));
           return this.loadMarketOrders(loc_types, 'sell').pipe(
-            map(loc_orders => this.assembleLocationInfo(loc_orders, sales.get(loc_orders.l_id), ids))
+            map((loc_orders) => this.assembleLocationInfo(loc_orders, sales.get(loc_orders.l_id), ids))
           );
         }),
         toArray(),
-        map(data => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
-        catchError(err => {
+        map((data) => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
+        catchError((err) => {
           console.log(err);
           return of({ error: err });
         })
@@ -102,15 +102,15 @@ export class OrdersComponent {
       },
       { stations: [], others: [] }
     );
-    const sta = set(l.stations.map(loc => loc.l_id));
-    const str = set(l.others.map(loc => loc.l_id));
+    const sta = set(l.stations.map((loc) => loc.l_id));
+    const str = set(l.others.map((loc) => loc.l_id));
     return concat(
       this.cache.loadSSSCR({ sta, str }),
       defer(() => {
-        const sta_types = sta.map(id => (this.cache.stationsInfo.get(id) as EsiDataInfo<'stations'>).type_id);
+        const sta_types = sta.map((id) => (this.cache.stationsInfo.get(id) as EsiDataInfo<'stations'>).type_id);
         const str_types = str
-          .map(id => (this.cache.structuresInfo.get(id) as EsiDataInfo<'structures'>).type_id)
-          .filter(tid => tid != undefined) as number[];
+          .map((id) => (this.cache.structuresInfo.get(id) as EsiDataInfo<'structures'>).type_id)
+          .filter((tid) => tid != undefined) as number[];
         const types = set([...EsiDataService.pluckLocMarketTypes(locs), ...sta_types, ...str_types]);
         return this.cache.loadTypesInfo(types);
       }),
@@ -128,8 +128,8 @@ export class OrdersComponent {
     trans: EsiWalletTransaction[]
   ): [EsiDataLocMarketTypes[], LocSales[], number[]] {
     const loc_id = [
-      ...orders.map(o => tuple(o.location_id, o.type_id)),
-      ...trans.map(t => tuple(t.location_id, t.type_id))
+      ...orders.map((o) => tuple(o.location_id, o.type_id)),
+      ...trans.map((t) => tuple(t.location_id, t.type_id)),
     ];
     const types = Array.from(
       loc_id.reduce(
@@ -141,19 +141,19 @@ export class OrdersComponent {
 
     const sales = Array.from(
       trans
-        .filter(wt => wt.quantity)
+        .filter((wt) => wt.quantity)
         .reduce(
-          autoMap(wt => wt.location_id),
+          autoMap((wt) => wt.location_id),
           new Map<number, EsiWalletTransaction[]>()
         )
     ).map(([l_id, wts]) => ({
       l_id,
       tid_sales: updateMapValues(
         wts.reduce(
-          autoMap(wt => wt.type_id),
+          autoMap((wt) => wt.type_id),
           new Map<number, EsiWalletTransaction[]>()
         ),
-        wts =>
+        (wts) =>
           wts.reduce(
             (sd, wt) => ({
               quantity: sd.quantity + wt.quantity,
@@ -165,7 +165,7 @@ export class OrdersComponent {
       ),
     }));
 
-    return [types, sales, orders.map(o => o.order_id)];
+    return [types, sales, orders.map((o) => o.order_id)];
   }
 
   private assembleItemsInfo(
@@ -178,7 +178,7 @@ export class OrdersComponent {
     const now = Date.now();
     const dtime = 1 * 24 * 60 * 60 * 1000;
     const lines: OrderListItem[] = t_orders
-      .map(o => {
+      .map((o) => {
         const duration = now - o.timestamp;
         return {
           type_id,
@@ -197,12 +197,12 @@ export class OrdersComponent {
       [false, false, false, false]
     );
     const [quantity, total] = lines
-      .filter(val => val.owned)
+      .filter((val) => val.owned)
       .reduce((sum, val) => [sum[0] + val.quantity, sum[1] + val.quantity * val.price], [0, 0]);
     const sold = sd ? sd.quantity : 0;
     const icons = [];
     if (sd && now - sd.tstamp < dtime) icons.push('attach_money');
-    if (lines.find(x => x.icons.length)) icons.push('new_releases');
+    if (lines.find((x) => x.icons.length)) icons.push('new_releases');
     if (!has_owned && has_other) icons.push('people_outline');
     if (has_owned && !has_other) icons.push('person');
     return [

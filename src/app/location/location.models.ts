@@ -56,7 +56,7 @@ export class LocData {
 
   /** Calculates item's content value */
   get ContentValue(): LocPropVal {
-    if (this.content_cache_val == undefined) this.content_cache_val = this.calcPropVal(i => i.TotalValue);
+    if (this.content_cache_val == undefined) this.content_cache_val = this.calcPropVal((i) => i.TotalValue);
     return this.content_cache_val;
   }
 
@@ -76,7 +76,7 @@ export class LocData {
   /** Calculates item's content volume */
   get ContentVolume(): LocPropVal {
     if (this.content_cache_vol == undefined) {
-      const vol = this.calcPropVal(i => i.Volume);
+      const vol = this.calcPropVal((i) => i.Volume);
       if (typeof vol === 'string' && vol !== '') return vol;
       this.content_cache_vol = vol;
     }

@@ -119,7 +119,7 @@ export const fltBuySellUnk = <T extends EsiDataMarketOrder>(
 })
 export class EsiDataService {
   private missedIDs(ids: number[], knownIDs: IterableIterator<number>): number[] {
-    return set(ids).filter(id => ![...knownIDs].includes(id));
+    return set(ids).filter((id) => ![...knownIDs].includes(id));
   }
 
   constructor(private http: HttpClient, private esi: EsiService, private sso: EVESSOService) {}
@@ -159,7 +159,7 @@ export class EsiDataService {
   loadStargateInfo = (id: number): Observable<EsiInfo<'stargates'>> => this.loadInfo('stargates', id);
   loadStructureInfo(id: number): Observable<EsiDataStructureInfo> {
     return this.esi.getInformation('structures', id).pipe(
-      map(info => ({
+      map((info) => ({
         ...info,
         structure_id: id,
       })),
@@ -180,7 +180,7 @@ export class EsiDataService {
   loadSystemInfo = (id: number): Observable<EsiInfo<'systems'>> => this.loadInfo('systems', id);
   loadTypeInfo(id: number): Observable<EsiDataTypeInfo> {
     return this.esi.getInformation('types', id).pipe(
-      map(info => ({
+      map((info) => ({
         name: info.name,
         volume: info.volume,
         packaged_volume: info.packaged_volume,
@@ -194,8 +194,8 @@ export class EsiDataService {
 
   loadCharacterItemNames(ids: number[]): Observable<EsiDataItemName[]> {
     return this.esi.getCharacterItemNames(this.character.id, ids).pipe(
-      map(names =>
-        names.map(n => ({
+      map((names) =>
+        names.map((n) => ({
           item_id: n.item_id,
           name: n.name === 'None' ? undefined : n.name,
         }))
@@ -207,7 +207,9 @@ export class EsiDataService {
     return this.esi
       .listMarketPrices()
       .pipe(
-        map(prices => new Map<number, number>(prices.map(v => [v.type_id, v.average_price || v.adjusted_price || 0])))
+        map(
+          (prices) => new Map<number, number>(prices.map((v) => [v.type_id, v.average_price || v.adjusted_price || 0]))
+        )
       );
   }
 
@@ -261,7 +263,7 @@ export class EsiDataService {
   loadCharacterMarketOrders(buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
     return this.esi
       .getCharacterOrders(this.character.id)
-      .pipe(map(orders => orders.map(o => this.fromEsiMarketOrderCharacter(o)).filter(fltBuySellUnk(buy_sell))));
+      .pipe(map((orders) => orders.map((o) => this.fromEsiMarketOrderCharacter(o)).filter(fltBuySellUnk(buy_sell))));
   }
 
   loadStructureMarketOrders(
@@ -269,16 +271,16 @@ export class EsiDataService {
     buy_sell?: EsiMarketOrderType
   ): Observable<EsiDataLocMarketOrders> {
     return this.esi.getStructureOrders(loc.l_id).pipe(
-      map(orders =>
+      map((orders) =>
         orders
-          .map(o => this.fromEsiMarketOrderStructureOrRegion(o))
+          .map((o) => this.fromEsiMarketOrderStructureOrRegion(o))
           .filter(fltBuySellUnk(buy_sell))
           .reduce(
-            autoMap(ord => ord.type_id, loc.types),
+            autoMap((ord) => ord.type_id, loc.types),
             new Map<number, EsiDataMarketOrder[]>()
           )
       ),
-      map(orders => ({ l_id: loc.l_id, orders }))
+      map((orders) => ({ l_id: loc.l_id, orders }))
     );
   }
 
@@ -289,9 +291,9 @@ export class EsiDataService {
   ): Observable<EsiDataLocMarketOrders> {
     return this.esi.getRegionOrdersEx(reg, EsiDataService.pluckLocMarketTypes(locs), buy_sell).pipe(
       toArray(),
-      mergeMap(r_orders =>
+      mergeMap((r_orders) =>
         from(locs).pipe(
-          map(loc => ({
+          map((loc) => ({
             l_id: loc.l_id,
             orders: new Map(
               r_orders
@@ -300,8 +302,8 @@ export class EsiDataService {
                   tuple(
                     t_id,
                     t_orders
-                      .filter(o => o.location_id === loc.l_id) // remove locations
-                      .map(o => this.fromEsiMarketOrderStructureOrRegion(o))
+                      .filter((o) => o.location_id === loc.l_id) // remove locations
+                      .map((o) => this.fromEsiMarketOrderStructureOrRegion(o))
                   )
                 )
             ),
@@ -337,21 +339,21 @@ export class EsiDataService {
     up_to_date = 0
   ): Observable<EsiDataMailHeader[]> {
     return this.esi.getCharacterMailHeaders(this.character.id, labels, mail_id).pipe(
-      map(headers =>
-        headers.map(h => EsiDataService.convertEsiDataMailHeader(h)).filter(h => h.timestamp >= up_to_date)
+      map((headers) =>
+        headers.map((h) => EsiDataService.convertEsiDataMailHeader(h)).filter((h) => h.timestamp >= up_to_date)
       ),
-      takeWhile(headers => headers.length > 0) // ???
+      takeWhile((headers) => headers.length > 0) // ???
     );
   }
 
   getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiDataMailHeader> {
     return this.getCharacterMailHeadersFromId(undefined, labels, up_to_date).pipe(
-      expand(headers =>
+      expand((headers) =>
         headers.length < 50
           ? empty()
-          : this.getCharacterMailHeadersFromId(Math.min(...headers.map(h => h.mail_id)), labels, up_to_date)
+          : this.getCharacterMailHeadersFromId(Math.min(...headers.map((h) => h.mail_id)), labels, up_to_date)
       ),
-      mergeMap(headers => from(headers))
+      mergeMap((headers) => from(headers))
     );
   }
 }

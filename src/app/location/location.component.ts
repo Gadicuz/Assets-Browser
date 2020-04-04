@@ -137,7 +137,7 @@ class LocationDataSource implements DataSource<ItemRecord> {
     return combineLatest(this._data.asObservable(), this._sort.asObservable().pipe(switchAll())).pipe(
       map(([data, sort]) => {
         const groups = data.reduce(
-          autoMap(item => item.position),
+          autoMap((item) => item.position),
           new Map()
         );
         const items = Array.from(groups.entries())
@@ -147,8 +147,8 @@ class LocationDataSource implements DataSource<ItemRecord> {
               is_header: true,
               position: '',
               name: pos,
-              value: items.map(i => i.value).reduce(locPropAdd, ''),
-              volume: items.map(i => i.volume).reduce(locPropAdd, '')
+              value: items.map((i) => i.value).reduce(locPropAdd, ''),
+              volume: items.map((i) => i.volume).reduce(locPropAdd, ''),
             } as ItemRecord,
             // entries
             ...items.sort(cmpItemRecords(sort)),
@@ -223,14 +223,14 @@ export class LocationComponent {
     );
 
     this.location$ = this.route.paramMap.pipe(
-      map(params => params.get('id') || UNIVERSE_UID),
-      switchMap(uid =>
+      map((params) => params.get('id') || UNIVERSE_UID),
+      switchMap((uid) =>
         concat(
           this.buildLocationPreview(uid),
           this.buildLocationTree(),
           defer(() =>
             this.buildLocationData(uid).pipe(
-              catchError(error => {
+              catchError((error) => {
                 console.log(error);
                 return this.buildLocationPreview(uid, [], error);
               })
@@ -238,7 +238,7 @@ export class LocationComponent {
           )
         )
       ),
-      tap(loc => (this.dataSource.data = loc.data || []))
+      tap((loc) => (this.dataSource.data = loc.data || []))
     );
   }
 
@@ -256,7 +256,7 @@ export class LocationComponent {
     const usedLocs = content ? [...route, ...content] : route;
     return concat(
       merge(
-        ...set(usedLocs.map(loc => loc.info).filter(info => info.loader)).map(info =>
+        ...set(usedLocs.map((loc) => loc.info).filter((info) => info.loader)).map((info) =>
           (info.loader as fnInfoLoader)(info)
         )
       ),
@@ -289,7 +289,7 @@ export class LocationComponent {
         { title: 'Item Volume (m3)', value: loc.Volume },
         { title: 'Content Volume (m3)', value: loc.ContentVolume },
       ],
-      route: route.map(l => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })) //TODO: set position as hint
+      route: route.map((l) => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })), //TODO: set position as hint
     };
   }
 
@@ -304,7 +304,7 @@ export class LocationComponent {
 
   private createDataRecords(loc: LocData): ItemRecord[] {
     if (loc.content_items == undefined) return [];
-    return loc.content_items.map(i => ({
+    return loc.content_items.map((i) => ({
       position: i.ploc.pos || '',
       name: i.info.name,
       comment: i.info.comment,
@@ -322,7 +322,7 @@ export class LocationComponent {
       const p_loc = p_uid ? this.locs.get(p_uid) : undefined;
       return p_loc == undefined ? p : path([p_loc, ...p]);
     };
-    path([loc]).forEach(l => l.InvalidateCache());
+    path([loc]).forEach((l) => l.InvalidateCache());
   }
 
   private addChild(loc: LocData): void {
@@ -339,17 +339,19 @@ export class LocationComponent {
   }
   private loadLocations(): Observable<never> {
     return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(), this.loadSellOrders())).pipe(
-      map(locs => locs.filter(loc => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
-      concatMap(locs =>
+      map((locs) => locs.filter((loc) => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
+      concatMap((locs) =>
         this.preloadLocations(locs).pipe(
           tap({
             complete: () => {
               function flatten(l: LocData[]): LocData[] {
-                l = l.filter(i => i.content_uid);
-                return l.length ? l.map(i => [i, ...flatten(i.content_items || [])]).reduce((s, i) => s.concat(i)) : [];
+                l = l.filter((i) => i.content_uid);
+                return l.length
+                  ? l.map((i) => [i, ...flatten(i.content_items || [])]).reduce((s, i) => s.concat(i))
+                  : [];
               }
-              locs.forEach(loc => this.addChild(loc));
-              flatten(locs).forEach(loc => this.locs.set(loc.content_uid as LocUID, loc));
+              locs.forEach((loc) => this.addChild(loc));
+              flatten(locs).forEach((loc) => this.locs.set(loc.content_uid as LocUID, loc));
             },
           })
         )
@@ -360,7 +362,7 @@ export class LocationComponent {
   /** Preload all stations/structures/systems/contellations/regions information */
   private preloadLocations(locs: LocData[]): Observable<never> {
     const ids = locs
-      .map(loc => +loc.ploc.uid)
+      .map((loc) => +loc.ploc.uid)
       .reduce(
         (m, id) => {
           m[EsiService.getLocationTypeById(id)].push(id);
@@ -495,7 +497,7 @@ export class LocationComponent {
   }
 
   private createLocContentItems(items: LocationItem[]): LocData[] {
-    return Array.from(items.reduce(autoMap(locItemHash), new Map()).values(), item_group => {
+    return Array.from(items.reduce(autoMap(locItemHash), new Map()).values(), (item_group) => {
       const item = item_group.reduce((s, x) => ({ ...x, quantity: x.quantity + s.quantity }));
       const loc = new LocData(
         this.typeInfoLoader(item),
@@ -512,16 +514,16 @@ export class LocationComponent {
   private shipTIDs: number[] = [];
   private loadShipsTIDs(): Observable<never> {
     return this.data.loadCategoryInfo(EsiService.CATEGORY_ID_Ship).pipe(
-      mergeMap(cat => merge(...cat.groups.map(gid => this.data.loadGroupInfo(gid)))),
+      mergeMap((cat) => merge(...cat.groups.map((gid) => this.data.loadGroupInfo(gid)))),
       reduce((types, grp) => [...types, ...grp.types], [] as number[]),
-      tap(types => (this.shipTIDs = types)),
+      tap((types) => (this.shipTIDs = types)),
       ignoreElements()
     );
   }
   private moveShips(items: EsiDataItem[]): void {
     items
-      .filter(i => i.location_flag === 'Hangar' && this.shipTIDs.includes(i.type_id)) // move all ships from 'Hangar' ...
-      .forEach(i => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
+      .filter((i) => i.location_flag === 'Hangar' && this.shipTIDs.includes(i.type_id)) // move all ships from 'Hangar' ...
+      .forEach((i) => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
   }
   private loadAssets(): Observable<LocData[]> {
     return concat(
@@ -529,9 +531,9 @@ export class LocationComponent {
       defer(() => {
         const items = [...this.cache.characterItems.values()];
         this.moveShips(items);
-        const cIds = set(items.map(item => item.location_id));
+        const cIds = set(items.map((item) => item.location_id));
         let locs = this.createLocContentItems(
-          items.map(item => ({
+          items.map((item) => ({
             is_vcont: isVirtualContainer(item.type_id),
             item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
             name: item.name || '',
@@ -539,7 +541,7 @@ export class LocationComponent {
               uid: String(item.location_id),
               pos: item.location_flag
                 .split(/(?=[A-Z])|\d+/) // /(?=\p{Lu})|\d+/u
-                .filter(w => w)
+                .filter((w) => w)
                 .join(' '),
             },
             type_id: item.type_id,
@@ -548,8 +550,8 @@ export class LocationComponent {
           }))
         );
         locs
-          .filter(loc => loc.content_uid)
-          .forEach(loc => {
+          .filter((loc) => loc.content_uid)
+          .forEach((loc) => {
             [loc.content_items, locs] = locs.reduce(
               (s, l) => {
                 s[l.ploc.uid === loc.content_uid ? 0 : 1].push(l);
@@ -572,7 +574,7 @@ export class LocationComponent {
             this.cache.characterMarketOrders
               .filter(fltBuySell('sell'))
               .reduce(
-                autoMap(o => o.location_id),
+                autoMap((o) => o.location_id),
                 new Map()
               )
               .entries(),
@@ -583,7 +585,7 @@ export class LocationComponent {
                 { uid: String(l_id), pos: TRADE_POS },
                 location.uid,
                 this.createLocContentItems(
-                  orders.map(o => ({
+                  orders.map((o) => ({
                     is_vcont: false,
                     name: '',
                     location,

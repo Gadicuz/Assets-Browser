@@ -307,7 +307,7 @@ export class EsiService {
     last_mail_id?: number
   ): Observable<EsiMailHeader[]> {
     return this.getCharacterInformation<EsiMailHeader[]>(character_id, 'mail/', {
-      labels: labels && labels.length != 0 ? labels.map(id => String(id)).join(',') : undefined,
+      labels: labels && labels.length != 0 ? labels.map((id) => String(id)).join(',') : undefined,
       last_mail_id: last_mail_id != undefined ? String(last_mail_id) : undefined,
     });
   }
@@ -331,7 +331,7 @@ export class EsiService {
   public getCharacterItemNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName[]> {
     return from(item_ids).pipe(
       bufferCount(chunk <= 1000 ? chunk : 1000),
-      mergeMap(ids => this._getCharacterItemNames(character_id, ids)),
+      mergeMap((ids) => this._getCharacterItemNames(character_id, ids)),
       reduce((r, n) => r.concat(n), [] as EsiItemName[])
     );
   }
@@ -350,8 +350,8 @@ export class EsiService {
   public getIdsInformation(item_ids: number[]): Observable<EsiIdInfo> {
     return from(item_ids).pipe(
       bufferCount(1000),
-      mergeMap(ids => this.postData<EsiIdInfo[]>('universe/names/', ids)),
-      map(ans => from(ans)),
+      mergeMap((ids) => this.postData<EsiIdInfo[]>('universe/names/', ids)),
+      map((ans) => from(ans)),
       mergeAll()
     );
   }
@@ -379,9 +379,9 @@ export class EsiService {
     order_type: EsiMarketOrderType | 'all' = 'all'
   ): Observable<[number, EsiMarketOrderRegion[]]> {
     return from(type_ids).pipe(
-      mergeMap(type_id =>
+      mergeMap((type_id) =>
         this.getRegionOrders(region_id, type_id, order_type).pipe(
-          map(region_type_orders => tuple(type_id, region_type_orders))
+          map((region_type_orders) => tuple(type_id, region_type_orders))
         )
       )
     );

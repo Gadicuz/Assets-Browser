@@ -71,7 +71,7 @@ export class EVESSOService {
           const [atHeader, atPayload] = at
             .split('.')
             .slice(0, 2)
-            .map(s => JSON.parse(b64urlDecode(s))) as [object, AccessTokenV2Payload];
+            .map((s) => JSON.parse(b64urlDecode(s))) as [object, AccessTokenV2Payload];
           this.oauth.tokenValidationHandler
             .validateSignature({
               idToken: at,
@@ -86,7 +86,7 @@ export class EVESSOService {
             });
         }
       })
-      .catch(err => (this.err = err));
+      .catch((err) => (this.err = err));
   }
 
   login(): void {
