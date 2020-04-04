@@ -9,11 +9,11 @@ const routes: Routes = [
   { path: 'browse', redirectTo: 'browse/universe', pathMatch: 'full' },
   { path: 'orders', canActivate: [AuthGuard], component: OrdersComponent },
   { path: '', children: [] },
-  { path: '**', redirectTo: '/', pathMatch: 'full' }
+  { path: '**', redirectTo: '/', pathMatch: 'full' },
 ];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes, { enableTracing: false })],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
 export class AppRoutingModule {}

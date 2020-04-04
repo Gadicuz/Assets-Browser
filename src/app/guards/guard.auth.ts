@@ -3,7 +3,7 @@ import { EVESSOService } from '../services/eve-sso/eve-sso.module';
 import { Router, CanActivate, UrlTree } from '@angular/router';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthGuard implements CanActivate {
   constructor(private router: Router, private sso: EVESSOService) {}

@@ -18,7 +18,7 @@ import {
   EsiMarketOrderRegion,
   EsiWalletTransaction,
   EsiMarketOrderRange,
-  EsiBlueprint
+  EsiBlueprint,
 } from './eve-esi.models';
 
 import { autoMap, set, tuple } from '../../utils/utils';
@@ -115,7 +115,7 @@ export const fltBuySellUnk = <T extends EsiDataMarketOrder>(
 ): ((o: T) => boolean) => (buy_sell == undefined ? (): boolean => true : fltBuySell(buy_sell));
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class EsiDataService {
   private missedIDs(ids: number[], knownIDs: IterableIterator<number>): number[] {
@@ -129,7 +129,7 @@ export class EsiDataService {
     if (idn == undefined) throw Error('Undefined character ID');
     return {
       id: idn.id,
-      name: idn.name
+      name: idn.name,
     };
   }
 
@@ -161,7 +161,7 @@ export class EsiDataService {
     return this.esi.getInformation('structures', id).pipe(
       map(info => ({
         ...info,
-        structure_id: id
+        structure_id: id,
       })),
       catchError((err: unknown) => {
         // some structures IDs are 'forbidden', status == 403
@@ -171,7 +171,7 @@ export class EsiDataService {
             owner_id: 0,
             solar_system_id: 0,
             structure_id: id,
-            forbidden: true
+            forbidden: true,
           });
         return throwError(err);
       })
@@ -183,7 +183,7 @@ export class EsiDataService {
       map(info => ({
         name: info.name,
         volume: info.volume,
-        packaged_volume: info.packaged_volume
+        packaged_volume: info.packaged_volume,
       }))
     );
   }
@@ -197,7 +197,7 @@ export class EsiDataService {
       map(names =>
         names.map(n => ({
           item_id: n.item_id,
-          name: n.name === 'None' ? undefined : n.name
+          name: n.name === 'None' ? undefined : n.name,
         }))
       )
     );
@@ -236,7 +236,7 @@ export class EsiDataService {
       is_corporation: o.is_corporation,
       escrow: o.escrow || 0,
       wallet_division: 0,
-      status
+      status,
     };
   }
 
@@ -254,7 +254,7 @@ export class EsiDataService {
       min_volume: o.min_volume || 1,
       volume_remain: o.volume_remain,
       volume_total: o.volume_total,
-      region_id: undefined
+      region_id: undefined,
     };
   }
 
@@ -304,7 +304,7 @@ export class EsiDataService {
                       .map(o => this.fromEsiMarketOrderStructureOrRegion(o))
                   )
                 )
-            )
+            ),
           }))
         )
       )
@@ -327,7 +327,7 @@ export class EsiDataService {
       subject: h.subject,
       timestamp: new Date(h.timestamp).getTime(),
       labels: h.labels,
-      is_read: h.is_read
+      is_read: h.is_read,
     };
   }
 

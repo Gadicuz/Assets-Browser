@@ -9,7 +9,7 @@ interface Context<T> {
 }
 
 @Directive({
-  selector: '[defVar]'
+  selector: '[defVar]',
 })
 export class DefVarDirective<T> implements OnInit {
   private _c: Context<T> = { defVar: undefined };

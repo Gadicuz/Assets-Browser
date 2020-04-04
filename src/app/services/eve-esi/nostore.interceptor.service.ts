@@ -14,7 +14,7 @@ export class NostoreInterceptorService implements HttpInterceptor {
     if (request.url === this.cfg.url + 'verify/') {
       request = request.clone({
         //params: request.params.set('access_token', (new Date()).getTime().toString())
-        headers: request.headers.set('If-None-Match', '"Just a random text to force ETAG validation"')
+        headers: request.headers.set('If-None-Match', '"Just a random text to force ETAG validation"'),
       });
     }
     return next.handle(request);

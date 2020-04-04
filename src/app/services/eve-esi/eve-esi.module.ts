@@ -26,7 +26,7 @@ import {
   EsiMarketOrderRegion,
   EsiWalletTransaction,
   EsiMarketPrice,
-  EsiBlueprint
+  EsiBlueprint,
 } from './eve-esi.models';
 
 export { EVEESIConfig } from './eve-esi.config';
@@ -150,11 +150,11 @@ enum imageResource {
   CharPortrait = 'characters/{}/portrait',
   CorporationLogo = 'corporations/{}/logo',
   TypeIcon = 'types/{}/icon',
-  TypeRender = 'types/{}/render'
+  TypeRender = 'types/{}/render',
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class EsiService {
   static TYPE_ID_AssetSafetyWrap = 60;
@@ -240,7 +240,7 @@ export class EsiService {
 
   constructor(private httpClient: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
     this.defParams = {
-      datasource: config.datasource
+      datasource: config.datasource,
     };
   }
 
@@ -308,7 +308,7 @@ export class EsiService {
   ): Observable<EsiMailHeader[]> {
     return this.getCharacterInformation<EsiMailHeader[]>(character_id, 'mail/', {
       labels: labels && labels.length != 0 ? labels.map(id => String(id)).join(',') : undefined,
-      last_mail_id: last_mail_id != undefined ? String(last_mail_id) : undefined
+      last_mail_id: last_mail_id != undefined ? String(last_mail_id) : undefined,
     });
   }
 
@@ -369,7 +369,7 @@ export class EsiService {
       throw Error(`Invalid parameters: order_type = ${order_type} without type_id`);
     return this.getData<EsiMarketOrderRegion[]>(`markets/${region_id}/orders/`, {
       type_id: type_id != undefined ? String(type_id) : undefined,
-      order_type
+      order_type,
     });
   }
 
@@ -395,8 +395,8 @@ function oauthCfg(serviceUrl: string, routes: RegExp): OAuthModuleConfig {
       allowedUrls: [],
       customUrlValidation: (url: string): boolean =>
         url.startsWith(serviceUrl) && !routes.test(url.substring(serviceUrl.length)),
-      sendAccessToken: true
-    }
+      sendAccessToken: true,
+    },
   };
 }
 
@@ -410,8 +410,8 @@ export class EVEESIModule {
         //{ provide: HTTP_INTERCEPTORS, useClass: NostoreInterceptorService, multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: XpageInterceptorService, multi: true },
         { provide: OAuthModuleConfig, useValue: oauthCfg(cfg.url, new RegExp(noAuthRoutes(cfg.ver))) },
-        { provide: EVEESI_CONFIG, useValue: cfg }
-      ]
+        { provide: EVEESI_CONFIG, useValue: cfg },
+      ],
     };
   }
 }

@@ -18,7 +18,7 @@ export interface CharacterData {
 @Component({
   selector: 'app-root',
   styleUrls: ['./app.component.css'],
-  templateUrl: './app.component.html'
+  templateUrl: './app.component.html',
 })
 export class AppComponent {
   public readonly copyright: string;
@@ -28,7 +28,7 @@ export class AppComponent {
     return (
       idn && {
         ...idn,
-        avatar: this.esi.getCharacterAvatarURI(idn.id, 64)
+        avatar: this.esi.getCharacterAvatarURI(idn.id, 64),
       }
     );
   }

@@ -10,7 +10,7 @@ import {
   EsiWalletTransaction,
   EsiDataService,
   EsiMarketOrderType,
-  EsiDataInfo
+  EsiDataInfo,
 } from '../services/eve-esi/eve-esi-data.service';
 
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
@@ -54,7 +54,7 @@ interface LocSales {
 @Component({
   selector: 'app-orders',
   templateUrl: './orders.component.html',
-  styleUrls: ['./orders.component.css']
+  styleUrls: ['./orders.component.css'],
 })
 export class OrdersComponent {
   orders$: Observable<{ data?: LocationInfo[]; error?: unknown }>;
@@ -158,11 +158,11 @@ export class OrdersComponent {
             (sd, wt) => ({
               quantity: sd.quantity + wt.quantity,
               value: sd.value + wt.quantity * wt.unit_price,
-              tstamp: Math.max(sd.tstamp, new Date(wt.date).getTime())
+              tstamp: Math.max(sd.tstamp, new Date(wt.date).getTime()),
             }),
             { quantity: 0, value: 0, tstamp: 0 }
           )
-      )
+      ),
     }));
 
     return [types, sales, orders.map(o => o.order_id)];
@@ -188,7 +188,7 @@ export class OrdersComponent {
           duration,
           sold: o.volume_total - o.volume_remain,
           owned: ids.includes(o.order_id),
-          icons: duration < dtime ? ['new_releases'] : []
+          icons: duration < dtime ? ['new_releases'] : [],
         };
       })
       .sort((l1, l2) => l1.price - l2.price || l2.duration - l1.duration);
@@ -215,8 +215,8 @@ export class OrdersComponent {
         sold,
         owned: false,
         icons,
-        cls: { has_owned, has_other, best_price, expandable }
-      } as OrderListItem
+        cls: { has_owned, has_other, best_price, expandable },
+      } as OrderListItem,
     ].concat(lines);
   }
 

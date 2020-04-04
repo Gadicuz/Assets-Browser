@@ -19,7 +19,7 @@ export class NoauthInterceptorService implements HttpInterceptor {
     if (request.url.startsWith(this.cfg.url)) {
       if (this.r.test(request.url.substring(this.cfg.url.length))) {
         request = request.clone({
-          headers: request.headers.delete('Authorization')
+          headers: request.headers.delete('Authorization'),
         });
       }
     }

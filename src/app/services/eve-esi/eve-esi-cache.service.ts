@@ -12,14 +12,14 @@ import {
   EsiDataLocMarketOrders,
   EsiDataCharMarketOrder,
   EsiDataService,
-  EsiDataInfo
+  EsiDataInfo,
 } from './eve-esi-data.service';
 
 import { autoMap, set, removeKeys } from '../../utils/utils';
 import { EsiService } from './eve-esi.module';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class EsiCacheService {
   constructor(private data: EsiDataService, private http: HttpClient) {}
@@ -62,7 +62,7 @@ export class EsiCacheService {
                   location_flag: 'ServiceModule', //bp.location_flag,
                   location_type: 'other',
                   type_id: bp.type_id,
-                  quantity: bp.quantity > 0 ? bp.quantity : 1
+                  quantity: bp.quantity > 0 ? bp.quantity : 1,
                 })
               );
             item.name = `${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
@@ -70,7 +70,7 @@ export class EsiCacheService {
               me: bp.material_efficiency,
               te: bp.time_efficiency,
               copy: bp.runs > 0 ? bp.runs : undefined,
-              in_use
+              in_use,
             };
           });
         }),

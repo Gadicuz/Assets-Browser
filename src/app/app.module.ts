@@ -30,7 +30,7 @@ import { ssoClientId } from '../environments/sso.client';
 const esiConfig: EVEESIConfig = {
   url: 'https://esi.evetech.net/',
   ver: 'latest/',
-  datasource: 'tranquility'
+  datasource: 'tranquility',
 };
 
 const ssoConfig: EVESSOConfig = {
@@ -42,8 +42,8 @@ const ssoConfig: EVESSOConfig = {
     'esi-markets.structure_markets.v1',
     'esi-wallet.read_character_wallet.v1',
     'esi-mail.read_mail.v1',
-    'esi-characters.read_blueprints.v1'
-  ]
+    'esi-characters.read_blueprints.v1',
+  ],
 };
 
 @NgModule({
@@ -56,7 +56,7 @@ const ssoConfig: EVESSOConfig = {
     DurationPipe,
     UndefPipe,
     OrdersListComponent,
-    ErrorComponent
+    ErrorComponent,
   ],
   imports: [
     BrowserModule,
@@ -66,9 +66,9 @@ const ssoConfig: EVESSOConfig = {
     AngularMaterialModule,
     HttpClientModule,
     EVESSOModule.forRoot(ssoConfig),
-    EVEESIModule.forRoot(esiConfig)
+    EVEESIModule.forRoot(esiConfig),
   ],
   bootstrap: [AppComponent],
-  exports: [DefVarDirective]
+  exports: [DefVarDirective],
 })
 export class AppModule {}

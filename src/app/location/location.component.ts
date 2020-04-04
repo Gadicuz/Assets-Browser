@@ -11,7 +11,7 @@ import {
   switchMap,
   reduce,
   catchError,
-  ignoreElements
+  ignoreElements,
 } from 'rxjs/operators';
 
 import {
@@ -20,7 +20,7 @@ import {
   EsiLocationType,
   EsiDataItem,
   EsiDataInfo,
-  EsiDataBpd
+  EsiDataBpd,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -36,7 +36,7 @@ import {
   LocData,
   LocPropVal,
   locPropVal,
-  locPropAdd
+  locPropAdd,
 } from './location.models';
 
 import { autoMap, set, mapGet } from '../utils/utils';
@@ -151,7 +151,7 @@ class LocationDataSource implements DataSource<ItemRecord> {
               volume: items.map(i => i.volume).reduce(locPropAdd, '')
             } as ItemRecord,
             // entries
-            ...items.sort(cmpItemRecords(sort))
+            ...items.sort(cmpItemRecords(sort)),
           ])
           .sort(([p1], [p2]) => cmpItemRecords(sort)(p1, p2)) // sort headers
           .reduce((s, a) => s.concat(a), []);
@@ -178,7 +178,7 @@ class LocationDataSource implements DataSource<ItemRecord> {
 @Component({
   selector: 'app-location',
   templateUrl: './location.component.html',
-  styleUrls: ['./location.component.css']
+  styleUrls: ['./location.component.css'],
 })
 export class LocationComponent {
   location$: Observable<LocationRecord>;
@@ -263,7 +263,7 @@ export class LocationComponent {
       defer(() =>
         of({
           info: this.createLocationInfo(loc, route),
-          data: this.createDataRecords(loc)
+          data: this.createDataRecords(loc),
         })
       )
     );
@@ -277,7 +277,7 @@ export class LocationComponent {
         name: `*** Unknown item '${uid}' *** `,
         //image: question mark
         stats: [],
-        route: []
+        route: [],
       };
     return {
       name: loc.info.name,
@@ -287,7 +287,7 @@ export class LocationComponent {
         { title: 'Value (ISK)', value: loc.Value },
         { title: 'Content Value (ISK)', value: loc.ContentValue },
         { title: 'Item Volume (m3)', value: loc.Volume },
-        { title: 'Content Volume (m3)', value: loc.ContentVolume }
+        { title: 'Content Volume (m3)', value: loc.ContentVolume },
       ],
       route: route.map(l => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })) //TODO: set position as hint
     };
@@ -312,7 +312,7 @@ export class LocationComponent {
       quantity: i.quantity || '',
       value: i.TotalValue,
       volume: i.Volume,
-      content_volume: i.ContentVolume
+      content_volume: i.ContentVolume,
     }));
   }
 
@@ -350,7 +350,7 @@ export class LocationComponent {
               }
               locs.forEach(loc => this.addChild(loc));
               flatten(locs).forEach(loc => this.locs.set(loc.content_uid as LocUID, loc));
-            }
+            },
           })
         )
       )
@@ -372,7 +372,7 @@ export class LocationComponent {
           solar_system: [],
           character: [],
           unknown: [],
-          structure: []
+          structure: [],
         } as {
           [key in EsiLocationType]: number[];
         }
@@ -383,14 +383,14 @@ export class LocationComponent {
   private locInfo_TxtId(txt: string, id: number): LocTypeInfo {
     return {
       name: `*** ${txt} ID=${id} ***`,
-      icon: UNKNOWN_IMAGE_URL
+      icon: UNKNOWN_IMAGE_URL,
     };
   }
 
   private locInfo_AssetSafety(): LocTypeInfo {
     return {
       name: 'Asset Safety Delivery System',
-      icon: ASSET_IMAGE_URL
+      icon: ASSET_IMAGE_URL,
     };
   }
 
@@ -398,28 +398,28 @@ export class LocationComponent {
     const idn = this.data.character;
     return {
       name: idn && idn.id === id ? idn.name : `Character #${id}`,
-      icon: this.esi.getCharacterAvatarURI(id, 32)
+      icon: this.esi.getCharacterAvatarURI(id, 32),
     };
   }
 
   private locInfo_System(info: EsiDataInfo<'systems'>): LocTypeInfo {
     return {
       name: info.name,
-      icon: SYSTEM_IMAGE_URL
+      icon: SYSTEM_IMAGE_URL,
     };
   }
 
   private locInfo_Station(info: EsiDataInfo<'stations'>): LocTypeInfo {
     return {
       name: info.name,
-      icon: info.type_id
+      icon: info.type_id,
     };
   }
 
   private locInfo_Structure(info: EsiDataInfo<'structures'>): LocTypeInfo {
     return {
       name: info.name,
-      icon: info.type_id || STRUCTURE_IMAGE_URL
+      icon: info.type_id || STRUCTURE_IMAGE_URL,
     };
   }
 
@@ -439,7 +439,7 @@ export class LocationComponent {
         return locData(this.locInfo_System(info), {
           uid: UNIVERSE_UID,
           pos: mapGet(this.cache.regionsInfo, mapGet(this.cache.constellationsInfo, info.constellation_id).region_id)
-            .name
+            .name,
         });
       }
       case 'station': {
@@ -484,7 +484,7 @@ export class LocationComponent {
       name: '',
       image: '',
       value: item.bpd && item.bpd.copy ? undefined : this.cache.marketPrices.get(type_id),
-      loader
+      loader,
     };
     if (item.name || item.bpd) return infoLoader;
     // common type_id loader
@@ -540,11 +540,11 @@ export class LocationComponent {
               pos: item.location_flag
                 .split(/(?=[A-Z])|\d+/) // /(?=\p{Lu})|\d+/u
                 .filter(w => w)
-                .join(' ')
+                .join(' '),
             },
             type_id: item.type_id,
             quantity: item.quantity,
-            bpd: item.bpd
+            bpd: item.bpd,
           }))
         );
         locs
@@ -588,7 +588,7 @@ export class LocationComponent {
                     name: '',
                     location,
                     type_id: o.type_id,
-                    quantity: o.volume_remain
+                    quantity: o.volume_remain,
                   }))
                 ),
                 true

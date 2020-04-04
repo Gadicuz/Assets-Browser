@@ -26,7 +26,7 @@ export { EVESSOConfig } from './eve-sso.config';
 */
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class EVESSOService {
   public atp?: AccessTokenV2Payload;
@@ -38,7 +38,7 @@ export class EVESSOService {
     if (id == undefined) return undefined;
     return {
       id: +id,
-      name: this.atp.name
+      name: this.atp.name,
     };
   }
 
@@ -56,7 +56,7 @@ export class EVESSOService {
       responseType: 'code',
       //disablePKCE: true,
       useHttpBasicAuth: false,
-      requestAccessToken: true
+      requestAccessToken: true,
       //showDebugInformation: true,
     });
   }
@@ -77,7 +77,7 @@ export class EVESSOService {
               idToken: at,
               idTokenHeader: atHeader,
               idTokenClaims: atPayload,
-              jwks: this.oauth.jwks
+              jwks: this.oauth.jwks,
             } as ValidationParams)
             .then(() => {
               this.atp = atPayload;
@@ -104,7 +104,7 @@ export class EVESSOService {
 }
 
 @NgModule({
-  imports: [OAuthModule.forRoot(undefined, JwksValidationHandler)]
+  imports: [OAuthModule.forRoot(undefined, JwksValidationHandler)],
 })
 export class EVESSOModule {
   static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
@@ -116,8 +116,8 @@ export class EVESSOModule {
         //  useClass: CodeVerifierInterceptorService,
         //  multi: true
         //},
-        { provide: EVESSO_CONFIG, useValue: cfg }
-      ]
+        { provide: EVESSO_CONFIG, useValue: cfg },
+      ],
     };
   }
 }

@@ -4,7 +4,7 @@ import { OrderListItem } from '../orders/orders.component';
 @Component({
   selector: 'app-orders-list',
   templateUrl: './orders.list.component.html',
-  styleUrls: ['./orders.list.component.css']
+  styleUrls: ['./orders.list.component.css'],
   /*
   animations: [
     trigger('orderExpand', [

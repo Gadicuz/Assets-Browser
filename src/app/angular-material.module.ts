@@ -31,7 +31,7 @@ import { MatChipsModule } from '@angular/material/chips';
     MatBadgeModule,
     MatDividerModule,
     MatListModule,
-    MatChipsModule
+    MatChipsModule,
   ],
   exports: [
     MatToolbarModule,
@@ -48,7 +48,7 @@ import { MatChipsModule } from '@angular/material/chips';
     MatBadgeModule,
     MatDividerModule,
     MatListModule,
-    MatChipsModule
-  ]
+    MatChipsModule,
+  ],
 })
 export class AngularMaterialModule {}
