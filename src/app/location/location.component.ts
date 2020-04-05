@@ -399,7 +399,7 @@ export class LocationComponent {
   private locInfo_Character(id: number): LocTypeInfo {
     const idn = this.data.character;
     return {
-      name: idn && idn.id === id ? idn.name : `Character #${id}`,
+      name: idn?.id === id ? idn.name : `Character #${id}`,
       icon: this.esi.getCharacterAvatarURI(id, 32),
     };
   }
@@ -485,7 +485,7 @@ export class LocationComponent {
     const infoLoader = {
       name: '',
       image: '',
-      value: item.bpd && item.bpd.copy ? undefined : this.cache.marketPrices.get(type_id),
+      value: item.bpd?.copy ? undefined : this.cache.marketPrices.get(type_id),
       loader,
     };
     if (item.name || item.bpd) return infoLoader;

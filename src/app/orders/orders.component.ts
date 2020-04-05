@@ -236,7 +236,7 @@ export class OrdersComponent {
         (this.cache.typesInfo.get(t_id) as EsiDataInfo<'types'>).name, // type_id loaded by loadMarketOrders()
         t_orders,
         ids,
-        sales && sales.get(t_id)
+        sales?.get(t_id)
       )
     )
       .sort((a, b) => a[0].name.localeCompare(b[0].name))
