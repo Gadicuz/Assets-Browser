@@ -307,7 +307,7 @@ export class EsiService {
     last_mail_id?: number
   ): Observable<EsiMailHeader[]> {
     return this.getCharacterInformation<EsiMailHeader[]>(character_id, 'mail/', {
-      labels: labels && labels.length != 0 ? labels.map((id) => String(id)).join(',') : undefined,
+      labels: labels?.length ? labels.map((id) => String(id)).join(',') : undefined,
       last_mail_id: last_mail_id != undefined ? String(last_mail_id) : undefined,
     });
   }
