@@ -79,7 +79,7 @@ interface ItemRecord {
   quantity: LocPropVal;
   value: LocPropVal;
   volume: LocPropVal;
-  content_volume: LocPropVal;
+  volume_assembled: LocPropVal;
 }
 
 const cmpItemRecords = (sort: Sort) => (r1: ItemRecord, r2: ItemRecord): number => {
@@ -96,8 +96,8 @@ const cmpItemRecords = (sort: Sort) => (r1: ItemRecord, r2: ItemRecord): number 
     case 'volume':
       r = locPropVal(r1.volume) - locPropVal(r2.volume);
       break;
-    case 'content':
-      r = locPropVal(r1.content_volume) - locPropVal(r2.content_volume);
+    case 'assembled':
+      r = locPropVal(r1.volume_assembled) - locPropVal(r2.volume_assembled);
       break;
     default:
       return 0;
@@ -183,7 +183,7 @@ class LocationDataSource implements DataSource<ItemRecord> {
 export class LocationComponent {
   location$: Observable<LocationRecord>;
 
-  displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume', 'content'];
+  displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume', 'assembled'];
   displayedHeaderColumns: string[] = ['name'];
   dataSource = new LocationDataSource();
 
@@ -311,8 +311,8 @@ export class LocationComponent {
       link: i.Link,
       quantity: i.quantity || '',
       value: i.TotalValue,
-      volume: i.Volume,
-      content_volume: i.ContentVolume,
+      volume: i.TotalVolume,
+      volume_assembled: i.AssembledVolume,
     }));
   }
 
@@ -471,8 +471,9 @@ export class LocationComponent {
     }
     info.icon = type_id;
     //info.value = this.cache.marketPrices.get(type_id);
-    info.volume = typeInfo.packaged_volume;
-    info.assembled_volume = typeInfo.volume;
+    info.volume = typeInfo.packaged_volume || typeInfo.volume; // (packaged) item's volume
+    if (typeInfo.packaged_volume) info.assembled_volume = typeInfo.volume; // assembled volume
+    info.loader = undefined;
   }
 
   private typeInfos = new Map<number, LocTypeInfo>();
@@ -486,6 +487,7 @@ export class LocationComponent {
       name: '',
       image: '',
       value: item.bpd?.copy ? undefined : this.cache.marketPrices.get(type_id),
+      do_not_pack: this.isShip(type_id), // keep assembled for ships
       loader,
     };
     if (item.name || item.bpd) return infoLoader;
@@ -512,6 +514,9 @@ export class LocationComponent {
   }
 
   private shipTIDs: number[] = [];
+  private isShip(tid: number): boolean {
+    return this.shipTIDs.includes(tid);
+  }
   private loadShipsTIDs(): Observable<never> {
     return this.data.loadCategoryInfo(EsiService.CATEGORY_ID_Ship).pipe(
       mergeMap((cat) => merge(...cat.groups.map((gid) => this.data.loadGroupInfo(gid)))),
@@ -522,7 +527,7 @@ export class LocationComponent {
   }
   private moveShips(items: EsiDataItem[]): void {
     items
-      .filter((i) => i.location_flag === 'Hangar' && this.shipTIDs.includes(i.type_id)) // move all ships from 'Hangar' ...
+      .filter((i) => i.location_flag === 'Hangar' && this.isShip(i.type_id)) // move all ships from 'Hangar' ...
       .forEach((i) => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
   }
   private loadAssets(): Observable<LocData[]> {

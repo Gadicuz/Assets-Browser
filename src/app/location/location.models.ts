@@ -12,7 +12,8 @@ export interface LocTypeInfo {
   // value/volumes for item
   value?: number; // item price
   volume?: number; // simple item or packaged container/ship
-  assembled_volume?: number; // assembled container/ship
+  assembled_volume?: number; // assembled container/ship, undefined for simple items
+  do_not_pack?: boolean; // keep assembled volume
 }
 
 /** Location position */
@@ -65,22 +66,39 @@ export class LocData {
     return locPropAdd(this.Value, this.ContentValue);
   }
 
-  /** Calculates LocData item q-pack volume */
+  /** Calculates item volume (packaged) */
   get Volume(): LocPropVal {
-    if (!this.quantity) return implicit0;
-    if (this.is_vcont) return this.ContentVolume;
-    const volume = this.content_items ? this.info.assembled_volume : this.info.volume;
-    return volume == undefined ? 'N/A' : this.quantity * volume;
+    if (this.is_vcont || !this.quantity) return implicit0;
+    if (this.info.volume == undefined) return 'n/a';
+    return this.quantity * this.info.volume;
   }
 
-  /** Calculates item's content volume */
+  /** Calculates item content volume (packaged) */
   get ContentVolume(): LocPropVal {
     if (this.content_cache_vol == undefined) {
-      const vol = this.calcPropVal((i) => i.Volume);
+      const vol = this.calcPropVal((i) => i.TotalVolume);
       if (typeof vol === 'string' && vol !== '') return vol;
       this.content_cache_vol = vol;
     }
     return this.content_cache_vol;
+  }
+
+  /** Calculates item total volume (packaged) */
+  get TotalVolume(): LocPropVal {
+    let vol = this.Volume;
+    if (!this.content_items) return vol;
+    if (this.info.do_not_pack) return implicit0;
+    vol = locPropAdd(vol, this.ContentVolume);
+    if (typeof vol === 'string') return vol;
+    if (this.info.assembled_volume && vol > this.info.assembled_volume) vol = this.info.assembled_volume;
+    return vol;
+  }
+
+  /** Calculates item's assembled volume (for container/ship)*/
+  get AssembledVolume(): LocPropVal {
+    if (!this.content_items) return implicit0;
+    if (this.info.do_not_pack) return this.info.assembled_volume ?? 'n/a';
+    return this.calcPropVal((i) => i.AssembledVolume);
   }
 
   /** Returns URL parameter for this location, undefined if no content is available */

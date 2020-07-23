@@ -76,11 +76,11 @@
       </mat-cell>
     </ng-container>
 
-    <ng-container matColumnDef="content">
-      <mat-header-cell *matHeaderCellDef mat-sort-header> Content<br>(m3) </mat-header-cell>
+    <ng-container matColumnDef="assembled">
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Assembled<br>(m3) </mat-header-cell>
       <mat-cell *matCellDef="let rec">
-        <ng-container *ngIf="isNum(rec.content_volume)">{{rec.content_volume | number:'.2-2'}}</ng-container>
-        <ng-container *ngIf="!isNum(rec.content_volume)">{{rec.content_volume}}</ng-container>
+        <ng-container *ngIf="isNum(rec.volume_assembled)">{{rec.volume_assembled | number:'.2-2'}}</ng-container>
+        <ng-container *ngIf="!isNum(rec.volume_assembled)">{{rec.volume_assembled}}</ng-container>
       </mat-cell>
     </ng-container>
 
