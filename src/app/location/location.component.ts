@@ -39,7 +39,7 @@ import {
   locPropAdd,
 } from './location.models';
 
-import { autoMap, set, mapGet } from '../utils/utils';
+import { autoMap, set, mapGet, tuple } from '../utils/utils';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -68,6 +68,7 @@ interface LocationInfo {
   image?: string;
   stats: LocationStat[];
   route: LocationRouteNode[];
+  data: LocData | undefined;
 }
 
 interface ItemRecord {
@@ -223,13 +224,13 @@ export class LocationComponent {
     );
 
     this.location$ = this.route.paramMap.pipe(
-      map((params) => params.get('id') || UNIVERSE_UID),
-      switchMap((uid) =>
+      map((params) => tuple(params.get('id') || UNIVERSE_UID, params.get('mode'))),
+      switchMap(([uid, mode]) =>
         concat(
           this.buildLocationPreview(uid),
           this.buildLocationTree(),
           defer(() =>
-            this.buildLocationData(uid).pipe(
+            this.buildLocationData(uid, mode === 'deep').pipe(
               catchError((error) => {
                 console.log(error);
                 return this.buildLocationPreview(uid, [], error);
@@ -248,18 +249,14 @@ export class LocationComponent {
   }
 
   /** Emits LocationRecord value */
-  private buildLocationData(uid: LocUID): Observable<LocationRecord> {
+  private buildLocationData(uid: LocUID, all: boolean): Observable<LocationRecord> {
     const loc = this.locs.get(uid);
     if (loc == undefined) return throwError(new Error(`Unknown location '${uid}'`));
     const route = this.getRoute(loc);
-    const content = loc.content_items;
-    const usedLocs = content ? [...route, ...content] : route;
+    let content = loc.content_items || [];
+    if (all) content = LocationComponent.flatten(content);
     return concat(
-      merge(
-        ...set(usedLocs.map((loc) => loc.info).filter((info) => info.loader)).map((info) =>
-          (info.loader as fnInfoLoader)(info)
-        )
-      ),
+      LocationComponent.loadInfo([...route, ...content]),
       defer(() =>
         of({
           info: this.createLocationInfo(loc, route),
@@ -278,6 +275,7 @@ export class LocationComponent {
         //image: question mark
         stats: [],
         route: [],
+        data: undefined,
       };
     return {
       name: loc.info.name,
@@ -293,6 +291,7 @@ export class LocationComponent {
             { title: 'Assembled Volume (m3)', value: loc.AssembledVolume },
           ],
       route: route.map((l) => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })), //TODO: set position as hint
+      data: loc,
     };
   }
 
@@ -340,6 +339,12 @@ export class LocationComponent {
       this.addChild(loc);
     }
   }
+  private static flatten(l: LocData[], f = false): LocData[] {
+    if (f) l = l.filter((i) => i.content_uid);
+    return l.length
+      ? l.map((i) => [i, ...LocationComponent.flatten(i.content_items || [], f)]).reduce((s, i) => s.concat(i))
+      : [];
+  }
   private loadLocations(): Observable<never> {
     return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(), this.loadSellOrders())).pipe(
       map((locs) => locs.filter((loc) => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
@@ -347,14 +352,8 @@ export class LocationComponent {
         this.preloadLocations(locs).pipe(
           tap({
             complete: () => {
-              function flatten(l: LocData[]): LocData[] {
-                l = l.filter((i) => i.content_uid);
-                return l.length
-                  ? l.map((i) => [i, ...flatten(i.content_items || [])]).reduce((s, i) => s.concat(i))
-                  : [];
-              }
               locs.forEach((loc) => this.addChild(loc));
-              flatten(locs).forEach((loc) => this.locs.set(loc.content_uid as LocUID, loc));
+              LocationComponent.flatten(locs, true).forEach((loc) => this.locs.set(loc.content_uid as LocUID, loc));
             },
           })
         )
@@ -499,6 +498,11 @@ export class LocationComponent {
     if (info) return info;
     this.typeInfos.set(type_id, infoLoader);
     return infoLoader;
+  }
+
+  private static loadInfo(locs: LocData[]): Observable<never> {
+    const infos = set(locs.map((loc) => loc.info).filter((info) => info.loader));
+    return merge(...infos.map((info) => (info.loader as fnInfoLoader)(info)));
   }
 
   private createLocContentItems(items: LocationItem[]): LocData[] {

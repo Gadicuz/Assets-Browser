@@ -16,8 +16,9 @@
             <div class="mat-caption">{{stat.title}}</div>
             <div class="mat-display-1 no-margin">
               <ng-container *ngIf="isNum(stat.value)">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
-              <ng-container *ngIf="!isNum(stat.value)">{{stat.value}}</ng-container>
+              <ng-container *ngIf="!isNum(stat.value) && stat.value !== 'n/a'">{{stat.value}}</ng-container>
             </div>
+            <button *ngIf="stat.value === 'n/a'" mat-stroked-button color="primary" [routerLink]="['/browse',location.info.data.Link,'deep']" fxFlexFill>Load</button>
           </div>
         </mat-card>
       </div>
