@@ -1,3 +1,7 @@
+.mat-card-header {
+  min-height: 36px;
+}
+
 .mat-row {
   min-height: 40px;
 }

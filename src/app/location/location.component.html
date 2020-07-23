@@ -9,10 +9,10 @@
       <mat-card-subtitle *ngIf="location.info.comment">{{location.info.comment}}</mat-card-subtitle>
     </mat-card-header>
 
-    <mat-card-content fxLayout="row wrap" fxLayoutAlign="start stretch">
-      <div *ngFor="let stat of location.info.stats">
-        <mat-card *ngIf="stat.value !== ''" class="gap-margin">
-          <div fxLayout="column">
+    <mat-card-content fxLayout="row wrap" fxLayoutGap="8px" fxLayoutAlign="start">
+      <ng-container *ngFor="let stat of location.info.stats">
+        <mat-card *ngIf="stat.value !== ''">
+          <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="start">
             <div class="mat-caption">{{stat.title}}</div>
             <div class="mat-display-1 no-margin">
               <ng-container *ngIf="isNum(stat.value)">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
@@ -21,13 +21,12 @@
             <button *ngIf="stat.value === 'n/a'" mat-stroked-button color="primary" [routerLink]="['/browse',location.info.data.Link,'deep']" fxFlexFill>Load</button>
           </div>
         </mat-card>
-      </div>
+      </ng-container>
       <app-error *ngIf="location.error as e" fxFlex fxFill [err]="e"></app-error>
       <mat-progress-bar *ngIf="!location.data" mode="indeterminate"></mat-progress-bar>
     </mat-card-content>
-    
+
     <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
-      <div></div>
       <ng-container *ngFor="let node of location.info.route; let idx = index">
         <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
         <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.link]" fxFlexAlign="center">{{node.name}}</button>
