@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, concat, defer, from, merge, of } from 'rxjs';
-import { ignoreElements, map, mergeMap, switchMap, tap } from 'rxjs/operators';
+import { bufferCount, delay, ignoreElements, map, mergeMap, publish, refCount, switchMap, tap } from 'rxjs/operators';
 import { mapGet } from '../../utils/utils';
 
 import {
@@ -132,6 +132,7 @@ export class EsiCacheService {
     return this.getTypesInfo().pipe(
       switchMap((typesInfo) =>
         from(removeKeys(ids, typesInfo)).pipe(
+          delay(0),
           mergeMap((id) => this.data.loadTypeInfo(id).pipe(tap((info) => typesInfo.set(id, info)))),
           ignoreElements()
         )
@@ -144,6 +145,27 @@ export class EsiCacheService {
           .get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json')
           .pipe(map((data) => (this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data))))
       : of(this.typesInfo);
+  }
+  private tidSet = new Set<number>();
+  private tidObservable$ = new Observable<never>();
+  public loadTypeInfo(id: number): Observable<never> {
+    if (this.tidSet.size) this.tidSet.add(id);
+    else {
+      this.tidSet = new Set<number>([id]);
+      this.tidObservable$ = new Observable<number>((subscriber) => {
+        const ids = this.tidSet;
+        this.tidSet = new Set<number>();
+        ids.forEach((id) => subscriber.next(id));
+        subscriber.complete();
+      }).pipe(
+        bufferCount(8),
+        //delay(0),
+        mergeMap((ids) => this.loadTypesInfo(ids)),
+        publish<never>(), // TS2322: Type 'Observable<any>' is not assignable to type 'Observable<never>'
+        refCount()
+      );
+    }
+    return this.tidObservable$;
   }
 
   /*

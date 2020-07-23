@@ -480,7 +480,7 @@ export class LocationComponent {
     const type_id = item.type_id;
     const loader = (info: LocTypeInfo): Observable<never> =>
       this.cache
-        .loadTypesInfo([type_id])
+        .loadTypeInfo(type_id)
         .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item.name, item.bpd) }));
     const infoLoader = {
       name: '',
