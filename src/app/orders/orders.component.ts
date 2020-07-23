@@ -85,7 +85,7 @@ export class OrdersComponent {
         map((data) => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
         catchError((err) => {
           console.log(err);
-          return of({ error: err });
+          return of({ error: err as unknown });
         })
       )
     );

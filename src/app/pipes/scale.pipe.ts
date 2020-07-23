@@ -10,7 +10,7 @@ export class ScalePipe implements PipeTransform {
     if (value == undefined || value === '' || value !== value) return undefined;
     locale = locale || this.locale;
     if (typeof value === 'string') value = Number(value);
-    if (typeof value !== 'number') throw new Error(value + 'is not a number');
+    if (typeof value !== 'number') throw new Error(String(value) + ' is not a number');
     let i = 0;
     while (value >= 1000 && i < sfx.length) {
       value /= 1000;

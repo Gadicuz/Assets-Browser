@@ -1,6 +1,5 @@
 import { HttpUrlEncodingCodec, HttpParameterCodec } from '@angular/common/http';
 
-// eslint-disable-next-line @typescript-eslint/class-name-casing
 export class X_WWW_FORM_UrlEncodingCodec implements HttpParameterCodec {
   static hook(): void {
     // eslint-disable-next-line @typescript-eslint/unbound-method

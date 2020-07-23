@@ -24,6 +24,6 @@ export const updateMapValues = <K, T, U>(m: Map<K, T>, upd: (_: T) => U): Map<K,
 
 export function mapGet<A, T>(m: Map<A, T>, k: A): T {
   const v = m.get(k);
-  if (!v) throw new Error(`Unknown key ${k}`);
+  if (!v) throw new Error('Unknown key: ' + String(k));
   return v;
 }

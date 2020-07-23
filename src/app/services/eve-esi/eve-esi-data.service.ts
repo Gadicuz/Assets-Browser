@@ -4,7 +4,7 @@ import { Observable, of, empty, from, throwError } from 'rxjs';
 import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
 import { EVESSOService } from '../eve-sso/eve-sso.module';
-import { EsiService, EsiError, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
+import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
 
 import {
   EsiItem,
@@ -165,7 +165,7 @@ export class EsiDataService {
       })),
       catchError((err: unknown) => {
         // some structures IDs are 'forbidden', status == 403
-        if (err instanceof EsiError && err.status == 403)
+        if (err instanceof EsiHttpErrorResponse && err.status == 403)
           return of({
             name: '',
             owner_id: 0,

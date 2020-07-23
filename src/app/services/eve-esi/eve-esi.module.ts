@@ -35,15 +35,23 @@ export interface EsiErrorData {
   error: string;
 }
 
-export class EsiError extends Error {
+export class EsiHttpErrorResponse implements Error {
+  readonly name: string;
+  readonly message: string;
   readonly status: number;
-  readonly error: EsiErrorData | Error;
+  readonly error: unknown;
+  readonly esiData?: EsiErrorData;
   constructor(e: HttpErrorResponse) {
-    super(e.message);
-    Object.setPrototypeOf(this, EsiError.prototype);
-    this.name = 'EsiError';
+    this.error = e.error as unknown;
     this.status = e.status;
-    this.error = e.error;
+    if ([400, 401, 403, 420, 500, 503, 504].indexOf(e.status) >= 0) {
+      this.esiData = e.error as EsiErrorData;
+      this.name = 'EsiHttpErrorResponse';
+      this.message = this.esiData.error;
+    } else {
+      this.name = e.name;
+      this.message = e.message;
+    }
   }
 }
 
@@ -153,6 +161,8 @@ enum imageResource {
   TypeRender = 'types/{}/render',
 }
 
+type EsiHttpParams = Record<string, string | undefined>;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -167,7 +177,7 @@ export class EsiService {
   static STD_MAIL_LABEL_ID_Corp = 4;
   static STD_MAIL_LABEL_ID_Alliance = 8;
 
-  private readonly defParams: object;
+  private readonly commonParams: EsiHttpParams;
   private static status_is_4xx(status: number): boolean {
     return status >= 400 && status < 500;
   }
@@ -239,7 +249,7 @@ export class EsiService {
   }
 
   constructor(private httpClient: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
-    this.defParams = {
+    this.commonParams = {
       datasource: config.datasource,
     };
   }
@@ -253,7 +263,7 @@ export class EsiService {
       errors.pipe(
         mergeMap((error, i) => {
           const attempt = i + 1;
-          if (attempt > count || noRetry(error.status)) return throwError(new EsiError(error));
+          if (attempt > count || noRetry(error.status)) return throwError(new EsiHttpErrorResponse(error));
           return timer(attempt * timeout);
         })
       );
@@ -263,21 +273,26 @@ export class EsiService {
     return this.config.url + this.config.ver + route;
   }
 
-  private getData<T>(route: string, parameters: object = {}, retry = EsiService.retry()): Observable<T> {
-    const params = new HttpParams({ fromObject: { ...this.defParams, ...parameters } });
+  private httpParams(parameters: EsiHttpParams = {}): HttpParams {
+    const params = { ...this.commonParams, ...parameters } as Record<string, string>; // TODO
+    return new HttpParams({ fromObject: params });
+  }
+
+  private getData<T>(route: string, parameters: EsiHttpParams = {}, retry = EsiService.retry()): Observable<T> {
+    const params = this.httpParams(parameters);
     return this.httpClient
       .get<T>(this.getUrl(route), { params })
       .pipe(retryWhen(retry));
   }
 
   private postData<T>(route: string, data: unknown, retry = EsiService.retry()): Observable<T> {
-    const params = new HttpParams({ fromObject: { ...this.defParams } });
+    const params = this.httpParams();
     return this.httpClient
       .post<T>(this.getUrl(route), data, { params })
       .pipe(retryWhen(retry));
   }
 
-  private getCharacterInformation<T>(character_id: number, route: string, params?: object): Observable<T> {
+  private getCharacterInformation<T>(character_id: number, route: string, params?: EsiHttpParams): Observable<T> {
     return this.getData<T>(`characters/${character_id}/${route}`, params);
   }
 

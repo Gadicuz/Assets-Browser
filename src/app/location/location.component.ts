@@ -123,7 +123,7 @@ interface LocationItem {
   bpd?: EsiDataBpd;
 }
 const locItemHash = (i: LocationItem): string =>
-  `${i.item_id}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos}`;
+  `${i.item_id || 0}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos || ''}`;
 
 const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap, EsiService.TYPE_ID_PlasticWrap];
 function isVirtualContainer(type_id: number): boolean {
@@ -271,7 +271,7 @@ export class LocationComponent {
     const loc = typeof uid === 'object' ? uid : this.locs.get(uid);
     if (loc == undefined)
       return {
-        name: `*** Unknown item '${uid}' *** `,
+        name: `*** Unknown item '${uid as LocUID}' *** `,
         //image: question mark
         stats: [],
         route: [],
