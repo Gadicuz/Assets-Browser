@@ -244,7 +244,7 @@ export class LocationComponent {
 
   /** Emits LocationRecord value (with info and error? fields only) */
   private buildLocationPreview(uid: LocUID, data?: ItemRecord[], error?: unknown): Observable<LocationRecord> {
-    return of({ info: this.createLocationInfo(uid), data, error });
+    return of({ info: this.createLocationInfo(uid, [], true), data, error });
   }
 
   /** Emits LocationRecord value */
@@ -270,7 +270,7 @@ export class LocationComponent {
   }
 
   /** Assembles LocationInfo structure for LocUID/LocData */
-  private createLocationInfo(uid: LocUID | LocData, route: LocData[] = []): LocationInfo {
+  private createLocationInfo(uid: LocUID | LocData, route: LocData[], preview = false): LocationInfo {
     const loc = typeof uid === 'object' ? uid : this.locs.get(uid);
     if (loc == undefined)
       return {
@@ -283,12 +283,15 @@ export class LocationComponent {
       name: loc.info.name,
       comment: loc.info.comment,
       image: typeof loc.info.icon === 'number' ? this.esi.getItemIconURI(loc.info.icon, 32) : loc.info.icon,
-      stats: [
-        { title: 'Value (ISK)', value: loc.Value },
-        { title: 'Content Value (ISK)', value: loc.ContentValue },
-        { title: 'Item Volume (m3)', value: loc.Volume },
-        { title: 'Content Volume (m3)', value: loc.ContentVolume },
-      ],
+      stats: preview
+        ? []
+        : [
+            { title: 'Value (ISK)', value: loc.Value },
+            { title: 'Content Value (ISK)', value: loc.ContentValue },
+            { title: 'Item Volume (m3)', value: loc.Volume },
+            { title: 'Content Volume (m3)', value: loc.ContentVolume },
+            { title: 'Assembled Volume (m3)', value: loc.AssembledVolume },
+          ],
       route: route.map((l) => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })), //TODO: set position as hint
     };
   }
