@@ -1,8 +1,12 @@
 .avatar{
-  border-radius: 16px;
-  height: 52px;
-  width: 52px;
+  border-radius: 12px;
+  height: 48px;
+  width: 48px;
   object-fit: contain;
+}
+::ng-deep.mat-tab-label {
+  min-width: 0!important;
+  padding: 4px!important;
 }
 .footer p {
   margin: 16px;

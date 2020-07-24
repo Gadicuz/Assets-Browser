@@ -7,6 +7,8 @@ import { EVESSO_CONFIG, EVESSOConfig } from './eve-sso.config';
 import { AccessTokenV2Payload } from './eve-sso.model';
 
 import { b64urlDecode } from '@waiting/base64';
+import { Observable, of, never, from } from 'rxjs';
+import { catchError, filter, switchMap } from 'rxjs/operators';
 
 export { EVESSOConfig } from './eve-sso.config';
 
@@ -29,18 +31,7 @@ export { EVESSOConfig } from './eve-sso.config';
   providedIn: 'root',
 })
 export class EVESSOService {
-  public atp?: AccessTokenV2Payload;
   public err: unknown;
-
-  get charIdName(): { id: number; name: string } | undefined {
-    if (this.atp == undefined) return undefined;
-    const id = this.atp.sub.split(':').pop();
-    if (id == undefined) return undefined;
-    return {
-      id: +id,
-      name: this.atp.name,
-    };
-  }
 
   constructor(private oauth: OAuthService, @Inject(EVESSO_CONFIG) private cfg: EVESSOConfig) {}
 
@@ -61,32 +52,37 @@ export class EVESSOService {
     });
   }
 
-  public authorize(): void {
+  public authorize(): Observable<number> {
     // Load Discovery Document and then try to login the user
-    this.oauth
-      .loadDiscoveryDocumentAndTryLogin()
-      .then(() => {
-        if (this.oauth.hasValidAccessToken()) {
-          const at = this.oauth.getAccessToken();
-          const [atHeader, atPayload] = at
-            .split('.')
-            .slice(0, 2)
-            .map((s) => JSON.parse(b64urlDecode(s)) as unknown) as [unknown, AccessTokenV2Payload];
-          void this.oauth.tokenValidationHandler
-            .validateSignature({
-              idToken: at,
-              idTokenHeader: atHeader,
-              idTokenClaims: atPayload,
-              jwks: this.oauth.jwks,
-            } as ValidationParams)
-            .then(() => {
-              this.atp = atPayload;
-              //this.oauth.timeoutFactor = 0.1;
-              this.oauth.setupAutomaticSilentRefresh();
-            });
-        }
+    return from(this.oauth.loadDiscoveryDocumentAndTryLogin()).pipe(
+      filter(() => this.oauth.hasValidAccessToken()),
+      switchMap(() => {
+        const at = this.oauth.getAccessToken();
+        const [atHeader, atPayload] = at
+          .split('.')
+          .slice(0, 2)
+          .map((s) => JSON.parse(b64urlDecode(s)) as unknown) as [unknown, AccessTokenV2Payload];
+        return from(
+          this.oauth.tokenValidationHandler.validateSignature({
+            idToken: at,
+            idTokenHeader: atHeader,
+            idTokenClaims: atPayload,
+            jwks: this.oauth.jwks,
+          } as ValidationParams)
+        ).pipe(
+          switchMap(() => {
+            //this.oauth.timeoutFactor = 0.1;
+            this.oauth.setupAutomaticSilentRefresh();
+            const id = atPayload.sub.split(':').pop();
+            return id == undefined ? never() : of(+id);
+          })
+        );
+      }),
+      catchError((err) => {
+        this.err = err as unknown;
+        return never();
       })
-      .catch((err) => (this.err = err as unknown));
+    );
   }
 
   login(): void {
@@ -94,7 +90,6 @@ export class EVESSOService {
   }
 
   logout(): void {
-    this.atp = undefined;
     this.oauth.logOut();
   }
 

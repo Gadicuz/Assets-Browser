@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, empty, from, throwError } from 'rxjs';
 import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
-import { EVESSOService } from '../eve-sso/eve-sso.module';
 import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
 
 import {
@@ -114,6 +113,16 @@ export const fltBuySellUnk = <T extends EsiDataMarketOrder>(
   buy_sell: EsiMarketOrderType | undefined
 ): ((o: T) => boolean) => (buy_sell == undefined ? (): boolean => true : fltBuySell(buy_sell));
 
+export interface EsiIdName {
+  id: number;
+  name: string;
+}
+
+export interface EsiCharacterData {
+  char: EsiIdName;
+  corp: EsiIdName;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -122,15 +131,29 @@ export class EsiDataService {
     return set(ids).filter((id) => ![...knownIDs].includes(id));
   }
 
-  constructor(private http: HttpClient, private esi: EsiService, private sso: EVESSOService) {}
+  constructor(private http: HttpClient, private esi: EsiService) {}
 
-  get character(): { id: number; name: string } {
-    const idn = this.sso.charIdName;
-    if (idn == undefined) throw Error('Undefined character ID');
-    return {
-      id: idn.id,
-      name: idn.name,
-    };
+  public charData?: EsiCharacterData;
+  private get charId(): number {
+    if (this.charData == undefined) throw Error('Undefined character ID');
+    return this.charData.char.id;
+  }
+  loadCharacterData(id$: Observable<number>): Observable<EsiCharacterData> {
+    return id$.pipe(
+      mergeMap((id) =>
+        this.esi.getCharacter(id).pipe(
+          mergeMap((ch) =>
+            this.esi.getCorporation(ch.corporation_id).pipe(
+              map((crp) => {
+                const char = { id, name: ch.name };
+                const corp = { id: ch.corporation_id, name: crp.name };
+                return (this.charData = { char, corp });
+              })
+            )
+          )
+        )
+      )
+    );
   }
 
   // Generics extending unions cannot be narrowed #13995
@@ -189,11 +212,11 @@ export class EsiDataService {
   }
 
   loadCharacterItems(): Observable<EsiItem[]> {
-    return this.esi.getCharacterItems(this.character.id);
+    return this.esi.getCharacterItems(this.charId);
   }
 
   loadCharacterItemNames(ids: number[]): Observable<EsiDataItemName[]> {
-    return this.esi.getCharacterItemNames(this.character.id, ids).pipe(
+    return this.esi.getCharacterItemNames(this.charId, ids).pipe(
       map((names) =>
         names.map((n) => ({
           item_id: n.item_id,
@@ -234,7 +257,7 @@ export class EsiDataService {
       volume_remain: o.volume_remain,
       volume_total: o.volume_total,
       region_id: o.region_id,
-      issued_by: this.character.id,
+      issued_by: this.charId,
       is_corporation: o.is_corporation,
       escrow: o.escrow || 0,
       wallet_division: 0,
@@ -262,7 +285,7 @@ export class EsiDataService {
 
   loadCharacterMarketOrders(buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
     return this.esi
-      .getCharacterOrders(this.character.id)
+      .getCharacterOrders(this.charId)
       .pipe(map((orders) => orders.map((o) => this.fromEsiMarketOrderCharacter(o)).filter(fltBuySellUnk(buy_sell))));
   }
 
@@ -314,11 +337,11 @@ export class EsiDataService {
   }
 
   loadCharacterBlueprints(): Observable<EsiBlueprint[]> {
-    return this.esi.getCharacterBlueprints(this.character.id);
+    return this.esi.getCharacterBlueprints(this.charId);
   }
 
   loadCharacterWalletTransactions(): Observable<EsiWalletTransaction[]> {
-    return this.esi.getCharacterWalletTransactions(this.character.id);
+    return this.esi.getCharacterWalletTransactions(this.charId);
   }
 
   private static convertEsiDataMailHeader(h: EsiMailHeader): EsiDataMailHeader {
@@ -338,7 +361,7 @@ export class EsiDataService {
     labels: number[] | undefined,
     up_to_date = 0
   ): Observable<EsiDataMailHeader[]> {
-    return this.esi.getCharacterMailHeaders(this.character.id, labels, mail_id).pipe(
+    return this.esi.getCharacterMailHeaders(this.charId, labels, mail_id).pipe(
       map((headers) =>
         headers.map((h) => EsiDataService.convertEsiDataMailHeader(h)).filter((h) => h.timestamp >= up_to_date)
       ),

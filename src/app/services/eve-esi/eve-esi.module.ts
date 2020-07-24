@@ -14,6 +14,8 @@ import { EVEESI_CONFIG, EVEESIConfig } from './eve-esi.config';
 import { noAuthRoutes } from './eve-esi.public';
 
 import {
+  EsiCharacter,
+  EsiCorporation,
   EsiItem,
   EsiItemName,
   EsiInfoSelector,
@@ -44,7 +46,7 @@ export class EsiHttpErrorResponse implements Error {
   constructor(e: HttpErrorResponse) {
     this.error = e.error as unknown;
     this.status = e.status;
-    if ([400, 401, 403, 420, 500, 503, 504].indexOf(e.status) >= 0) {
+    if ([400, 401, 403, 404, 420, 500, 503, 504].indexOf(e.status) >= 0) {
       this.esiData = e.error as EsiErrorData;
       this.name = 'EsiHttpErrorResponse';
       this.message = this.esiData.error;
@@ -192,6 +194,9 @@ export class EsiService {
   public getCharacterAvatarURI(character_id: number, size: number): string {
     return EsiService.getImage(imageResource.CharPortrait, character_id, size);
   }
+  public getCorporationLogoURI(corporation_id: number, size: number): string {
+    return EsiService.getImage(imageResource.CorporationLogo, corporation_id, size);
+  }
   public getItemIconURI(type_id: number, size: number): string {
     return EsiService.getImage(imageResource.TypeIcon, type_id, size);
   }
@@ -296,6 +301,10 @@ export class EsiService {
     return this.getData<T>(`characters/${character_id}/${route}`, params);
   }
 
+  public getCharacter(character_id: number): Observable<EsiCharacter> {
+    return this.getCharacterInformation<EsiCharacter>(character_id, '');
+  }
+
   public getCharacterOrders(character_id: number): Observable<EsiMarketOrderCharacter[]> {
     return this.getCharacterInformation<EsiMarketOrderCharacter[]>(character_id, 'orders/');
   }
@@ -349,6 +358,10 @@ export class EsiService {
       mergeMap((ids) => this._getCharacterItemNames(character_id, ids)),
       reduce((r, n) => r.concat(n), [] as EsiItemName[])
     );
+  }
+
+  public getCorporation(corporation_id: number): Observable<EsiCorporation> {
+    return this.getData<EsiCorporation>(`corporations/${corporation_id}/`);
   }
 
   public listMarketPrices(): Observable<EsiMarketPrice[]> {

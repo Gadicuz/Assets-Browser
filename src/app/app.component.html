@@ -1,13 +1,19 @@
-<div class="app-container" fxLayout="column" fxLayoutAlign="start" *defVar="charData as character">
+<div class="app-container" fxLayout="column" fxLayoutAlign="start" *defVar="(userTabs$ | async) as tabs">
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
-    <ng-container *ngIf="character; else nochar">
+    <ng-container *ngIf="tabs; else nouser">
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/browse']">Assets</a>
       <a fxFlex="0 0 auto" mat-stroked-button routerLinkActive="mat-flat-button" [routerLink]="['/orders']">Orders</a>
       <div fxFlex="1 1 auto"></div>
-      <div fxFlex="0 0 auto"><span>{{character.name}}</span></div>
-      <img fxFlex="0 0 auto" class="avatar" src={{character.avatar}}>
+      <div fxFlex="0 0 auto"><span>{{title}}</span></div>
+      <mat-tab-group color="warn" selectedIndex="1" (selectedTabChange)="tabChanged($event)">
+        <mat-tab *ngFor="let user of tabs">
+          <ng-template mat-tab-label>
+            <img class="avatar" [src]="user.avatar">
+          </ng-template> 
+        </mat-tab>
+      </mat-tab-group>
     </ng-container>
-    <ng-template #nochar>
+    <ng-template #nouser>
       <div fxFlex="1 1 auto"></div>
     </ng-template>
     <div *ngIf="isLoggedIn(); then loggedIn; else loggedOut"></div>
@@ -23,7 +29,7 @@
     </ng-template>
   </mat-toolbar>
 
-  <div *ngIf="character" fxLayout="row" fxLayoutAlign="center">
+  <div *ngIf="tabs" fxLayout="row" fxLayoutAlign="center">
     <div fxFlex="80%">
       <router-outlet></router-outlet>
     </div>

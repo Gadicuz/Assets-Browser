@@ -399,9 +399,9 @@ export class LocationComponent {
   }
 
   private locInfo_Character(id: number): LocTypeInfo {
-    const idn = this.data.character;
+    const chData = this.data.charData;
     return {
-      name: idn?.id === id ? idn.name : `Character #${id}`,
+      name: chData && chData.char.id === id ? chData.char.name : `Character #${id}`,
       icon: this.esi.getCharacterAvatarURI(id, 32),
     };
   }
