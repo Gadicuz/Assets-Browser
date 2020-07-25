@@ -72,7 +72,7 @@ export class AppComponent {
   public linkQ(i: number): { [k: string]: unknown } {
     if (this.subjs == undefined) return {};
     return {
-      id: this.subjs[i].id,
+      subj: this.subjs[i].id,
     };
   }
 

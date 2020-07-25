@@ -66,7 +66,7 @@ export class OrdersComponent {
     this.orders$ = concat(
       of({}),
       this.route.queryParamMap.pipe(
-        map((q) => this.data.parseSubjectId(q.get('id'))),
+        map((q) => this.data.parseSubjectId(q.get('subj'))),
         switchMap((subj_id) =>
           combineLatest(
             this.data.loadCharacterMarketOrders(subj_id, 'sell'),

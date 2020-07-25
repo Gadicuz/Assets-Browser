@@ -227,7 +227,7 @@ export class LocationComponent {
     this.location$ = combineLatest(this.route.paramMap, this.route.queryParamMap, (p, q) => ({
       uid: p.get('id') || UNIVERSE_UID,
       mode: p.get('mode'),
-      subj_id: this.data.parseSubjectId(q.get('id')),
+      subj_id: this.data.parseSubjectId(q.get('subj')),
     })).pipe(
       switchMap((params) =>
         concat(
