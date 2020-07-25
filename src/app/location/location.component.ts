@@ -12,6 +12,7 @@ import {
   reduce,
   catchError,
   ignoreElements,
+  filter,
 } from 'rxjs/operators';
 
 import {
@@ -21,6 +22,7 @@ import {
   EsiDataItem,
   EsiDataInfo,
   EsiDataBpd,
+  parseEntity,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -39,7 +41,7 @@ import {
   locPropAdd,
 } from './location.models';
 
-import { autoMap, set, mapGet, tuple } from '../utils/utils';
+import { autoMap, set, mapGet } from '../utils/utils';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -223,17 +225,21 @@ export class LocationComponent {
       )
     );
 
-    this.location$ = this.route.paramMap.pipe(
-      map((params) => tuple(params.get('id') || UNIVERSE_UID, params.get('mode'))),
-      switchMap(([uid, mode]) =>
+    this.location$ = combineLatest(this.route.paramMap, this.route.queryParamMap, (p, q) => ({
+      uid: p.get('id') || UNIVERSE_UID,
+      mode: p.get('mode'),
+      entity_id: parseEntity(q.get('id')),
+    })).pipe(
+      filter((params) => this.data.findUser(params.entity_id) !== undefined),
+      switchMap((params) =>
         concat(
-          this.buildLocationPreview(uid),
-          this.buildLocationTree(),
+          this.buildLocationPreview(params.uid),
+          this.buildLocationTree(params.entity_id as number),
           defer(() =>
-            this.buildLocationData(uid, mode === 'deep').pipe(
+            this.buildLocationData(params.uid, params.mode === 'deep').pipe(
               catchError((error) => {
                 console.log(error);
-                return this.buildLocationPreview(uid, [], error);
+                return this.buildLocationPreview(params.uid, [], error);
               })
             )
           )
@@ -300,8 +306,8 @@ export class LocationComponent {
     return loc != undefined ? this.getRoute(this.locs.get(loc.ploc.uid), [loc, ...route]) : route;
   }
 
-  private buildLocationTree(): Observable<never> {
-    return this.locs.size !== 1 ? empty() : this.loadLocations();
+  private buildLocationTree(entity_id: number): Observable<never> {
+    return this.locs.size !== 1 ? empty() : this.loadLocations(entity_id);
   }
 
   private createDataRecords(loc: LocData): ItemRecord[] {
@@ -345,8 +351,11 @@ export class LocationComponent {
       ? l.map((i) => [i, ...LocationComponent.flatten(i.content_items || [], f)]).reduce((s, i) => s.concat(i))
       : [];
   }
-  private loadLocations(): Observable<never> {
-    return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(), this.loadSellOrders())).pipe(
+  private loadLocations(entity_id: number): Observable<never> {
+    return concat(
+      this.cache.loadMarketPrices(),
+      merge(this.loadAssets(entity_id), this.loadSellOrders(entity_id))
+    ).pipe(
       map((locs) => locs.filter((loc) => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
       concatMap((locs) =>
         this.preloadLocations(locs).pipe(
@@ -399,9 +408,9 @@ export class LocationComponent {
   }
 
   private locInfo_Character(id: number): LocTypeInfo {
-    const chData = this.data.charData;
+    const user = this.data.findUser(id, 'characters');
     return {
-      name: chData && chData.char.id === id ? chData.char.name : `Character #${id}`,
+      name: user ? user.name : `Character #${id}`,
       icon: this.esi.getCharacterAvatarURI(id, 32),
     };
   }
@@ -537,11 +546,10 @@ export class LocationComponent {
       .filter((i) => i.location_flag === 'Hangar' && this.isShip(i.type_id)) // move all ships from 'Hangar' ...
       .forEach((i) => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
   }
-  private loadAssets(): Observable<LocData[]> {
-    return concat(
-      merge(this.cache.loadCharacterItems(), this.loadShipsTIDs()),
-      defer(() => {
-        const items = [...this.cache.characterItems.values()];
+  private loadAssets(entity_id: number): Observable<LocData[]> {
+    return concat(this.loadShipsTIDs(), this.cache.loadItems(entity_id)).pipe(
+      map((cache) => {
+        const items = [...cache.values()];
         this.moveShips(items);
         const cIds = set(items.map((item) => item.location_id));
         let locs = this.createLocContentItems(
@@ -572,45 +580,43 @@ export class LocationComponent {
               [[], []] as [LocData[], LocData[]]
             );
           });
-        return of(locs); // unlinked top level locations
+        return locs; // unlinked top level locations
       })
     );
   }
 
-  private loadSellOrders(): Observable<LocData[]> {
-    return concat(
-      this.cache.loadCharacterMarketOrders(),
-      defer(() =>
-        of(
-          Array.from(
-            this.cache.characterMarketOrders
-              .filter(fltBuySell('sell'))
-              .reduce(
-                autoMap((o) => o.location_id),
-                new Map()
-              )
-              .entries(),
-            ([l_id, orders]) => {
-              const location = { uid: `ord${l_id}`, pos: 'Sell' };
-              return new LocData(
-                { name: 'Market orders', icon: MARKET_IMAGE_URL },
-                { uid: String(l_id), pos: TRADE_POS },
-                location.uid,
-                this.createLocContentItems(
-                  orders.map((o) => ({
-                    is_vcont: false,
-                    name: '',
-                    location,
-                    type_id: o.type_id,
-                    quantity: o.volume_remain,
-                  }))
-                ),
-                true
-              );
-            }
-          )
-        )
-      )
+  private loadSellOrders(entity_id: number): Observable<LocData[]> {
+    return this.cache.loadMarketOrders(entity_id).pipe(
+      // todo
+      map((orders) => {
+        return Array.from(
+          orders
+            .filter(fltBuySell('sell'))
+            .reduce(
+              autoMap((o) => o.location_id),
+              new Map()
+            )
+            .entries(),
+          ([l_id, orders]) => {
+            const location = { uid: `ord${l_id}`, pos: 'Sell' };
+            return new LocData(
+              { name: 'Market orders', icon: MARKET_IMAGE_URL },
+              { uid: String(l_id), pos: TRADE_POS },
+              location.uid,
+              this.createLocContentItems(
+                orders.map((o) => ({
+                  is_vcont: false,
+                  name: '',
+                  location,
+                  type_id: o.type_id,
+                  quantity: o.volume_remain,
+                }))
+              ),
+              true
+            );
+          }
+        );
+      })
     );
   }
 }

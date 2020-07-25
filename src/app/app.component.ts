@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { Router } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
 import { EVESSOService } from './services/eve-sso/eve-sso.module';
 import { EsiService } from './services/eve-esi/eve-esi.module';
@@ -10,11 +11,10 @@ import ru from '@angular/common/locales/ru';
 
 import ccpCopyright from './ccp.copyright.json';
 import { Observable, Subject, never, merge } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
-
-import { MatTabChangeEvent } from '@angular/material/tabs';
+import { catchError, map } from 'rxjs/operators';
 
 export interface UserTab {
+  id: number;
   name: string;
   avatar: string;
 }
@@ -33,43 +33,56 @@ export class AppComponent {
     return this.err || this.sso.err;
   }
 
+  public readonly routes = [
+    { caption: 'Assets', link: 'browse' },
+    { caption: 'Orders', link: 'orders' },
+  ];
+
   private tabData: UserTab[] | undefined = undefined;
   private undefSubj = new Subject<undefined>();
-  public activeUser = 1;
+  public activeUser?: number;
   public title: string | undefined;
 
-  constructor(private sso: EVESSOService, private esi: EsiService, private data: EsiDataService) {
+  constructor(
+    private router: Router,
+    private sso: EVESSOService,
+    private esi: EsiService,
+    private data: EsiDataService
+  ) {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);
     this.sso.configure();
     this.userTabs$ = merge(
-      this.data.loadCharacterData(this.sso.authorize()).pipe(
+      this.data.loadUsers(this.sso.authorize()).pipe(
         catchError((err) => {
           this.err = err as unknown;
           return never();
         }),
-        map((chData) => [
-          {
-            name: chData.corp.name,
-            avatar: this.esi.getCorporationLogoURI(chData.corp.id, 64),
-          },
-          {
-            name: chData.char.name,
-            avatar: this.esi.getCharacterAvatarURI(chData.char.id, 64),
-          },
-        ]),
-        tap((tabs) => {
-          this.tabData = tabs;
-          this.setActiveUser(1);
+        map((chData) => {
+          void router.navigate([], { replaceUrl: true });
+          return (this.tabData = chData.map((u) => ({
+            ...u,
+            avatar:
+              u.entity === 'characters'
+                ? this.esi.getCharacterAvatarURI(u.id, 64)
+                : this.esi.getCorporationLogoURI(u.id, 64),
+          })));
         })
       ),
       this.undefSubj.asObservable()
     );
   }
 
-  private setActiveUser(i: number): void {
+  public setActiveUser(i: number): void {
     this.activeUser = i;
     this.title = this.tabData && this.tabData[i].name;
+  }
+
+  public linkQ(i: number): { [k: string]: unknown } {
+    if (this.tabData == undefined) return {};
+    return {
+      id: this.tabData[i].id,
+    };
   }
 
   ngOnInit(): void {
@@ -89,7 +102,7 @@ export class AppComponent {
     return this.sso.isLoggedIn();
   }
 
-  tabChanged(ev: MatTabChangeEvent): void {
-    this.setActiveUser(ev.index);
-  }
+  // tabChanged(ev: MatTabChangeEvent): void {
+  //   this.setActiveUser(ev.index);
+  // }
 }

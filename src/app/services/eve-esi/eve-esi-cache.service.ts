@@ -18,64 +18,75 @@ import {
 import { autoMap, set, removeKeys } from '../../utils/utils';
 import { EsiService } from './eve-esi.module';
 
+type EsiDataItems = Map<number, EsiDataItem>;
+
 @Injectable({
   providedIn: 'root',
 })
 export class EsiCacheService {
   constructor(private data: EsiDataService, private http: HttpClient) {}
 
+  private _loadItems(entity_id: number): Observable<EsiDataItems> {
+    return this.data.loadItems(entity_id).pipe(map((items) => new Map(items.map((i) => [i.item_id, i]))));
+  }
+
+  private _loadNames(entity_id: number, items: EsiDataItems): Observable<EsiDataItems> {
+    return this.data
+      .loadItemNames(
+        entity_id,
+        [...items.values()].filter((i) => i.is_singleton).map((i) => i.item_id)
+      )
+      .pipe(
+        map((names) => {
+          names.filter((n) => n.name).forEach((n) => ((items.get(n.item_id) as EsiDataItem).name = n.name));
+          return items;
+        })
+      );
+  }
+
+  private _loadBlueprints(entity_id: number, items: EsiDataItems): Observable<EsiDataItems> {
+    return this.data.loadBlueprints(entity_id).pipe(
+      map((bps) => {
+        bps.forEach((bp) => {
+          let item = items.get(bp.item_id);
+          const in_use = item == undefined;
+          if (!item)
+            items.set(
+              bp.item_id,
+              (item = {
+                // Add currently used blueprints
+                is_blueprint_copy: bp.quantity === -2,
+                is_singleton: true,
+                item_id: bp.item_id,
+                location_id: bp.location_id,
+                location_flag: 'ServiceModule', //bp.location_flag,
+                location_type: 'other',
+                type_id: bp.type_id,
+                quantity: bp.quantity > 0 ? bp.quantity : 1,
+              })
+            );
+          item.name = `${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
+          item.bpd = {
+            me: bp.material_efficiency,
+            te: bp.time_efficiency,
+            copy: bp.runs > 0 ? bp.runs : undefined,
+            in_use,
+          };
+        });
+        return items;
+      })
+    );
+  }
+
   // characters/{character_id}/assets/
   // characters/{character_id}/assets/names/   - for is_singleton items only
   // characters/{character_id}/blueprints/
-  public characterItems = new Map<number, EsiDataItem>();
-  public loadCharacterItems(): Observable<never> {
-    return concat(
-      this.data.loadCharacterItems().pipe(
-        tap((items) => (this.characterItems = new Map(items.map((i) => [i.item_id, i])))),
-        mergeMap((items) =>
-          this.data
-            .loadCharacterItemNames(items.filter((i) => i.is_singleton).map((i) => i.item_id))
-            .pipe(
-              tap((names) =>
-                names
-                  .filter((n) => n.name)
-                  .forEach((n) => ((this.characterItems.get(n.item_id) as EsiDataItem).name = n.name))
-              )
-            )
-        ),
-        ignoreElements()
-      ),
-      this.data.loadCharacterBlueprints().pipe(
-        tap((bps) => {
-          bps.forEach((bp) => {
-            let item = this.characterItems.get(bp.item_id);
-            const in_use = item == undefined;
-            if (!item)
-              this.characterItems.set(
-                bp.item_id,
-                (item = {
-                  // Add currently used blueprints
-                  is_blueprint_copy: bp.quantity === -2,
-                  is_singleton: true,
-                  item_id: bp.item_id,
-                  location_id: bp.location_id,
-                  location_flag: 'ServiceModule', //bp.location_flag,
-                  location_type: 'other',
-                  type_id: bp.type_id,
-                  quantity: bp.quantity > 0 ? bp.quantity : 1,
-                })
-              );
-            item.name = `${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
-            item.bpd = {
-              me: bp.material_efficiency,
-              te: bp.time_efficiency,
-              copy: bp.runs > 0 ? bp.runs : undefined,
-              in_use,
-            };
-          });
-        }),
-        ignoreElements()
-      )
+  public entityItems = new Map<number, EsiDataItems>();
+  public loadItems(entity_id: number): Observable<EsiDataItems> {
+    return this._loadItems(entity_id).pipe(
+      mergeMap((items) => this._loadNames(entity_id, items)),
+      mergeMap((items) => this._loadBlueprints(entity_id, items)),
+      tap((items) => this.entityItems.set(entity_id, items))
     );
   }
 
@@ -195,12 +206,11 @@ export class EsiCacheService {
     );
   }
 
-  public characterMarketOrders: EsiDataCharMarketOrder[] = [];
-  public loadCharacterMarketOrders(): Observable<never> {
-    return this.data.loadCharacterMarketOrders(undefined).pipe(
-      tap((orders) => (this.characterMarketOrders = orders)),
-      ignoreElements()
-    );
+  public entityMarketOrders = new Map<number, EsiDataCharMarketOrder[]>();
+  public loadMarketOrders(entity_id: number): Observable<EsiDataCharMarketOrder[]> {
+    return this.data
+      .loadMarketOrders(entity_id, undefined)
+      .pipe(tap((orders) => this.entityMarketOrders.set(entity_id, orders)));
   }
 
   public loadStructuresMarketOrders(
@@ -225,8 +235,8 @@ export class EsiCacheService {
   }
 
   public characterWalletTransactions: EsiWalletTransaction[] = [];
-  public loadCharacterWalletTransactions(): Observable<never> {
-    return this.data.loadCharacterWalletTransactions().pipe(
+  public loadCharacterWalletTransactions(character_id: number): Observable<never> {
+    return this.data.loadCharacterWalletTransactions(character_id).pipe(
       tap((wt) => (this.characterWalletTransactions = wt)),
       ignoreElements()
     );

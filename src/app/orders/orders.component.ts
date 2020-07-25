@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
-import { Observable, of, concat, zip, merge, defer } from 'rxjs';
-import { map, mergeMap, toArray, catchError } from 'rxjs/operators';
+import { Observable, of, concat, merge, defer, combineLatest } from 'rxjs';
+import { map, toArray, catchError, filter, switchMap } from 'rxjs/operators';
 
 import {
   EsiDataCharMarketOrder,
@@ -11,12 +11,14 @@ import {
   EsiDataService,
   EsiMarketOrderType,
   EsiDataInfo,
+  parseEntity,
 } from '../services/eve-esi/eve-esi-data.service';
 
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
 
 import { autoMap, set, tuple, updateMapValues } from '../utils/utils';
+import { ActivatedRoute } from '@angular/router';
 
 export interface OrderListItem {
   type_id: number;
@@ -61,27 +63,35 @@ export class OrdersComponent {
 
   private readonly depth = 30 * 24 * 60 * 60 * 1000;
 
-  constructor(private data: EsiDataService, private cache: EsiCacheService) {
+  constructor(private route: ActivatedRoute, private data: EsiDataService, private cache: EsiCacheService) {
     this.orders$ = concat(
       of({}),
-      zip(
-        this.data.loadCharacterMarketOrders('sell'),
-        this.data
-          .loadCharacterWalletTransactions()
-          .pipe(
-            map((wts) =>
-              wts.filter((wt) => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth)
-            )
-          ),
-        (orders, trans) => this.analyzeData(orders, trans)
-      ).pipe(
-        mergeMap(([loc_types, char_sales, ids]) => {
+      this.route.queryParamMap.pipe(
+        map((q) => parseEntity(q.get('id'))),
+        filter((entity_id) => this.data.findUser(entity_id) !== undefined),
+        map((entity_id) => entity_id as number),
+        switchMap((entity_id) =>
+          combineLatest(
+            this.data.loadCharacterMarketOrders(entity_id, 'sell'),
+            this.data
+              .loadCharacterWalletTransactions(entity_id)
+              .pipe(
+                map((wts) =>
+                  wts.filter(
+                    (wt) => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth
+                  )
+                )
+              ),
+            (orders, trans) => this.analyzeData(orders, trans)
+          )
+        ),
+        switchMap(([loc_types, char_sales, ids]) => {
           const sales = new Map(char_sales.map((s) => [s.l_id, s.tid_sales]));
           return this.loadMarketOrders(loc_types, 'sell').pipe(
-            map((loc_orders) => this.assembleLocationInfo(loc_orders, sales.get(loc_orders.l_id), ids))
+            map((loc_orders) => this.assembleLocationInfo(loc_orders, sales.get(loc_orders.l_id), ids)),
+            toArray()
           );
         }),
-        toArray(),
         map((data) => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
         catchError((err) => {
           console.log(err);

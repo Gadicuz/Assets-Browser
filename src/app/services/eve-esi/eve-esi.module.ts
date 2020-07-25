@@ -23,6 +23,7 @@ import {
   EsiLocationType,
   EsiMarketOrderType,
   EsiMarketOrderCharacter,
+  EsiMarketOrderCorporation,
   EsiMarketHistoryOrderCharacter,
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
@@ -154,6 +155,8 @@ export interface EsiIdInfo {
   category: EsiIdCategory;
   name: string;
 }
+
+export type EsiEntity = 'characters' | 'corporations';
 
 enum imageResource {
   AllianceLogo = 'alliances/{}/logo',
@@ -297,32 +300,89 @@ export class EsiService {
       .pipe(retryWhen(retry));
   }
 
-  private getCharacterInformation<T>(character_id: number, route: string, params?: EsiHttpParams): Observable<T> {
-    return this.getData<T>(`characters/${character_id}/${route}`, params);
+  private postEntityInformation<T>(entity: EsiEntity, id: number, route: string, data: unknown): Observable<T> {
+    return this.postData<T>(`${entity}/${id}/${route}`, data);
   }
 
+  public getEntityInformation<T>(entity: EsiEntity, id: number, route = '', params?: EsiHttpParams): Observable<T> {
+    return this.getData<T>(`${entity}/${id}/${route}`, params);
+  }
+  public getCharacterInformation<T>(character_id: number, route = '', params?: EsiHttpParams): Observable<T> {
+    return this.getEntityInformation<T>('characters', character_id, route, params);
+  }
+  public getCorporationInformation<T>(corporation_id: number, route = '', params?: EsiHttpParams): Observable<T> {
+    return this.getEntityInformation<T>('corporations', corporation_id, route, params);
+  }
+
+  public getEntity<T>(entity: EsiEntity, id: number): Observable<T> {
+    return this.getEntityInformation<T>(entity, id);
+  }
   public getCharacter(character_id: number): Observable<EsiCharacter> {
-    return this.getCharacterInformation<EsiCharacter>(character_id, '');
+    return this.getEntity<EsiCharacter>('characters', character_id);
+  }
+  public getCorporation(corporation_id: number): Observable<EsiCorporation> {
+    return this.getEntity<EsiCorporation>('corporations', corporation_id);
   }
 
+  public getEntityItems(entity: EsiEntity, id: number): Observable<EsiItem[]> {
+    return this.getEntityInformation(entity, id, 'assets/');
+  }
+  public getCharacterItems(character_id: number): Observable<EsiItem[]> {
+    //public getCharacterItems = this.getEntityItems.bind(this, 'characters');
+    return this.getEntityItems('characters', character_id);
+  }
+  public getCorporationItems(corporation_id: number): Observable<EsiItem[]> {
+    //public getCorporationItems = this.getEntityItems.bind(this, 'corporations');
+    return this.getEntityItems('corporations', corporation_id);
+  }
+
+  public getEntityItemNames(
+    entity: EsiEntity,
+    id: number,
+    item_ids: number[],
+    chunk = 1000
+  ): Observable<EsiItemName[]> {
+    return from(item_ids).pipe(
+      bufferCount(chunk <= 1000 ? chunk : 1000),
+      mergeMap((ids) => this.postEntityInformation<EsiItemName[]>(entity, id, 'assets/names/', ids)),
+      reduce((r, n) => r.concat(n), [] as EsiItemName[])
+    );
+  }
+  public getCharacterItemNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName[]> {
+    //public getCharacterItemNames = this.getEntityItemNames.bind(this, 'characters');
+    return this.getEntityItemNames('characters', character_id, item_ids, chunk);
+  }
+  public getCorporationItemNames(corporation_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName[]> {
+    //public getCorporationItemNames = this.getEntityItemNames.bind(this, 'corporations');
+    return this.getEntityItemNames('corporations', corporation_id, item_ids, chunk);
+  }
+
+  public getEntityOrders<T>(entity: EsiEntity, id: number): Observable<T> {
+    return this.getEntityInformation<T>(entity, id, 'orders/');
+  }
   public getCharacterOrders(character_id: number): Observable<EsiMarketOrderCharacter[]> {
-    return this.getCharacterInformation<EsiMarketOrderCharacter[]>(character_id, 'orders/');
+    return this.getEntityOrders<EsiMarketOrderCharacter[]>('characters', character_id);
+  }
+  public getCorporationOrders(corporation_id: number): Observable<EsiMarketOrderCorporation[]> {
+    return this.getEntityOrders<EsiMarketOrderCorporation[]>('corporations', corporation_id);
+  }
+
+  public getEntityBlueprints(entity: EsiEntity, id: number): Observable<EsiBlueprint[]> {
+    return this.getEntityInformation<EsiBlueprint[]>(entity, id, 'blueprints/');
+  }
+  public getCharacterBlueprints(character_id: number): Observable<EsiBlueprint[]> {
+    return this.getEntityBlueprints('characters', character_id);
+  }
+  public getCorporationBlueprints(corporation_id: number): Observable<EsiBlueprint[]> {
+    return this.getEntityBlueprints('corporations', corporation_id);
   }
 
   public getCharacterOrdersHistory(character_id: number): Observable<EsiMarketHistoryOrderCharacter[]> {
     return this.getCharacterInformation<EsiMarketHistoryOrderCharacter[]>(character_id, 'orders/history/');
   }
 
-  public getCharacterItems(character_id: number): Observable<EsiItem[]> {
-    return this.getCharacterInformation<EsiItem[]>(character_id, 'assets/');
-  }
-
   public getCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
     return this.getCharacterInformation<EsiWalletTransaction[]>(character_id, 'wallet/transactions/');
-  }
-
-  public getCharacterBlueprints(character_id: number): Observable<EsiBlueprint[]> {
-    return this.getCharacterInformation<EsiBlueprint[]>(character_id, 'blueprints/');
   }
 
   public getCharacterMailHeaders(
@@ -346,22 +406,6 @@ export class EsiService {
 
   public getCharacterMailingLists(character_id: number): Observable<EsiMailMailingList[]> {
     return this.getCharacterInformation<EsiMailMailingList[]>(character_id, 'mail/lists/');
-  }
-
-  private _getCharacterItemNames(character_id: number, item_ids: number[]): Observable<EsiItemName[]> {
-    return this.postData<EsiItemName[]>(`characters/${character_id}/assets/names/`, item_ids);
-  }
-
-  public getCharacterItemNames(character_id: number, item_ids: number[], chunk = 1000): Observable<EsiItemName[]> {
-    return from(item_ids).pipe(
-      bufferCount(chunk <= 1000 ? chunk : 1000),
-      mergeMap((ids) => this._getCharacterItemNames(character_id, ids)),
-      reduce((r, n) => r.concat(n), [] as EsiItemName[])
-    );
-  }
-
-  public getCorporation(corporation_id: number): Observable<EsiCorporation> {
-    return this.getData<EsiCorporation>(`corporations/${corporation_id}/`);
   }
 
   public listMarketPrices(): Observable<EsiMarketPrice[]> {

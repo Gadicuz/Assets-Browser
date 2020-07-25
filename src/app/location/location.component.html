@@ -18,7 +18,11 @@
               <ng-container *ngIf="isNum(stat.value)">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
               <ng-container *ngIf="!isNum(stat.value) && stat.value !== 'n/a'">{{stat.value}}</ng-container>
             </div>
-            <button *ngIf="stat.value === 'n/a'" mat-stroked-button color="primary" [routerLink]="['/browse',location.info.data.Link,'deep']" fxFlexFill>Load</button>
+            <button *ngIf="stat.value === 'n/a'" mat-stroked-button color="primary" fxFlexFill
+              [routerLink]="['/browse',location.info.data.Link,'deep']" queryParamsHandling="preserve"
+            >
+              Load
+            </button>
           </div>
         </mat-card>
       </ng-container>
@@ -29,7 +33,11 @@
     <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
       <ng-container *ngFor="let node of location.info.route; let idx = index">
         <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
-        <button mat-button [matTooltip]="node.comment" [routerLink]="['/browse',node.link]" fxFlexAlign="center">{{node.name}}</button>
+        <button mat-button [matTooltip]="node.comment" fxFlexAlign="center"
+          [routerLink]="['/browse',node.link]" queryParamsHandling="preserve"
+        >
+          {{node.name}}
+        </button>
       </ng-container>
     </mat-card-actions>    
   </mat-card>
@@ -39,7 +47,9 @@
     <ng-container matColumnDef="link">
       <mat-header-cell *matHeaderCellDef></mat-header-cell>
       <mat-cell *matCellDef="let rec">
-        <button *ngIf="rec.link" mat-icon-button [routerLink]="['/browse',rec.link]">
+        <button *ngIf="rec.link" mat-icon-button 
+          [routerLink]="['/browse',rec.link]" queryParamsHandling="preserve"
+        >
           <mat-icon>open_in_new</mat-icon>
         </button>
       </mat-cell>

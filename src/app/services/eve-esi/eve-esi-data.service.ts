@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, empty, from, throwError } from 'rxjs';
 import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
-import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader } from './eve-esi.module';
+import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader, EsiEntity } from './eve-esi.module';
 
 import {
   EsiItem,
@@ -13,6 +13,7 @@ import {
   EsiMarketOrderState,
   EsiMarketOrderType,
   EsiMarketOrderCharacter,
+  EsiMarketOrderCorporation,
   EsiMarketOrderStructure,
   EsiMarketOrderRegion,
   EsiWalletTransaction,
@@ -113,14 +114,15 @@ export const fltBuySellUnk = <T extends EsiDataMarketOrder>(
   buy_sell: EsiMarketOrderType | undefined
 ): ((o: T) => boolean) => (buy_sell == undefined ? (): boolean => true : fltBuySell(buy_sell));
 
-export interface EsiIdName {
+export interface EsiUser {
   id: number;
   name: string;
+  entity: EsiEntity;
 }
 
-export interface EsiCharacterData {
-  char: EsiIdName;
-  corp: EsiIdName;
+export function parseEntity(value: string | null | undefined): number | undefined {
+  const id = Number(value);
+  return isNaN(id) ? undefined : id;
 }
 
 @Injectable({
@@ -133,21 +135,26 @@ export class EsiDataService {
 
   constructor(private http: HttpClient, private esi: EsiService) {}
 
-  public charData?: EsiCharacterData;
-  private get charId(): number {
-    if (this.charData == undefined) throw Error('Undefined character ID');
-    return this.charData.char.id;
+  public users: EsiUser[] = [];
+  public findUser(entity_id: number | undefined, entity?: EsiEntity): EsiUser | undefined {
+    return this.users.find((u) => entity_id === u.id && (entity == undefined || entity == u.entity));
   }
-  loadCharacterData(id$: Observable<number>): Observable<EsiCharacterData> {
+  private getEntity(entity_id: number): EsiEntity {
+    const user = this.findUser(entity_id);
+    if (user == undefined) throw Error(`Entity ID ${entity_id} is unknown`);
+    return user.entity;
+  }
+
+  loadUsers(id$: Observable<number>): Observable<EsiUser[]> {
     return id$.pipe(
       mergeMap((id) =>
         this.esi.getCharacter(id).pipe(
           mergeMap((ch) =>
             this.esi.getCorporation(ch.corporation_id).pipe(
               map((crp) => {
-                const char = { id, name: ch.name };
-                const corp = { id: ch.corporation_id, name: crp.name };
-                return (this.charData = { char, corp });
+                const char = { id, name: ch.name, entity: 'characters' } as EsiUser;
+                const corp = { id: ch.corporation_id, name: crp.name, entity: 'corporations' } as EsiUser;
+                return (this.users = [char, corp]);
               })
             )
           )
@@ -211,12 +218,12 @@ export class EsiDataService {
     );
   }
 
-  loadCharacterItems(): Observable<EsiItem[]> {
-    return this.esi.getCharacterItems(this.charId);
+  loadItems(entity_id: number): Observable<EsiItem[]> {
+    return this.esi.getEntityItems(this.getEntity(entity_id), entity_id);
   }
 
-  loadCharacterItemNames(ids: number[]): Observable<EsiDataItemName[]> {
-    return this.esi.getCharacterItemNames(this.charId, ids).pipe(
+  loadItemNames(entity_id: number, ids: number[]): Observable<EsiDataItemName[]> {
+    return this.esi.getEntityItemNames(this.getEntity(entity_id), entity_id, ids).pipe(
       map((names) =>
         names.map((n) => ({
           item_id: n.item_id,
@@ -241,6 +248,7 @@ export class EsiDataService {
   }
 
   private fromEsiMarketOrderCharacter(
+    id: number,
     o: EsiMarketOrderCharacter,
     status?: EsiMarketOrderState
   ): EsiDataCharMarketOrder {
@@ -257,10 +265,35 @@ export class EsiDataService {
       volume_remain: o.volume_remain,
       volume_total: o.volume_total,
       region_id: o.region_id,
-      issued_by: this.charId,
+      issued_by: id,
       is_corporation: o.is_corporation,
       escrow: o.escrow || 0,
       wallet_division: 0,
+      status,
+    };
+  }
+
+  private fromEsiMarketOrderCorporation(
+    o: EsiMarketOrderCorporation,
+    status?: EsiMarketOrderState
+  ): EsiDataCharMarketOrder {
+    return {
+      order_id: o.order_id,
+      buy_sell: o.is_buy_order ? 'buy' : 'sell',
+      timestamp: new Date(o.issued).getTime(),
+      location_id: o.location_id,
+      range: o.range,
+      duration: o.duration,
+      type_id: o.type_id,
+      price: o.price,
+      min_volume: o.min_volume || 1,
+      volume_remain: o.volume_remain,
+      volume_total: o.volume_total,
+      region_id: o.region_id,
+      issued_by: o.issued_by,
+      is_corporation: true,
+      escrow: o.escrow || 0,
+      wallet_division: o.wallet_division,
       status,
     };
   }
@@ -283,10 +316,29 @@ export class EsiDataService {
     };
   }
 
-  loadCharacterMarketOrders(buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
+  loadCharacterMarketOrders(character_id: number, buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
     return this.esi
-      .getCharacterOrders(this.charId)
-      .pipe(map((orders) => orders.map((o) => this.fromEsiMarketOrderCharacter(o)).filter(fltBuySellUnk(buy_sell))));
+      .getCharacterOrders(character_id)
+      .pipe(
+        map((orders) =>
+          orders.map((o) => this.fromEsiMarketOrderCharacter(character_id, o)).filter(fltBuySellUnk(buy_sell))
+        )
+      );
+  }
+
+  loadCorporationMarketOrders(
+    corporation_id: number,
+    buy_sell?: EsiMarketOrderType
+  ): Observable<EsiDataCharMarketOrder[]> {
+    return this.esi
+      .getCorporationOrders(corporation_id)
+      .pipe(map((orders) => orders.map((o) => this.fromEsiMarketOrderCorporation(o)).filter(fltBuySellUnk(buy_sell))));
+  }
+
+  loadMarketOrders(entity_id: number, buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
+    return this.getEntity(entity_id) === 'characters'
+      ? this.loadCharacterMarketOrders(entity_id, buy_sell)
+      : this.loadCorporationMarketOrders(entity_id, buy_sell);
   }
 
   loadStructureMarketOrders(
@@ -336,12 +388,12 @@ export class EsiDataService {
     );
   }
 
-  loadCharacterBlueprints(): Observable<EsiBlueprint[]> {
-    return this.esi.getCharacterBlueprints(this.charId);
+  loadBlueprints(entity_id: number): Observable<EsiBlueprint[]> {
+    return this.esi.getEntityBlueprints(this.getEntity(entity_id), entity_id);
   }
 
-  loadCharacterWalletTransactions(): Observable<EsiWalletTransaction[]> {
-    return this.esi.getCharacterWalletTransactions(this.charId);
+  loadCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
+    return this.esi.getCharacterWalletTransactions(character_id);
   }
 
   private static convertEsiDataMailHeader(h: EsiMailHeader): EsiDataMailHeader {
@@ -357,11 +409,12 @@ export class EsiDataService {
   }
 
   private getCharacterMailHeadersFromId(
+    character_id: number,
     mail_id: number | undefined,
     labels: number[] | undefined,
     up_to_date = 0
   ): Observable<EsiDataMailHeader[]> {
-    return this.esi.getCharacterMailHeaders(this.charId, labels, mail_id).pipe(
+    return this.esi.getCharacterMailHeaders(character_id, labels, mail_id).pipe(
       map((headers) =>
         headers.map((h) => EsiDataService.convertEsiDataMailHeader(h)).filter((h) => h.timestamp >= up_to_date)
       ),
@@ -369,12 +422,17 @@ export class EsiDataService {
     );
   }
 
-  getCharacterMailHeaders(labels?: number[], up_to_date?: number): Observable<EsiDataMailHeader> {
-    return this.getCharacterMailHeadersFromId(undefined, labels, up_to_date).pipe(
+  getCharacterMailHeaders(character_id: number, labels?: number[], up_to_date?: number): Observable<EsiDataMailHeader> {
+    return this.getCharacterMailHeadersFromId(character_id, undefined, labels, up_to_date).pipe(
       expand((headers) =>
         headers.length < 50
           ? empty()
-          : this.getCharacterMailHeadersFromId(Math.min(...headers.map((h) => h.mail_id)), labels, up_to_date)
+          : this.getCharacterMailHeadersFromId(
+              character_id,
+              Math.min(...headers.map((h) => h.mail_id)),
+              labels,
+              up_to_date
+            )
       ),
       mergeMap((headers) => from(headers))
     );

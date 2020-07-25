@@ -4,9 +4,9 @@
   width: 48px;
   object-fit: contain;
 }
-::ng-deep.mat-tab-label {
+::ng-deep.mat-tab-link {
   min-width: 0!important;
-  padding: 4px!important;
+  padding: 8px!important;
 }
 .footer p {
   margin: 16px;
