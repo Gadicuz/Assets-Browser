@@ -8,6 +8,9 @@
   min-width: 0!important;
   padding: 8px!important;
 }
+.mat-tab-link.mat-tab-label-active {
+  opacity: 1;
+}
 .footer p {
   margin: 16px;
   word-wrap: break-word;
