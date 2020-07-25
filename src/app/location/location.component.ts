@@ -12,7 +12,6 @@ import {
   reduce,
   catchError,
   ignoreElements,
-  filter,
 } from 'rxjs/operators';
 
 import {
@@ -22,7 +21,6 @@ import {
   EsiDataItem,
   EsiDataInfo,
   EsiDataBpd,
-  parseEntity,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService } from '../services/eve-esi/eve-esi.module';
@@ -70,7 +68,8 @@ interface LocationInfo {
   image?: string;
   stats: LocationStat[];
   route: LocationRouteNode[];
-  data: LocData | undefined;
+  data?: LocData;
+  done?: boolean;
 }
 
 interface ItemRecord {
@@ -110,7 +109,7 @@ const cmpItemRecords = (sort: Sort) => (r1: ItemRecord, r2: ItemRecord): number 
 };
 
 interface LocationRecord {
-  info: LocationInfo;
+  info?: LocationInfo;
   data?: ItemRecord[];
   error?: unknown;
 }
@@ -228,30 +227,27 @@ export class LocationComponent {
     this.location$ = combineLatest(this.route.paramMap, this.route.queryParamMap, (p, q) => ({
       uid: p.get('id') || UNIVERSE_UID,
       mode: p.get('mode'),
-      entity_id: parseEntity(q.get('id')),
+      entity_id: this.data.parseUserId(q.get('id')),
     })).pipe(
-      filter((params) => this.data.findUser(params.entity_id) !== undefined),
       switchMap((params) =>
         concat(
-          this.buildLocationPreview(params.uid),
-          this.buildLocationTree(params.entity_id as number),
+          this.buildLocationNoData(params.uid),
+          this.buildLocationTree(params.entity_id),
           defer(() =>
             this.buildLocationData(params.uid, params.mode === 'deep').pipe(
-              catchError((error) => {
-                console.log(error);
-                return this.buildLocationPreview(params.uid, [], error);
-              })
+              catchError((error) => this.buildLocationNoData(params.uid, error))
             )
           )
         )
       ),
-      tap((loc) => (this.dataSource.data = loc.data || []))
+      tap((loc) => (this.dataSource.data = loc.data || [])),
+      catchError((error) => of({ error: error as unknown }))
     );
   }
 
   /** Emits LocationRecord value (with info and error? fields only) */
-  private buildLocationPreview(uid: LocUID, data?: ItemRecord[], error?: unknown): Observable<LocationRecord> {
-    return of({ info: this.createLocationInfo(uid, [], true), data, error });
+  private buildLocationNoData(uid: LocUID, error?: unknown): Observable<LocationRecord> {
+    return of({ info: this.createLocationInfo(uid, [], false, !!error), undefined, error });
   }
 
   /** Emits LocationRecord value */
@@ -265,7 +261,7 @@ export class LocationComponent {
       LocationComponent.loadInfo([...route, ...content]),
       defer(() =>
         of({
-          info: this.createLocationInfo(loc, route),
+          info: this.createLocationInfo(loc, route, true, true),
           data: this.createDataRecords(loc),
         })
       )
@@ -273,32 +269,33 @@ export class LocationComponent {
   }
 
   /** Assembles LocationInfo structure for LocUID/LocData */
-  private createLocationInfo(uid: LocUID | LocData, route: LocData[], preview = false): LocationInfo {
+  private createLocationInfo(uid: LocUID | LocData, route: LocData[], totals: boolean, done: boolean): LocationInfo {
     const loc = typeof uid === 'object' ? uid : this.locs.get(uid);
-    if (loc == undefined)
-      return {
-        name: `*** Unknown item '${uid as LocUID}' *** `,
-        //image: question mark
-        stats: [],
-        route: [],
-        data: undefined,
-      };
-    return {
-      name: loc.info.name,
-      comment: loc.info.comment,
-      image: typeof loc.info.icon === 'number' ? this.esi.getItemIconURI(loc.info.icon, 32) : loc.info.icon,
-      stats: preview
-        ? []
-        : [
-            { title: 'Value (ISK)', value: loc.Value },
-            { title: 'Content Value (ISK)', value: loc.ContentValue },
-            { title: 'Item Volume (m3)', value: loc.Volume },
-            { title: 'Content Volume (m3)', value: loc.ContentVolume },
-            { title: 'Assembled Volume (m3)', value: loc.AssembledVolume },
-          ],
-      route: route.map((l) => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })), //TODO: set position as hint
-      data: loc,
-    };
+    return loc == undefined
+      ? {
+          name: `*** Unknown item '${uid as LocUID}' *** `,
+          //image: question mark
+          stats: [],
+          route: [],
+          done,
+        }
+      : {
+          name: loc.info.name,
+          comment: loc.info.comment,
+          image: typeof loc.info.icon === 'number' ? this.esi.getItemIconURI(loc.info.icon, 32) : loc.info.icon,
+          stats: totals
+            ? [
+                { title: 'Value (ISK)', value: loc.Value },
+                { title: 'Content Value (ISK)', value: loc.ContentValue },
+                { title: 'Item Volume (m3)', value: loc.Volume },
+                { title: 'Content Volume (m3)', value: loc.ContentVolume },
+                { title: 'Assembled Volume (m3)', value: loc.AssembledVolume },
+              ]
+            : [],
+          route: route.map((l) => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })), //TODO: set position as hint
+          data: loc,
+          done,
+        };
   }
 
   /** Creates LocData[] route from the top of loc's tree to the loc */

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { Observable, of, concat, merge, defer, combineLatest } from 'rxjs';
-import { map, toArray, catchError, filter, switchMap } from 'rxjs/operators';
+import { map, toArray, catchError, switchMap } from 'rxjs/operators';
 
 import {
   EsiDataCharMarketOrder,
@@ -11,7 +11,6 @@ import {
   EsiDataService,
   EsiMarketOrderType,
   EsiDataInfo,
-  parseEntity,
 } from '../services/eve-esi/eve-esi-data.service';
 
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
@@ -67,9 +66,7 @@ export class OrdersComponent {
     this.orders$ = concat(
       of({}),
       this.route.queryParamMap.pipe(
-        map((q) => parseEntity(q.get('id'))),
-        filter((entity_id) => this.data.findUser(entity_id) !== undefined),
-        map((entity_id) => entity_id as number),
+        map((q) => this.data.parseUserId(q.get('id'))),
         switchMap((entity_id) =>
           combineLatest(
             this.data.loadCharacterMarketOrders(entity_id, 'sell'),
@@ -93,10 +90,7 @@ export class OrdersComponent {
           );
         }),
         map((data) => ({ data: data.sort((a, b) => a.name.localeCompare(b.name)) })),
-        catchError((err) => {
-          console.log(err);
-          return of({ error: err as unknown });
-        })
+        catchError((err) => of({ error: err as unknown }))
       )
     );
   }

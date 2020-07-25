@@ -2,15 +2,15 @@
 
   <div></div>
 
-  <mat-card class="mat-elevation-z4">
+  <mat-card *ngIf="location?.info as info" class="mat-elevation-z4">
     <mat-card-header>
-      <img *ngIf="location.info.image" mat-card-avatar [src]="location.info.image">
-      <mat-card-title>{{location.info.name}}</mat-card-title>
-      <mat-card-subtitle *ngIf="location.info.comment">{{location.info.comment}}</mat-card-subtitle>
+      <img *ngIf="info.image" mat-card-avatar [src]="info.image">
+      <mat-card-title>{{info.name}}</mat-card-title>
+      <mat-card-subtitle *ngIf="info.comment">{{info.comment}}</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content fxLayout="row wrap" fxLayoutGap="8px" fxLayoutAlign="start">
-      <ng-container *ngFor="let stat of location.info.stats">
+      <ng-container *ngFor="let stat of info.stats">
         <mat-card *ngIf="stat.value !== ''">
           <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="start">
             <div class="mat-caption">{{stat.title}}</div>
@@ -19,28 +19,27 @@
               <ng-container *ngIf="!isNum(stat.value) && stat.value !== 'n/a'">{{stat.value}}</ng-container>
             </div>
             <button *ngIf="stat.value === 'n/a'" mat-stroked-button color="primary" fxFlexFill
-              [routerLink]="['/browse',location.info.data.Link,'deep']" queryParamsHandling="preserve"
-            >
+              [routerLink]="['/browse',info.data.Link,'deep']" queryParamsHandling="preserve">
               Load
             </button>
           </div>
         </mat-card>
-      </ng-container>
-      <app-error *ngIf="location.error as e" fxFlex fxFill [err]="e"></app-error>
-      <mat-progress-bar *ngIf="!location.data" mode="indeterminate"></mat-progress-bar>
+      </ng-container>      
+      <mat-progress-bar *ngIf="!info.done" mode="indeterminate"></mat-progress-bar>
     </mat-card-content>
 
     <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">
-      <ng-container *ngFor="let node of location.info.route; let idx = index">
+      <ng-container *ngFor="let node of info.route; let idx = index">
         <mat-icon *ngIf="idx" fxFlexAlign="center">navigate_next</mat-icon>
         <button mat-button [matTooltip]="node.comment" fxFlexAlign="center"
-          [routerLink]="['/browse',node.link]" queryParamsHandling="preserve"
-        >
+          [routerLink]="['/browse',node.link]" queryParamsHandling="preserve">
           {{node.name}}
         </button>
       </ng-container>
     </mat-card-actions>    
   </mat-card>
+
+  <app-error *ngIf="location?.error as e" fxFlex fxFill [err]="e"></app-error>
 
   <mat-table [dataSource]="dataSource" matSort class="mat-elevation-z4" matSortActive="name" matSortDirection="asc" matSortDisableClear>
 
@@ -48,8 +47,7 @@
       <mat-header-cell *matHeaderCellDef></mat-header-cell>
       <mat-cell *matCellDef="let rec">
         <button *ngIf="rec.link" mat-icon-button 
-          [routerLink]="['/browse',rec.link]" queryParamsHandling="preserve"
-        >
+          [routerLink]="['/browse',rec.link]" queryParamsHandling="preserve">
           <mat-icon>open_in_new</mat-icon>
         </button>
       </mat-cell>

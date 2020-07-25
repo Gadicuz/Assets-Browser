@@ -120,11 +120,6 @@ export interface EsiUser {
   entity: EsiEntity;
 }
 
-export function parseEntity(value: string | null | undefined): number | undefined {
-  const id = Number(value);
-  return isNaN(id) ? undefined : id;
-}
-
 @Injectable({
   providedIn: 'root',
 })
@@ -143,6 +138,11 @@ export class EsiDataService {
     const user = this.findUser(entity_id);
     if (user == undefined) throw Error(`Entity ID ${entity_id} is unknown`);
     return user.entity;
+  }
+  public parseUserId(value: string | null | undefined): number {
+    const id = Number(value);
+    if (isNaN(id) || !this.findUser(id)) throw Error(`Invalid or missed character id`);
+    return id;
   }
 
   loadUsers(id$: Observable<number>): Observable<EsiUser[]> {
