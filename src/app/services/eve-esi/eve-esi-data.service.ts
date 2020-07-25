@@ -140,7 +140,7 @@ export class EsiDataService {
     return subj.type;
   }
   public parseSubjectId(value: string | null | undefined): number {
-    if (value == undefined || value === '') throw Error('Missed subject');
+    if (value == undefined || value === '') throw Error('Subject is missed');
     const id = +value;
     if (isNaN(id) || value === 'true' || value === 'false') throw Error(`Invalid subject ID '${id}'`);
     if (!this.findSubject(id)) throw Error(`Unknown subject '${id}'`);
