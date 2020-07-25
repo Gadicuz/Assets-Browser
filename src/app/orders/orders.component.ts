@@ -69,9 +69,9 @@ export class OrdersComponent {
         map((q) => this.data.parseSubjectId(q.get('subj'))),
         switchMap((subj_id) =>
           combineLatest(
-            this.data.loadCharacterMarketOrders(subj_id, 'sell'),
+            this.data.loadMarketOrders(subj_id, 'sell'),
             this.data
-              .loadCharacterWalletTransactions(subj_id)
+              .loadWalletTransactions(subj_id)
               .pipe(
                 map((wts) =>
                   wts.filter(
@@ -82,8 +82,8 @@ export class OrdersComponent {
             (orders, trans) => this.analyzeData(orders, trans)
           )
         ),
-        switchMap(([loc_types, char_sales, ids]) => {
-          const sales = new Map(char_sales.map((s) => [s.l_id, s.tid_sales]));
+        switchMap(([loc_types, subj_sales, ids]) => {
+          const sales = new Map(subj_sales.map((s) => [s.l_id, s.tid_sales]));
           return this.loadMarketOrders(loc_types, 'sell').pipe(
             map((loc_orders) => this.assembleLocationInfo(loc_orders, sales.get(loc_orders.l_id), ids)),
             toArray()

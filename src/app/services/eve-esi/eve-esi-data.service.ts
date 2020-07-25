@@ -404,6 +404,16 @@ export class EsiDataService {
     return this.esi.getCharacterWalletTransactions(character_id);
   }
 
+  loadCorporationWalletsTransactions(corporation_id: number): Observable<EsiWalletTransaction[]> {
+    return of([]);
+  }
+
+  loadWalletTransactions(subj_id: number): Observable<EsiWalletTransaction[]> {
+    return this.getSubjectType(subj_id) === 'characters'
+      ? this.loadCharacterWalletTransactions(subj_id)
+      : this.loadCorporationWalletsTransactions(subj_id);
+  }
+
   private static convertEsiDataMailHeader(h: EsiMailHeader): EsiDataMailHeader {
     return {
       mail_id: h.mail_id,
