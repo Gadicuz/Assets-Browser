@@ -66,12 +66,12 @@ export class OrdersComponent {
     this.orders$ = concat(
       of({}),
       this.route.queryParamMap.pipe(
-        map((q) => this.data.parseUserId(q.get('id'))),
-        switchMap((entity_id) =>
+        map((q) => this.data.parseSubjectId(q.get('id'))),
+        switchMap((subj_id) =>
           combineLatest(
-            this.data.loadCharacterMarketOrders(entity_id, 'sell'),
+            this.data.loadCharacterMarketOrders(subj_id, 'sell'),
             this.data
-              .loadCharacterWalletTransactions(entity_id)
+              .loadCharacterWalletTransactions(subj_id)
               .pipe(
                 map((wts) =>
                   wts.filter(

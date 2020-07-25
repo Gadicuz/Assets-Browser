@@ -1,6 +1,6 @@
-<div class="app-container" fxLayout="column" fxLayoutAlign="start" *defVar="(userTabs$ | async) as tabs">
+<div class="app-container" fxLayout="column" fxLayoutAlign="start" *defVar="(subjects$ | async) as subjs">
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
-    <ng-container *ngIf="tabs; else nouser">
+    <ng-container *ngIf="subjs; else nosubj">
       <a *ngFor="let r of routes" fxFlex="0 0 auto" mat-stroked-button
         routerLinkActive="mat-flat-button"
         [routerLink]="r.link" queryParamsHandling="preserve">
@@ -9,15 +9,16 @@
       <div fxFlex="1 1 auto"></div>
       <div fxFlex="0 0 auto"><span>{{title}}</span></div>
       <nav mat-tab-nav-bar color="warn">
-        <a mat-tab-link *ngFor="let user of tabs; index as i"
-          [active]="activeUser == i"
-          (click)="setActiveUser(i)"
+        <a mat-tab-link *ngFor="let subj of subjs; index as i"
+          [active]="currentSubj == i"
+          (click)="selectSubj(i)"
+          [matTooltip]="subj.name"
           routerLink="" [queryParams]="linkQ(i)" queryParamsHandling="merge">
-          <img class="avatar" [src]="user.avatar">
+          <img class="avatar" [src]="subj.avatar">
         </a>
       </nav>
     </ng-container>
-    <ng-template #nouser>
+    <ng-template #nosubj>
       <div fxFlex="1 1 auto"></div>
     </ng-template>
     <div *ngIf="isLoggedIn(); then loggedIn; else loggedOut"></div>
@@ -34,7 +35,7 @@
     </ng-template>
   </mat-toolbar>
 
-  <div *ngIf="tabs" fxLayout="row" fxLayoutAlign="center">
+  <div *ngIf="subjs" fxLayout="row" fxLayoutAlign="center">
     <div fxFlex="80%">
       <router-outlet></router-outlet>
     </div>

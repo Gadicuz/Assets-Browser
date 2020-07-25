@@ -26,14 +26,14 @@ type EsiDataItems = Map<number, EsiDataItem>;
 export class EsiCacheService {
   constructor(private data: EsiDataService, private http: HttpClient) {}
 
-  private _loadItems(entity_id: number): Observable<EsiDataItems> {
-    return this.data.loadItems(entity_id).pipe(map((items) => new Map(items.map((i) => [i.item_id, i]))));
+  private _loadItems(subj_id: number): Observable<EsiDataItems> {
+    return this.data.loadItems(subj_id).pipe(map((items) => new Map(items.map((i) => [i.item_id, i]))));
   }
 
-  private _loadNames(entity_id: number, items: EsiDataItems): Observable<EsiDataItems> {
+  private _loadNames(subj_id: number, items: EsiDataItems): Observable<EsiDataItems> {
     return this.data
       .loadItemNames(
-        entity_id,
+        subj_id,
         [...items.values()].filter((i) => i.is_singleton).map((i) => i.item_id)
       )
       .pipe(
@@ -44,8 +44,8 @@ export class EsiCacheService {
       );
   }
 
-  private _loadBlueprints(entity_id: number, items: EsiDataItems): Observable<EsiDataItems> {
-    return this.data.loadBlueprints(entity_id).pipe(
+  private _loadBlueprints(subj_id: number, items: EsiDataItems): Observable<EsiDataItems> {
+    return this.data.loadBlueprints(subj_id).pipe(
       map((bps) => {
         bps.forEach((bp) => {
           let item = items.get(bp.item_id);
@@ -82,11 +82,11 @@ export class EsiCacheService {
   // characters/{character_id}/assets/names/   - for is_singleton items only
   // characters/{character_id}/blueprints/
   public entityItems = new Map<number, EsiDataItems>();
-  public loadItems(entity_id: number): Observable<EsiDataItems> {
-    return this._loadItems(entity_id).pipe(
-      mergeMap((items) => this._loadNames(entity_id, items)),
-      mergeMap((items) => this._loadBlueprints(entity_id, items)),
-      tap((items) => this.entityItems.set(entity_id, items))
+  public loadItems(subj_id: number): Observable<EsiDataItems> {
+    return this._loadItems(subj_id).pipe(
+      mergeMap((items) => this._loadNames(subj_id, items)),
+      mergeMap((items) => this._loadBlueprints(subj_id, items)),
+      tap((items) => this.entityItems.set(subj_id, items))
     );
   }
 
@@ -207,10 +207,10 @@ export class EsiCacheService {
   }
 
   public entityMarketOrders = new Map<number, EsiDataCharMarketOrder[]>();
-  public loadMarketOrders(entity_id: number): Observable<EsiDataCharMarketOrder[]> {
+  public loadMarketOrders(subj_id: number): Observable<EsiDataCharMarketOrder[]> {
     return this.data
-      .loadMarketOrders(entity_id, undefined)
-      .pipe(tap((orders) => this.entityMarketOrders.set(entity_id, orders)));
+      .loadMarketOrders(subj_id, undefined)
+      .pipe(tap((orders) => this.entityMarketOrders.set(subj_id, orders)));
   }
 
   public loadStructuresMarketOrders(

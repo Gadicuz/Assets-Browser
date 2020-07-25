@@ -156,7 +156,7 @@ export interface EsiIdInfo {
   name: string;
 }
 
-export type EsiEntity = 'characters' | 'corporations';
+export type EsiSubjType = 'characters' | 'corporations';
 
 enum imageResource {
   AllianceLogo = 'alliances/{}/logo',
@@ -300,11 +300,11 @@ export class EsiService {
       .pipe(retryWhen(retry));
   }
 
-  private postEntityInformation<T>(entity: EsiEntity, id: number, route: string, data: unknown): Observable<T> {
+  private postEntityInformation<T>(entity: EsiSubjType, id: number, route: string, data: unknown): Observable<T> {
     return this.postData<T>(`${entity}/${id}/${route}`, data);
   }
 
-  public getEntityInformation<T>(entity: EsiEntity, id: number, route = '', params?: EsiHttpParams): Observable<T> {
+  public getEntityInformation<T>(entity: EsiSubjType, id: number, route = '', params?: EsiHttpParams): Observable<T> {
     return this.getData<T>(`${entity}/${id}/${route}`, params);
   }
   public getCharacterInformation<T>(character_id: number, route = '', params?: EsiHttpParams): Observable<T> {
@@ -314,7 +314,7 @@ export class EsiService {
     return this.getEntityInformation<T>('corporations', corporation_id, route, params);
   }
 
-  public getEntity<T>(entity: EsiEntity, id: number): Observable<T> {
+  public getEntity<T>(entity: EsiSubjType, id: number): Observable<T> {
     return this.getEntityInformation<T>(entity, id);
   }
   public getCharacter(character_id: number): Observable<EsiCharacter> {
@@ -324,7 +324,7 @@ export class EsiService {
     return this.getEntity<EsiCorporation>('corporations', corporation_id);
   }
 
-  public getEntityItems(entity: EsiEntity, id: number): Observable<EsiItem[]> {
+  public getEntityItems(entity: EsiSubjType, id: number): Observable<EsiItem[]> {
     return this.getEntityInformation(entity, id, 'assets/');
   }
   public getCharacterItems(character_id: number): Observable<EsiItem[]> {
@@ -337,7 +337,7 @@ export class EsiService {
   }
 
   public getEntityItemNames(
-    entity: EsiEntity,
+    entity: EsiSubjType,
     id: number,
     item_ids: number[],
     chunk = 1000
@@ -357,7 +357,7 @@ export class EsiService {
     return this.getEntityItemNames('corporations', corporation_id, item_ids, chunk);
   }
 
-  public getEntityOrders<T>(entity: EsiEntity, id: number): Observable<T> {
+  public getEntityOrders<T>(entity: EsiSubjType, id: number): Observable<T> {
     return this.getEntityInformation<T>(entity, id, 'orders/');
   }
   public getCharacterOrders(character_id: number): Observable<EsiMarketOrderCharacter[]> {
@@ -367,7 +367,7 @@ export class EsiService {
     return this.getEntityOrders<EsiMarketOrderCorporation[]>('corporations', corporation_id);
   }
 
-  public getEntityBlueprints(entity: EsiEntity, id: number): Observable<EsiBlueprint[]> {
+  public getEntityBlueprints(entity: EsiSubjType, id: number): Observable<EsiBlueprint[]> {
     return this.getEntityInformation<EsiBlueprint[]>(entity, id, 'blueprints/');
   }
   public getCharacterBlueprints(character_id: number): Observable<EsiBlueprint[]> {

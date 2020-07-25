@@ -227,12 +227,12 @@ export class LocationComponent {
     this.location$ = combineLatest(this.route.paramMap, this.route.queryParamMap, (p, q) => ({
       uid: p.get('id') || UNIVERSE_UID,
       mode: p.get('mode'),
-      entity_id: this.data.parseUserId(q.get('id')),
+      subj_id: this.data.parseSubjectId(q.get('id')),
     })).pipe(
       switchMap((params) =>
         concat(
           this.buildLocationNoData(params.uid),
-          this.buildLocationTree(params.entity_id),
+          this.buildLocationTree(params.subj_id),
           defer(() =>
             this.buildLocationData(params.uid, params.mode === 'deep').pipe(
               catchError((error) => this.buildLocationNoData(params.uid, error))
@@ -303,8 +303,8 @@ export class LocationComponent {
     return loc != undefined ? this.getRoute(this.locs.get(loc.ploc.uid), [loc, ...route]) : route;
   }
 
-  private buildLocationTree(entity_id: number): Observable<never> {
-    return this.locs.size !== 1 ? empty() : this.loadLocations(entity_id);
+  private buildLocationTree(subj_id: number): Observable<never> {
+    return this.locs.size !== 1 ? empty() : this.loadLocations(subj_id);
   }
 
   private createDataRecords(loc: LocData): ItemRecord[] {
@@ -348,11 +348,8 @@ export class LocationComponent {
       ? l.map((i) => [i, ...LocationComponent.flatten(i.content_items || [], f)]).reduce((s, i) => s.concat(i))
       : [];
   }
-  private loadLocations(entity_id: number): Observable<never> {
-    return concat(
-      this.cache.loadMarketPrices(),
-      merge(this.loadAssets(entity_id), this.loadSellOrders(entity_id))
-    ).pipe(
+  private loadLocations(subj_id: number): Observable<never> {
+    return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(subj_id), this.loadSellOrders(subj_id))).pipe(
       map((locs) => locs.filter((loc) => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
       concatMap((locs) =>
         this.preloadLocations(locs).pipe(
@@ -405,9 +402,9 @@ export class LocationComponent {
   }
 
   private locInfo_Character(id: number): LocTypeInfo {
-    const user = this.data.findUser(id, 'characters');
+    const char_subj = this.data.findSubject(id, 'characters');
     return {
-      name: user ? user.name : `Character #${id}`,
+      name: char_subj ? char_subj.name : `Character #${id}`,
       icon: this.esi.getCharacterAvatarURI(id, 32),
     };
   }
@@ -543,8 +540,8 @@ export class LocationComponent {
       .filter((i) => i.location_flag === 'Hangar' && this.isShip(i.type_id)) // move all ships from 'Hangar' ...
       .forEach((i) => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
   }
-  private loadAssets(entity_id: number): Observable<LocData[]> {
-    return concat(this.loadShipsTIDs(), this.cache.loadItems(entity_id)).pipe(
+  private loadAssets(subj_id: number): Observable<LocData[]> {
+    return concat(this.loadShipsTIDs(), this.cache.loadItems(subj_id)).pipe(
       map((cache) => {
         const items = [...cache.values()];
         this.moveShips(items);
@@ -582,8 +579,8 @@ export class LocationComponent {
     );
   }
 
-  private loadSellOrders(entity_id: number): Observable<LocData[]> {
-    return this.cache.loadMarketOrders(entity_id).pipe(
+  private loadSellOrders(subj_id: number): Observable<LocData[]> {
+    return this.cache.loadMarketOrders(subj_id).pipe(
       // todo
       map((orders) => {
         return Array.from(

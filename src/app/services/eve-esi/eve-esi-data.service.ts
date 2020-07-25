@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, empty, from, throwError } from 'rxjs';
 import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
-import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader, EsiEntity } from './eve-esi.module';
+import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader, EsiSubjType } from './eve-esi.module';
 
 import {
   EsiItem,
@@ -114,10 +114,10 @@ export const fltBuySellUnk = <T extends EsiDataMarketOrder>(
   buy_sell: EsiMarketOrderType | undefined
 ): ((o: T) => boolean) => (buy_sell == undefined ? (): boolean => true : fltBuySell(buy_sell));
 
-export interface EsiUser {
+export interface EsiSubject {
   id: number;
   name: string;
-  entity: EsiEntity;
+  type: EsiSubjType;
 }
 
 @Injectable({
@@ -130,31 +130,39 @@ export class EsiDataService {
 
   constructor(private http: HttpClient, private esi: EsiService) {}
 
-  public users: EsiUser[] = [];
-  public findUser(entity_id: number | undefined, entity?: EsiEntity): EsiUser | undefined {
-    return this.users.find((u) => entity_id === u.id && (entity == undefined || entity == u.entity));
+  public subjs: EsiSubject[] = [];
+  public findSubject(subj_id: number | undefined, subj_type?: EsiSubjType): EsiSubject | undefined {
+    return this.subjs.find((subj) => subj_id === subj.id && (subj_type == undefined || subj_type == subj.type));
   }
-  private getEntity(entity_id: number): EsiEntity {
-    const user = this.findUser(entity_id);
-    if (user == undefined) throw Error(`Entity ID ${entity_id} is unknown`);
-    return user.entity;
+  private getSubjectType(subj_id: number): EsiSubjType {
+    const subj = this.findSubject(subj_id);
+    if (subj == undefined) throw Error(`Unknown subject (${subj_id})`);
+    return subj.type;
   }
-  public parseUserId(value: string | null | undefined): number {
-    const id = Number(value);
-    if (isNaN(id) || !this.findUser(id)) throw Error(`Invalid or missed character id`);
+  public parseSubjectId(value: string | null | undefined): number {
+    if (value == undefined || value === '') throw Error('Missed subject');
+    const id = +value;
+    if (isNaN(id) || value === 'true' || value === 'false') throw Error(`Invalid subject ID '${id}'`);
+    if (!this.findSubject(id)) throw Error(`Unknown subject '${id}'`);
     return id;
   }
 
-  loadUsers(id$: Observable<number>): Observable<EsiUser[]> {
+  public getSubjectAvatarURI(subj: EsiSubject, size: number): string {
+    return subj.type === 'characters'
+      ? this.esi.getCharacterAvatarURI(subj.id, size)
+      : this.esi.getCorporationLogoURI(subj.id, size);
+  }
+
+  loadSubjects(id$: Observable<number>): Observable<EsiSubject[]> {
     return id$.pipe(
       mergeMap((id) =>
         this.esi.getCharacter(id).pipe(
           mergeMap((ch) =>
             this.esi.getCorporation(ch.corporation_id).pipe(
               map((crp) => {
-                const char = { id, name: ch.name, entity: 'characters' } as EsiUser;
-                const corp = { id: ch.corporation_id, name: crp.name, entity: 'corporations' } as EsiUser;
-                return (this.users = [char, corp]);
+                const char = { id, name: ch.name, type: 'characters' } as EsiSubject;
+                const corp = { id: ch.corporation_id, name: crp.name, type: 'corporations' } as EsiSubject;
+                return (this.subjs = [char, corp]);
               })
             )
           )
@@ -218,12 +226,12 @@ export class EsiDataService {
     );
   }
 
-  loadItems(entity_id: number): Observable<EsiItem[]> {
-    return this.esi.getEntityItems(this.getEntity(entity_id), entity_id);
+  loadItems(subj_id: number): Observable<EsiItem[]> {
+    return this.esi.getEntityItems(this.getSubjectType(subj_id), subj_id);
   }
 
-  loadItemNames(entity_id: number, ids: number[]): Observable<EsiDataItemName[]> {
-    return this.esi.getEntityItemNames(this.getEntity(entity_id), entity_id, ids).pipe(
+  loadItemNames(subj_id: number, ids: number[]): Observable<EsiDataItemName[]> {
+    return this.esi.getEntityItemNames(this.getSubjectType(subj_id), subj_id, ids).pipe(
       map((names) =>
         names.map((n) => ({
           item_id: n.item_id,
@@ -335,10 +343,10 @@ export class EsiDataService {
       .pipe(map((orders) => orders.map((o) => this.fromEsiMarketOrderCorporation(o)).filter(fltBuySellUnk(buy_sell))));
   }
 
-  loadMarketOrders(entity_id: number, buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
-    return this.getEntity(entity_id) === 'characters'
-      ? this.loadCharacterMarketOrders(entity_id, buy_sell)
-      : this.loadCorporationMarketOrders(entity_id, buy_sell);
+  loadMarketOrders(subj_id: number, buy_sell?: EsiMarketOrderType): Observable<EsiDataCharMarketOrder[]> {
+    return this.getSubjectType(subj_id) === 'characters'
+      ? this.loadCharacterMarketOrders(subj_id, buy_sell)
+      : this.loadCorporationMarketOrders(subj_id, buy_sell);
   }
 
   loadStructureMarketOrders(
@@ -388,8 +396,8 @@ export class EsiDataService {
     );
   }
 
-  loadBlueprints(entity_id: number): Observable<EsiBlueprint[]> {
-    return this.esi.getEntityBlueprints(this.getEntity(entity_id), entity_id);
+  loadBlueprints(subj_id: number): Observable<EsiBlueprint[]> {
+    return this.esi.getEntityBlueprints(this.getSubjectType(subj_id), subj_id);
   }
 
   loadCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
