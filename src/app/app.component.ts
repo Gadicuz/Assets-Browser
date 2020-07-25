@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
 import { EVESSOService } from './services/eve-sso/eve-sso.module';
 import { EsiDataService } from './services/eve-esi/eve-esi-data.service';
@@ -39,10 +39,10 @@ export class AppComponent {
 
   private subjs: SubjTab[] | undefined = undefined;
   private rst = new Subject<undefined>();
-  public currentSubj?: number;
+  private currentSubj = -1;
   public title: string | undefined;
 
-  constructor(router: Router, private sso: EVESSOService, private data: EsiDataService) {
+  constructor(router: Router, route: ActivatedRoute, private sso: EVESSOService, private data: EsiDataService) {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);
     this.sso.configure();
@@ -53,11 +53,29 @@ export class AppComponent {
           return never();
         }),
         map((esiSubjs) => {
-          void router.navigate([], { replaceUrl: true });
-          return (this.subjs = esiSubjs.map((subj) => ({
+          this.subjs = esiSubjs.map((subj) => ({
             ...subj,
             avatar: this.data.getSubjectAvatarURI(subj, 64),
-          })));
+          }));
+          const subj_id = +(route.snapshot.queryParamMap.get('subj') || 'NaN');
+          this.selectSubj(this.subjs.findIndex((subj) => subj.id === subj_id));
+          const queryParams = {
+            code: undefined,
+            scope: undefined,
+            state: undefined,
+            session_state: undefined,
+          };
+          if (this.currentSubj < 0)
+            void router.navigate([''], {
+              replaceUrl: true,
+            });
+          else
+            void router.navigate([], {
+              queryParams,
+              queryParamsHandling: 'merge',
+              replaceUrl: true,
+            });
+          return this.subjs;
         })
       ),
       this.rst.asObservable()
@@ -66,9 +84,16 @@ export class AppComponent {
 
   public selectSubj(i: number): void {
     this.currentSubj = i;
-    this.title = this.subjs && this.subjs[i].name;
+    this.title = i < 0 ? undefined : this.subjs && this.subjs[i].name;
   }
 
+  public isSubjSelected(i: number): boolean {
+    return i === this.currentSubj;
+  }
+
+  public linkR(i: number): string[] {
+    return this.currentSubj === i ? [] : [''];
+  }
   public linkQ(i: number): { [k: string]: unknown } {
     if (this.subjs == undefined) return {};
     return {

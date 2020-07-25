@@ -10,10 +10,10 @@
       <div fxFlex="0 0 auto"><span>{{title}}</span></div>
       <nav mat-tab-nav-bar color="warn">
         <a mat-tab-link *ngFor="let subj of subjs; index as i"
-          [active]="currentSubj == i"
+          [active]="isSubjSelected(i)"
           (click)="selectSubj(i)"
           [matTooltip]="subj.name"
-          routerLink="" [queryParams]="linkQ(i)" queryParamsHandling="merge">
+          [routerLink]="linkR(i)" [queryParams]="linkQ(i)" queryParamsHandling="merge">
           <img class="avatar" [src]="subj.avatar">
         </a>
       </nav>
