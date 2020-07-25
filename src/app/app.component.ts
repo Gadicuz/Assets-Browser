@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
 import { EVESSOService } from './services/eve-sso/eve-sso.module';
-import { EsiDataService } from './services/eve-esi/eve-esi-data.service';
+import { EsiDataService, EsiSubject } from './services/eve-esi/eve-esi-data.service';
 
 import { X_WWW_FORM_UrlEncodingCodec } from './x-www-form-codec';
 
@@ -12,9 +12,7 @@ import ccpCopyright from './ccp.copyright.json';
 import { Observable, Subject, never, merge } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
-export interface SubjTab {
-  id: number;
-  name: string;
+export interface SubjTab extends EsiSubject {
   avatar: string;
 }
 
@@ -57,24 +55,27 @@ export class AppComponent {
             ...subj,
             avatar: this.data.getSubjectAvatarURI(subj, 64),
           }));
-          const subj_id = +(route.snapshot.queryParamMap.get('subj') || 'NaN');
-          this.selectSubj(this.subjs.findIndex((subj) => subj.id === subj_id));
+          const subj_param = route.snapshot.queryParamMap.get('subj');
+          let index;
+          if (subj_param) {
+            const subj_id = +subj_param;
+            index = this.subjs.findIndex((subj) => subj.id === subj_id);
+          } else {
+            index = this.subjs.findIndex((subj) => subj.type === 'characters');
+          }
+          this.selectSubj(index);
           const queryParams = {
             code: undefined,
             scope: undefined,
             state: undefined,
             session_state: undefined,
+            subj: subj_param || this.subjs[this.currentSubj].id,
           };
-          if (this.currentSubj < 0)
-            void router.navigate([''], {
-              replaceUrl: true,
-            });
-          else
-            void router.navigate([], {
-              queryParams,
-              queryParamsHandling: 'merge',
-              replaceUrl: true,
-            });
+          void router.navigate([], {
+            queryParams,
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
           return this.subjs;
         })
       ),
