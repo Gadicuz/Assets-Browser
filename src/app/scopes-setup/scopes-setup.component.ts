@@ -1,4 +1,5 @@
 import { Component, OnInit, InjectionToken, Inject } from '@angular/core';
+import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
 
 export interface FeatureScopes {
   name: string;
@@ -19,8 +20,26 @@ export function getScopes(): string {
   templateUrl: './scopes-setup.component.html',
   styleUrls: ['./scopes-setup.component.css'],
 })
-export class ScopesSetupComponent implements OnInit {
-  constructor(@Inject(FEATURE_SCOPES) public features: ComponentScopes[]) {}
+export class ScopesSetupComponent {
+  public setupForm: FormGroup;
+  public readonly displayedColumns = ['name', 'char', 'corp'];
+  public dataSource: FormGroup[];
 
-  ngOnInit(): void {}
+  constructor(fb: FormBuilder, @Inject(FEATURE_SCOPES) public toolsSetup: ComponentScopes[]) {
+    const fts = toolsSetup.reduce((f, ts) => f.concat(ts), []);
+    this.setupForm = fb.group({
+      features: fb.array(
+        fts.map((t) =>
+          fb.group({
+            name: [t.name],
+            char: [false],
+            corp: [false],
+          })
+        )
+      ),
+    });
+    this.dataSource = (this.setupForm.get('features') as FormArray).controls as FormGroup[];
+  }
+
+  onSubmit(): void {}
 }

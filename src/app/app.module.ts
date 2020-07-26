@@ -1,5 +1,6 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
 
 import { FlexLayoutModule } from '@angular/flex-layout';
 
@@ -59,6 +60,7 @@ const ssoConfig: EVESSOConfig = {
     BrowserAnimationsModule,
     AngularMaterialModule,
     HttpClientModule,
+    ReactiveFormsModule,
     EVESSOModule.forRoot(ssoConfig),
     EVEESIModule.forRoot(esiConfig),
     LocationModule,

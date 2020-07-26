@@ -1,2 +1,41 @@
-<p>scopes-setup works!</p>
-{{features | json}}
+<form [formGroup]="setupForm">
+
+    <mat-table [dataSource]="dataSource" class="mat-elevation-z4" formArrayName="features">
+
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef> Feature name </mat-header-cell>
+          <mat-cell *matCellDef="let feature; let i = index" [formGroupName]="i">
+            {{feature.value | json}}
+          </mat-cell>
+        </ng-container>
+    
+        <ng-container matColumnDef="char">
+          <mat-header-cell *matHeaderCellDef> Character </mat-header-cell>
+          <mat-cell *matCellDef="let feature; let i = index" [formGroupName]="i">
+            <mat-slide-toggle formControlName="char"></mat-slide-toggle>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="corp">
+          <mat-header-cell *matHeaderCellDef> Corporation </mat-header-cell>
+          <mat-cell *matCellDef="let feature; let i = index" [formGroupName]="i">
+            <mat-slide-toggle formControlName="corp"></mat-slide-toggle>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+    
+    </mat-table>
+
+</form>
+
+
+<br>
+
+{{toolsSetup | json}}
+
+<br>
+
+{{setupForm.value | json}}
+
