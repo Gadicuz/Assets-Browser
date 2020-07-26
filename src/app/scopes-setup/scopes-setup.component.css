@@ -1,11 +1,11 @@
 .mat-column-name {
-  flex: 1 1;
+  flex: 2 2;
   flex-direction: column;
   align-items: flex-end;    
   justify-content: center
 }
 .mat-column-char, .mat-column-corp {
-  flex: 2 2;
+  flex: 1 1;
   flex-direction: column;
   justify-content: center
 }

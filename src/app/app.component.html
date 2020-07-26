@@ -2,7 +2,7 @@
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
     <div *ngIf="isLoggedIn(); then loggedIn; else loggedOut"></div>
     <ng-template #loggedIn>
-      <ng-container *ngIf="subjs; else nosubj">
+      <ng-container *ngIf="subjs?.length; else nosubj">
         <a *ngFor="let r of routes" fxFlex="0 0 auto" mat-stroked-button
           routerLinkActive="mat-flat-button"
           [routerLink]="r.link" queryParamsHandling="preserve">
@@ -42,13 +42,11 @@
     </ng-template>
   </mat-toolbar>
 
-  <div *ngIf="subjs" fxLayout="row" fxLayoutAlign="center">
+  <div *ngIf="subjs?.length" fxLayout="row" fxLayoutAlign="center">
     <div fxFlex="80%">
       <router-outlet></router-outlet>
     </div>
   </div>
-
-  <scopes-setup></scopes-setup>
 
   <div class="filler" fxFlex fxFlexFill></div>
 

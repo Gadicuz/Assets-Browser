@@ -55,7 +55,7 @@ interface LocSales {
 
 const features: ToolScopes = [
   {
-    name: 'Market Sell Orders',
+    name: 'Market Orders Browser',
     scopes: 'esi-markets.structure_markets.v1',
     char_scopes: 'esi-markets.read_character_orders.v1',
     corp_scopes: 'esi-markets.read_corporation_orders.v1',

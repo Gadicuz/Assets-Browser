@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { set } from '../utils/utils';
 import { Observable } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
+import { MatDialogRef } from '@angular/material/dialog';
 
 export interface FeatureScopes {
   name: string;
@@ -103,7 +104,11 @@ export class ScopesSetupComponent {
 
   private feats: toolItem[];
 
-  constructor(fb: FormBuilder, @Inject(TOOL_SCOPES) public toolsSetup: ToolScopes[]) {
+  constructor(
+    fb: FormBuilder,
+    @Inject(TOOL_SCOPES) public toolsSetup: ToolScopes[],
+    private dialogRef: MatDialogRef<ScopesSetupComponent>
+  ) {
     this.feats = processToolsScopes(toolsSetup);
     this.setupForm = fb.group({
       features: fb.array(
@@ -147,7 +152,12 @@ export class ScopesSetupComponent {
       .filter((i) => i.id && i.value);
   }
 
-  updateSetup(): void {
-    this.setup = this.extractSetup();
+  save(): void {
+    storeSetup(this.extractSetup());
+    this.dialogRef.close(true);
+  }
+
+  close(): void {
+    this.dialogRef.close(false);
   }
 }

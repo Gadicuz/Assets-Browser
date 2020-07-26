@@ -52,9 +52,12 @@ export class EVESSOService {
     });
   }
 
-  public authorize(): Observable<number> {
+  public login(forced: boolean): Observable<number> {
     // Load Discovery Document and then try to login the user
-    return from(this.oauth.loadDiscoveryDocumentAndTryLogin()).pipe(
+    return of(forced).pipe(
+      switchMap((forced) =>
+        from(forced ? this.oauth.loadDiscoveryDocumentAndLogin() : this.oauth.loadDiscoveryDocumentAndTryLogin())
+      ),
       filter(() => this.oauth.hasValidAccessToken()),
       switchMap(() => {
         const at = this.oauth.getAccessToken();
@@ -79,13 +82,13 @@ export class EVESSOService {
         );
       }),
       catchError((err) => {
-        this.err = err as unknown;
+        this.err = Error(String(err));
         return never();
       })
     );
   }
 
-  login(): void {
+  fastLogin(): void {
     this.oauth.initLoginFlow();
   }
 

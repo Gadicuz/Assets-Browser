@@ -68,6 +68,6 @@ const ssoConfig: EVESSOConfig = {
   ],
   bootstrap: [AppComponent],
   exports: [DefVarDirective],
-  //entryComponents: [ScopesSetupComponent],
+  entryComponents: [ScopesSetupComponent],
 })
 export class AppModule {}
