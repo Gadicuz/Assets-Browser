@@ -10,6 +10,10 @@ export interface FeatureScopes {
 export type ComponentScopes = FeatureScopes[];
 export const FEATURE_SCOPES = new InjectionToken<ComponentScopes>('feature-scopes');
 
+export function getScopes(): string {
+  return '';
+}
+
 @Component({
   selector: 'scopes-setup',
   templateUrl: './scopes-setup.component.html',

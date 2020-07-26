@@ -35,14 +35,14 @@ export class EVESSOService {
 
   constructor(private oauth: OAuthService, @Inject(EVESSO_CONFIG) private cfg: EVESSOConfig) {}
 
-  public configure(): void {
+  public configure(scopes: string): void {
     this.oauth.configure({
       issuer: 'https://login.eveonline.com',
       skipIssuerCheck: true,
       redirectUri: window.location.origin,
       clientId: this.cfg.client_id,
       //dummyClientSecret: this.config.client_secret,
-      scope: this.cfg.scopes.join(' '),
+      scope: scopes,
       oidc: false,
       responseType: 'code',
       //disablePKCE: true,

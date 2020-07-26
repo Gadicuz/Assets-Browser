@@ -37,7 +37,6 @@ const esiConfig: EVEESIConfig = {
 
 const ssoConfig: EVESSOConfig = {
   client_id: ssoClientId,
-  scopes: [],
 };
 
 @NgModule({

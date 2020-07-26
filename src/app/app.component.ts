@@ -12,6 +12,8 @@ import ccpCopyright from './ccp.copyright.json';
 import { Observable, Subject, never, merge } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
+import { getScopes } from './scopes-setup/scopes-setup.component';
+
 export interface SubjTab extends EsiSubject {
   avatar: string;
 }
@@ -23,6 +25,7 @@ export interface SubjTab extends EsiSubject {
 })
 export class AppComponent {
   public readonly copyright: string;
+  public scopes: string;
   public subjects$: Observable<SubjTab[] | undefined>;
 
   private err: unknown;
@@ -43,7 +46,8 @@ export class AppComponent {
   constructor(router: Router, route: ActivatedRoute, private sso: EVESSOService, private data: EsiDataService) {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);
-    this.sso.configure();
+    this.scopes = getScopes();
+    this.sso.configure(this.scopes);
     this.subjects$ = merge(
       this.data.loadSubjects(this.sso.authorize()).pipe(
         catchError((err) => {

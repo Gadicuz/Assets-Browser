@@ -1,4 +1,4 @@
-.avatar{
+.avatar {
   border-radius: 12px;
   height: 48px;
   width: 48px;
@@ -16,4 +16,7 @@
   word-wrap: break-word;
   text-align: center;
   color: rgba(0,0,0,.54);
+}
+.mat-button[disabled] img {
+  opacity: 0.6;
 }

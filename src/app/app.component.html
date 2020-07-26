@@ -29,7 +29,7 @@
         <mat-icon>exit_to_app</mat-icon></button>
     </ng-template>
     <ng-template #loggedOut>
-      <button fxFlex="0 0 auto" mat-button (click)="login()">
+      <button fxFlex="0 0 auto" mat-button (click)="login()" [disabled]=!scopes>
         <img src="https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-white-small.png" />
       </button>
     </ng-template>
