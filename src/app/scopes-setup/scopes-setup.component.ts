@@ -1,6 +1,8 @@
 import { Component, InjectionToken, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { set } from '../utils/utils';
+import { Observable } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
 
 export interface FeatureScopes {
   name: string;
@@ -77,8 +79,8 @@ function getValues(tools: toolItem[], setup: setupItem[]): { scopes: string[]; r
       roles: [],
     });
   return {
-    scopes: [...set(res.scopes)],
-    roles: [...set(res.roles)],
+    scopes: [...set(res.scopes)].sort((a, b) => a.localeCompare(b)),
+    roles: [...set(res.roles)].sort((a, b) => a.localeCompare(b)),
   };
 }
 
@@ -97,7 +99,7 @@ export class ScopesSetupComponent {
   public dataSource: FormGroup[];
 
   public setup = [] as setupItem[];
-  public value: unknown;
+  public value$: Observable<unknown>;
 
   private feats: toolItem[];
 
@@ -118,6 +120,10 @@ export class ScopesSetupComponent {
     });
     this.dataSource = (this.setupForm.get('features') as FormArray).controls as FormGroup[];
     this.applySetup(loadSetup());
+    this.value$ = this.setupForm.valueChanges.pipe(
+      startWith(undefined),
+      map(() => getValues(this.feats, this.extractSetup()))
+    );
   }
 
   private applySetup(setup: setupItem[]): void {
@@ -143,6 +149,5 @@ export class ScopesSetupComponent {
 
   updateSetup(): void {
     this.setup = this.extractSetup();
-    this.value = getValues(this.feats, this.setup);
   }
 }

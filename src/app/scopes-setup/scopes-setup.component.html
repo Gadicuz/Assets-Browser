@@ -1,5 +1,5 @@
-<form [formGroup]="setupForm">
-
+<div fxLayout="column">
+  <form [formGroup]="setupForm">
     <mat-table [dataSource]="dataSource" class="mat-elevation-z4" formArrayName="features">
 
         <ng-container matColumnDef="name">
@@ -27,20 +27,23 @@
         <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
     
     </mat-table>
+  </form>
 
-</form>
+  <div></div>
 
-<button (click)="updateSetup()">Update</button>
+  <div fxLayout="row" *defVar="(value$ | async) as value">
+    <div fxFlex>
+      <h4>Required scopes:</h4>
+      <mat-list role="list">
+        <mat-list-item *ngFor="let scope of value.scopes" role="listitem">{{scope}}</mat-list-item>
+      </mat-list>
+    </div>
+    <div fxFlex>
+      <h4>Required corporation roles:</h4>
+      <mat-list role="list">
+        <mat-list-item *ngFor="let role of value.roles" role="listitem">{{role}}</mat-list-item>
+      </mat-list>
+    </div>
+  </div>
 
-<br>
-
-{{setup | json}}
-
-<br>
-
-{{value | json}}
-
-<br>
-
-{{setupForm.value | json}}
-
+</div>
