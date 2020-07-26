@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, NgModule } from '@angular/core';
 import { Observable, of, concat, merge, defer, combineLatest } from 'rxjs';
 import { map, toArray, catchError, switchMap } from 'rxjs/operators';
 
@@ -18,6 +18,7 @@ import { EsiService } from '../services/eve-esi/eve-esi.module';
 
 import { autoMap, set, tuple, updateMapValues } from '../utils/utils';
 import { ActivatedRoute } from '@angular/router';
+import { ComponentScopes, FEATURE_SCOPES } from '../scopes-setup/scopes-setup.component';
 
 export interface OrderListItem {
   type_id: number;
@@ -51,6 +52,22 @@ interface LocSales {
   l_id: number;
   tid_sales: Map<number, SalesData>;
 }
+
+const features: ComponentScopes = [
+  {
+    name: 'Market Orders',
+    scopes: 'esi-markets.structure_markets.v1',
+    char_scopes: 'esi-markets.read_character_orders.v1',
+    corp_scopes: 'esi-markets.read_corporation_orders.v1',
+    corp_roles: 'Accountant,Trader',
+  },
+  {
+    name: 'Show history',
+    char_scopes: 'esi-wallet.read_character_wallet.v1',
+    corp_scopes: 'esi-wallet.read_corporation_wallets.v1',
+    corp_roles: 'Accountant,Junior_Accountant',
+  },
+];
 
 @Component({
   selector: 'app-orders',
@@ -249,3 +266,8 @@ export class OrdersComponent {
     return { name, items };
   }
 }
+
+@NgModule({
+  providers: [{ provide: FEATURE_SCOPES, useValue: features, multi: true }],
+})
+export class OrdersModule {}

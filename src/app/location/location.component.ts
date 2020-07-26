@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, NgModule } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { combineLatest, defer, of, merge, throwError, concat, empty } from 'rxjs';
@@ -40,6 +40,7 @@ import {
 } from './location.models';
 
 import { autoMap, set, mapGet } from '../utils/utils';
+import { ComponentScopes, FEATURE_SCOPES } from '../scopes-setup/scopes-setup.component';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -171,6 +172,28 @@ class LocationDataSource implements DataSource<ItemRecord> {
     sort.sortChange.emit({ active: sort.active, direction: sort.direction });
   }
 }
+
+const features: ComponentScopes = [
+  {
+    name: 'Assets Browser',
+    scopes: 'esi-universe.read_structures.v1',
+    char_scopes: 'esi-assets.read_assets.v1',
+    corp_scopes: 'esi-assets.read_corporation_assets.v1',
+    corp_roles: 'Director',
+  },
+  {
+    name: 'Show blueprints details',
+    char_scopes: 'esi-characters.read_blueprints.v1',
+    corp_scopes: 'esi-corporations.read_blueprints.v1',
+    corp_roles: 'Director',
+  },
+  {
+    name: 'Show market orders',
+    char_scopes: 'esi-markets.read_character_orders.v1',
+    corp_scopes: 'esi-markets.read_corporation_orders.v1',
+    corp_roles: 'Accountant,Trader',
+  },
+];
 
 @Component({
   selector: 'app-location',
@@ -609,3 +632,8 @@ export class LocationComponent {
     );
   }
 }
+
+@NgModule({
+  providers: [{ provide: FEATURE_SCOPES, useValue: features, multi: true }],
+})
+export class LocationModule {}

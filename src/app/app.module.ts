@@ -13,8 +13,8 @@ import { HttpClientModule } from '@angular/common/http';
 import { EVESSOModule, EVESSOConfig } from './services/eve-sso/eve-sso.module';
 import { EVEESIModule, EVEESIConfig } from './services/eve-esi/eve-esi.module';
 
-import { LocationComponent } from './location/location.component';
-import { OrdersComponent } from './orders/orders.component';
+import { LocationComponent, LocationModule } from './location/location.component';
+import { OrdersComponent, OrdersModule } from './orders/orders.component';
 
 import { DefVarDirective } from './utils/defvar.directive';
 
@@ -27,6 +27,8 @@ import { ErrorComponent } from './error/error.component';
 
 import { ssoClientId } from '../environments/sso.client';
 
+import { ScopesSetupComponent } from './scopes-setup/scopes-setup.component';
+
 const esiConfig: EVEESIConfig = {
   url: 'https://esi.evetech.net/',
   ver: 'latest/',
@@ -35,17 +37,7 @@ const esiConfig: EVEESIConfig = {
 
 const ssoConfig: EVESSOConfig = {
   client_id: ssoClientId,
-  scopes: [
-    'esi-assets.read_assets.v1',
-    'esi-universe.read_structures.v1',
-    'esi-markets.read_character_orders.v1',
-    'esi-markets.structure_markets.v1',
-    'esi-wallet.read_character_wallet.v1',
-    'esi-characters.read_blueprints.v1',
-    'esi-assets.read_corporation_assets.v1',
-    'esi-corporations.read_blueprints.v1',
-    'esi-markets.read_corporation_orders.v1',
-  ],
+  scopes: [],
 };
 
 @NgModule({
@@ -59,6 +51,7 @@ const ssoConfig: EVESSOConfig = {
     UndefPipe,
     OrdersListComponent,
     ErrorComponent,
+    ScopesSetupComponent,
   ],
   imports: [
     BrowserModule,
@@ -69,8 +62,11 @@ const ssoConfig: EVESSOConfig = {
     HttpClientModule,
     EVESSOModule.forRoot(ssoConfig),
     EVEESIModule.forRoot(esiConfig),
+    LocationModule,
+    OrdersModule,
   ],
   bootstrap: [AppComponent],
   exports: [DefVarDirective],
+  //entryComponents: [ScopesSetupComponent],
 })
 export class AppModule {}
