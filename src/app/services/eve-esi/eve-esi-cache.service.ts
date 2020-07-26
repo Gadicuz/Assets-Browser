@@ -16,7 +16,7 @@ import {
 } from './eve-esi-data.service';
 
 import { autoMap, set, removeKeys } from '../../utils/utils';
-import { EsiService } from './eve-esi.module';
+import { EsiService, isAssetsNameInvalidType } from './eve-esi.module';
 
 type EsiDataItems = Map<number, EsiDataItem>;
 
@@ -34,7 +34,10 @@ export class EsiCacheService {
     return this.data
       .loadItemNames(
         subj_id,
-        [...items.values()].filter((i) => i.is_singleton).map((i) => i.item_id)
+        [...items.values()]
+          .filter((i) => i.is_singleton)
+          .filter((i) => !isAssetsNameInvalidType(i.type_id))
+          .map((i) => i.item_id)
       )
       .pipe(
         map((names) => {

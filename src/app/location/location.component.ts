@@ -23,7 +23,7 @@ import {
   EsiDataBpd,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
-import { EsiService } from '../services/eve-esi/eve-esi.module';
+import { EsiService, isNoItemIconAvailable, isWrapping } from '../services/eve-esi/eve-esi.module';
 
 import { MatSort, Sort } from '@angular/material/sort';
 import { DataSource } from '@angular/cdk/collections';
@@ -125,11 +125,6 @@ interface LocationItem {
 }
 const locItemHash = (i: LocationItem): string =>
   `${i.item_id || 0}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos || ''}`;
-
-const virtualContainerTypes: number[] = [EsiService.TYPE_ID_AssetSafetyWrap, EsiService.TYPE_ID_PlasticWrap];
-function isVirtualContainer(type_id: number): boolean {
-  return virtualContainerTypes.includes(type_id);
-}
 
 class LocationDataSource implements DataSource<ItemRecord> {
   private _data = new BehaviorSubject<ItemRecord[]>([]);
@@ -474,7 +469,7 @@ export class LocationComponent {
       info.name = name || typeInfo.name;
       info.comment = (name && typeInfo.name) || undefined;
     }
-    info.icon = type_id;
+    info.icon = isNoItemIconAvailable(type_id) ? UNKNOWN_IMAGE_URL : type_id;
     //info.value = this.cache.marketPrices.get(type_id);
     info.volume = typeInfo.packaged_volume || typeInfo.volume; // (packaged) item's volume
     if (typeInfo.packaged_volume) info.assembled_volume = typeInfo.volume; // assembled volume
@@ -548,7 +543,7 @@ export class LocationComponent {
         const cIds = set(items.map((item) => item.location_id));
         let locs = this.createLocContentItems(
           items.map((item) => ({
-            is_vcont: isVirtualContainer(item.type_id),
+            is_vcont: isWrapping(item.type_id),
             item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
             name: item.name || '',
             location: {

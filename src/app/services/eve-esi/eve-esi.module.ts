@@ -168,19 +168,36 @@ enum imageResource {
 
 type EsiHttpParams = Record<string, string | undefined>;
 
+function isStationServiceType(type_id: number): boolean {
+  return type_id >= 26 && type_id <= 28;
+}
+
+export function isNoItemIconAvailable(type_id: number): boolean {
+  return isStationServiceType(type_id); // no icon is available for 'Station Services' types (???)
+}
+
+export function isAssetsNameInvalidType(type_id: number): boolean {
+  return isStationServiceType(type_id);
+}
+
+export function isWrapping(type_id: number): boolean {
+  return type_id === EsiService.TYPE_ID_AssetSafetyWrap || type_id === EsiService.TYPE_ID_PlasticWrap;
+}
+
+
 @Injectable({
   providedIn: 'root',
 })
 export class EsiService {
-  static TYPE_ID_AssetSafetyWrap = 60;
-  static TYPE_ID_PlasticWrap = 3468;
-  static LOCATION_ID_AssetSafety = 2004;
-  static CATEGORY_ID_Ship = 6;
+  static readonly TYPE_ID_AssetSafetyWrap = 60;
+  static readonly TYPE_ID_PlasticWrap = 3468;
+  static readonly LOCATION_ID_AssetSafety = 2004;
+  static readonly CATEGORY_ID_Ship = 6;
 
-  static STD_MAIL_LABEL_ID_Inbox = 1;
-  static STD_MAIL_LABEL_ID_Sent = 2;
-  static STD_MAIL_LABEL_ID_Corp = 4;
-  static STD_MAIL_LABEL_ID_Alliance = 8;
+  static readonly STD_MAIL_LABEL_ID_Inbox = 1;
+  static readonly STD_MAIL_LABEL_ID_Sent = 2;
+  static readonly STD_MAIL_LABEL_ID_Corp = 4;
+  static readonly STD_MAIL_LABEL_ID_Alliance = 8;
 
   private readonly commonParams: EsiHttpParams;
   private static status_is_4xx(status: number): boolean {
