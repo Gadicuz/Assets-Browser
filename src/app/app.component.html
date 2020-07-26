@@ -1,35 +1,42 @@
 <div class="app-container" fxLayout="column" fxLayoutAlign="start" *defVar="(subjects$ | async) as subjs">
   <mat-toolbar fxLayout="row" fxLayoutAlign="space-between center" fxLayoutGap="16px" color="primary" class="mat-elevation-z0 header">
-    <ng-container *ngIf="subjs; else nosubj">
-      <a *ngFor="let r of routes" fxFlex="0 0 auto" mat-stroked-button
-        routerLinkActive="mat-flat-button"
-        [routerLink]="r.link" queryParamsHandling="preserve">
-        {{r.caption}}
-      </a>
-      <div fxFlex="1 1 auto"></div>
-      <div fxFlex="0 0 auto"><span>{{title}}</span></div>
-      <nav mat-tab-nav-bar color="warn">
-        <a mat-tab-link *ngFor="let subj of subjs; index as i"
-          [active]="isSubjSelected(i)"
-          (click)="selectSubj(i)"
-          [matTooltip]="subj.name"
-          [routerLink]="linkR(i)" [queryParams]="linkQ(i)" queryParamsHandling="merge">
-          <img class="avatar" [src]="subj.avatar">
-        </a>
-      </nav>
-    </ng-container>
-    <ng-template #nosubj>
-      <div fxFlex="1 1 auto"></div>
-    </ng-template>
     <div *ngIf="isLoggedIn(); then loggedIn; else loggedOut"></div>
     <ng-template #loggedIn>
+      <ng-container *ngIf="subjs; else nosubj">
+        <a *ngFor="let r of routes" fxFlex="0 0 auto" mat-stroked-button
+          routerLinkActive="mat-flat-button"
+          [routerLink]="r.link" queryParamsHandling="preserve">
+          {{r.caption}}
+        </a>
+        <div fxFlex="1 1 auto"></div>
+        <div fxFlex="0 0 auto"><span>{{title}}</span></div>
+        <nav mat-tab-nav-bar color="warn">
+          <a mat-tab-link *ngFor="let subj of subjs; index as i"
+            [active]="isSubjSelected(i)"
+            (click)="selectSubj(i)"
+            [matTooltip]="subj.name"
+            [routerLink]="linkR(i)" [queryParams]="linkQ(i)" queryParamsHandling="merge">
+            <img class="avatar" [src]="subj.avatar">
+          </a>
+        </nav>
+      </ng-container>
+      <ng-template #nosubj>
+        <div fxFlex="1 1 auto"></div>
+      </ng-template>
       <button mat-icon-button fxFlex="0 0 auto" 
         (click)="logoff()"
         routerLink="">
-        <mat-icon>exit_to_app</mat-icon></button>
+        <mat-icon>exit_to_app</mat-icon>
+      </button>
     </ng-template>
     <ng-template #loggedOut>
-      <button fxFlex="0 0 auto" mat-button (click)="login()" [disabled]=!scopes>
+      <button mat-icon-button fxFlex="0 0 auto" 
+        (click)="settings()">
+        <mat-icon matBadge="!" matBadgeColor="warn" [matBadgeHidden]="!!scopes">settings</mat-icon>
+      </button>
+      <div fxFlex="1 1 auto">
+      </div>
+      <button fxFlex="0 0 auto" mat-button (click)="login()" [disabled]="!scopes">
         <img src="https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-white-small.png" />
       </button>
     </ng-template>

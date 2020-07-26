@@ -128,4 +128,8 @@ export class AppComponent {
   isLoggedIn(): boolean {
     return this.sso.isLoggedIn();
   }
+
+  settings(): void {
+    
+  }
 }
