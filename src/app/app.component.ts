@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Inject } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
 import { EVESSOService } from './services/eve-sso/eve-sso.module';
@@ -12,7 +12,7 @@ import ccpCopyright from './ccp.copyright.json';
 import { Observable, Subject, never, merge } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
-import { getScopes } from './scopes-setup/scopes-setup.component';
+import { getScopes, TOOL_SCOPES, ToolScopes } from './scopes-setup/scopes-setup.component';
 
 export interface SubjTab extends EsiSubject {
   avatar: string;
@@ -43,10 +43,16 @@ export class AppComponent {
   private currentSubj = -1;
   public title: string | undefined;
 
-  constructor(router: Router, route: ActivatedRoute, private sso: EVESSOService, private data: EsiDataService) {
+  constructor(
+    router: Router,
+    route: ActivatedRoute,
+    private sso: EVESSOService,
+    private data: EsiDataService,
+    @Inject(TOOL_SCOPES) tools: ToolScopes[]
+  ) {
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.copyright = ccpCopyright.split('{site}').join(window.location.hostname);
-    this.scopes = getScopes();
+    this.scopes = getScopes(tools);
     this.sso.configure(this.scopes);
     this.subjects$ = merge(
       this.data.loadSubjects(this.sso.authorize()).pipe(

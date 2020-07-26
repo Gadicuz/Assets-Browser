@@ -18,7 +18,7 @@ import { EsiService } from '../services/eve-esi/eve-esi.module';
 
 import { autoMap, set, tuple, updateMapValues } from '../utils/utils';
 import { ActivatedRoute } from '@angular/router';
-import { ComponentScopes, FEATURE_SCOPES } from '../scopes-setup/scopes-setup.component';
+import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
 
 export interface OrderListItem {
   type_id: number;
@@ -53,19 +53,19 @@ interface LocSales {
   tid_sales: Map<number, SalesData>;
 }
 
-const features: ComponentScopes = [
+const features: ToolScopes = [
   {
-    name: 'Market Orders',
+    name: 'Market Sell Orders',
     scopes: 'esi-markets.structure_markets.v1',
     char_scopes: 'esi-markets.read_character_orders.v1',
     corp_scopes: 'esi-markets.read_corporation_orders.v1',
-    corp_roles: 'Accountant,Trader',
+    corp_role: 'Accountant,Trader',
   },
   {
-    name: 'Show history',
+    name: 'history',
     char_scopes: 'esi-wallet.read_character_wallet.v1',
     corp_scopes: 'esi-wallet.read_corporation_wallets.v1',
-    corp_roles: 'Accountant,Junior_Accountant',
+    corp_role: 'Accountant,Junior_Accountant',
   },
 ];
 
@@ -268,6 +268,6 @@ export class OrdersComponent {
 }
 
 @NgModule({
-  providers: [{ provide: FEATURE_SCOPES, useValue: features, multi: true }],
+  providers: [{ provide: TOOL_SCOPES, useValue: features, multi: true }],
 })
 export class OrdersModule {}

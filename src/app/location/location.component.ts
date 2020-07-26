@@ -40,7 +40,7 @@ import {
 } from './location.models';
 
 import { autoMap, set, mapGet } from '../utils/utils';
-import { ComponentScopes, FEATURE_SCOPES } from '../scopes-setup/scopes-setup.component';
+import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -173,25 +173,25 @@ class LocationDataSource implements DataSource<ItemRecord> {
   }
 }
 
-const features: ComponentScopes = [
+const features: ToolScopes = [
   {
     name: 'Assets Browser',
     scopes: 'esi-universe.read_structures.v1',
     char_scopes: 'esi-assets.read_assets.v1',
     corp_scopes: 'esi-assets.read_corporation_assets.v1',
-    corp_roles: 'Director',
+    corp_role: 'Director',
   },
   {
-    name: 'Show blueprints details',
+    name: 'blueprints details',
     char_scopes: 'esi-characters.read_blueprints.v1',
     corp_scopes: 'esi-corporations.read_blueprints.v1',
-    corp_roles: 'Director',
+    corp_role: 'Director',
   },
   {
-    name: 'Show market orders',
+    name: 'market orders',
     char_scopes: 'esi-markets.read_character_orders.v1',
     corp_scopes: 'esi-markets.read_corporation_orders.v1',
-    corp_roles: 'Accountant,Trader',
+    corp_role: 'Accountant,Trader',
   },
 ];
 
@@ -634,6 +634,6 @@ export class LocationComponent {
 }
 
 @NgModule({
-  providers: [{ provide: FEATURE_SCOPES, useValue: features, multi: true }],
+  providers: [{ provide: TOOL_SCOPES, useValue: features, multi: true }],
 })
 export class LocationModule {}

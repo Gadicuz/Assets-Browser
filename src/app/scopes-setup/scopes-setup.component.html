@@ -4,8 +4,8 @@
 
         <ng-container matColumnDef="name">
           <mat-header-cell *matHeaderCellDef> Feature name </mat-header-cell>
-          <mat-cell *matCellDef="let feature; let i = index" [formGroupName]="i">
-            {{feature.value | json}}
+          <mat-cell *matCellDef="let feature; let i = index" [formGroupName]="i" [class.mat-cell-main]="feature.value.head">
+            {{feature.value.name}}
           </mat-cell>
         </ng-container>
     
@@ -30,10 +30,15 @@
 
 </form>
 
+<button (click)="updateSetup()">Update</button>
 
 <br>
 
-{{toolsSetup | json}}
+{{setup | json}}
+
+<br>
+
+{{value | json}}
 
 <br>
 
