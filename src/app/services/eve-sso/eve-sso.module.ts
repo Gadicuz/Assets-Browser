@@ -64,12 +64,13 @@ export class EVESSOService {
   }
 
   public login(forced: boolean): Observable<number> {
-    // Load Discovery Document and then try to login the user
     return of(forced).pipe(
       switchMap((forced) =>
-        from(forced ? this.oauth.loadDiscoveryDocumentAndLogin() : this.oauth.loadDiscoveryDocumentAndTryLogin())
+        // Load Discovery Document and then try to login the user
+        from(forced ? this.oauth.loadDiscoveryDocumentAndLogin() : this.oauth.loadDiscoveryDocumentAndTryLogin()).pipe(
+          filter(() => this.isLoggedIn())
+        )
       ),
-      filter(() => this.oauth.hasValidAccessToken()),
       switchMap(() => {
         const at = this.oauth.getAccessToken();
         const [atHeader, atPayload] = at
