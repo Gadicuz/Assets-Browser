@@ -7,8 +7,8 @@ import { EVESSO_CONFIG, EVESSOConfig } from './eve-sso.config';
 import { AccessTokenV2Payload } from './eve-sso.model';
 
 import { b64urlDecode } from '@waiting/base64';
-import { Observable, of, never, from } from 'rxjs';
-import { catchError, filter, switchMap } from 'rxjs/operators';
+import { Observable, of, from } from 'rxjs';
+import { catchError, filter, switchMap, map } from 'rxjs/operators';
 
 export { EVESSOConfig } from './eve-sso.config';
 
@@ -27,11 +27,18 @@ export { EVESSOConfig } from './eve-sso.config';
 }
 */
 
+class SSOError implements Error {
+  readonly name = 'SSOError';
+  readonly message: string;
+  constructor(e: unknown) {
+    this.message = typeof e === 'object' ? (e as Error).message : String(e);
+  }
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class EVESSOService {
-  public err: unknown;
 
   constructor(private oauth: OAuthService, @Inject(EVESSO_CONFIG) private cfg: EVESSOConfig) {}
 
@@ -73,17 +80,22 @@ export class EVESSOService {
             jwks: this.oauth.jwks,
           } as ValidationParams)
         ).pipe(
-          switchMap(() => {
+          map(() => {
+            const id = atPayload.sub.split(':').pop();
+            if (id == undefined || id === '') {
+              this.logout();
+              throw new SSOError(
+                `Access token subject entry '${atPayload.sub}' is malformed. Can't extract subject id.`
+              );
+            }
             //this.oauth.timeoutFactor = 0.1;
             this.oauth.setupAutomaticSilentRefresh();
-            const id = atPayload.sub.split(':').pop();
-            return id == undefined ? never() : of(+id);
+            return +id;
           })
         );
       }),
       catchError((err) => {
-        this.err = Error(String(err));
-        return never();
+        throw new SSOError(err);
       })
     );
   }

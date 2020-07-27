@@ -29,9 +29,9 @@ export class AppComponent {
   public readonly copyright = ccpCopyright.split('{site}').join(window.location.hostname);
   public subjects$: Observable<SubjTab[]>;
 
-  private err: unknown;
-  get loginError(): unknown {
-    return this.err || this.sso.err;
+  private err: Error | undefined;
+  get loginError(): Error | undefined {
+    return this.err;
   }
 
   public readonly routes = [
@@ -94,7 +94,7 @@ export class AppComponent {
               return this.subjs;
             }),
             catchError((err) => {
-              this.err = err as unknown;
+              this.err = err as Error;
               return never();
             })
           ),
