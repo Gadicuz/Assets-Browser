@@ -39,6 +39,10 @@ class SSOError implements Error {
   providedIn: 'root',
 })
 export class EVESSOService {
+  private _granted: string[] = [];
+  public get granted(): string[] {
+    return this.isLoggedIn() ? this._granted : [];
+  }
 
   constructor(private oauth: OAuthService, @Inject(EVESSO_CONFIG) private cfg: EVESSOConfig) {}
 
@@ -88,6 +92,7 @@ export class EVESSOService {
                 `Access token subject entry '${atPayload.sub}' is malformed. Can't extract subject id.`
               );
             }
+            this._granted = atPayload.scp;
             //this.oauth.timeoutFactor = 0.1;
             this.oauth.setupAutomaticSilentRefresh();
             return +id;
