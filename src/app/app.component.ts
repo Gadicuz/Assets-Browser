@@ -10,7 +10,7 @@ import ru from '@angular/common/locales/ru';
 
 import ccpCopyright from './ccp.copyright.json';
 import { Observable, Subject, BehaviorSubject, never, merge, of } from 'rxjs';
-import { catchError, map, delay, switchMap, tap } from 'rxjs/operators';
+import { catchError, map, switchMap } from 'rxjs/operators';
 
 import { getScopes, TOOL_SCOPES, ToolScopes, ScopesSetupComponent } from './scopes-setup/scopes-setup.component';
 import { MatDialog } from '@angular/material/dialog';

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, empty, from, throwError, MonoTypeOperatorFunction } from 'rxjs';
-import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
+import { catchError, expand, map, mergeMap, takeWhile, toArray, scan } from 'rxjs/operators';
 
 import {
   EsiService,
@@ -9,6 +9,7 @@ import {
   EsiMailHeader,
   EsiSubjType,
   isScopedOut,
+  EsiWalletDivisionId,
 } from './eve-esi.module';
 
 import {
@@ -150,7 +151,7 @@ export class EsiDataService {
   public findSubject(subj_id: number | undefined, subj_type?: EsiSubjType): EsiSubject | undefined {
     return this.subjs.find((subj) => subj_id === subj.id && (subj_type == undefined || subj_type == subj.type));
   }
-  private getSubjectType(subj_id: number): EsiSubjType {
+  public getSubjectType(subj_id: number): EsiSubjType {
     const subj = this.findSubject(subj_id);
     if (subj == undefined) throw Error(`Unknown subject (${subj_id})`);
     return subj.type;
@@ -416,18 +417,24 @@ export class EsiDataService {
     return this.esi.getEntityBlueprints(this.getSubjectType(subj_id), subj_id);
   }
 
-  loadCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
-    return this.esi.getCharacterWalletTransactions(character_id);
+  loadCharacterWalletTransactions(character_id: number, personal?: boolean): Observable<EsiWalletTransaction[]> {
+    return this.esi
+      .getCharacterWalletTransactions(character_id)
+      .pipe(map((wts) => wts.filter((wt) => personal == undefined || personal == wt.is_personal)));
   }
 
-  loadCorporationWalletsTransactions(corporation_id: number): Observable<EsiWalletTransaction[]> {
-    return of([]);
+  loadCorporationWalletsTransactions(corporation_id: number, personal?: boolean): Observable<EsiWalletTransaction[]> {
+    if (personal) return of([]);
+    return from([1, 2, 3, 4, 5, 6, 7] as EsiWalletDivisionId[]).pipe(
+      mergeMap((div) => this.esi.getCorporationWalletTransaction(corporation_id, div)),
+      scan((wts, wt) => wts.concat(wt), [] as EsiWalletTransaction[])
+    );
   }
 
-  loadWalletTransactions(subj_id: number): Observable<EsiWalletTransaction[]> {
+  loadWalletTransactions(subj_id: number, personal?: boolean): Observable<EsiWalletTransaction[]> {
     return this.getSubjectType(subj_id) === 'characters'
-      ? this.loadCharacterWalletTransactions(subj_id)
-      : this.loadCorporationWalletsTransactions(subj_id);
+      ? this.loadCharacterWalletTransactions(subj_id, personal)
+      : this.loadCorporationWalletsTransactions(subj_id, personal);
   }
 
   private static convertEsiDataMailHeader(h: EsiMailHeader): EsiDataMailHeader {

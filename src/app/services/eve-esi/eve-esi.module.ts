@@ -139,6 +139,8 @@ export interface EsiMailLabels {
   total_unread_count?: number;
 }
 
+export type EsiWalletDivisionId = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
 export type EsiIdCategory =
   | 'alliance'
   | 'character'
@@ -410,6 +412,12 @@ export class EsiService {
 
   public getCharacterWalletTransactions(character_id: number): Observable<EsiWalletTransaction[]> {
     return this.getCharacterInformation<EsiWalletTransaction[]>(character_id, 'wallet/transactions/');
+  }
+  public getCorporationWalletTransaction(
+    corporation_id: number,
+    division: EsiWalletDivisionId
+  ): Observable<EsiWalletTransaction[]> {
+    return this.getCorporationInformation<EsiWalletTransaction[]>(corporation_id, `wallets/${division}/transactions/`);
   }
 
   public getCharacterMailHeaders(
