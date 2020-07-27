@@ -88,7 +88,7 @@ export class EsiCacheService {
   public loadItems(subj_id: number): Observable<EsiDataItems> {
     return this._loadItems(subj_id).pipe(
       mergeMap((items) => this._loadNames(subj_id, items)),
-      mergeMap((items) => this._loadBlueprints(subj_id, items)),
+      mergeMap((items) => this._loadBlueprints(subj_id, items).pipe(this.data.scoped(items))),
       tap((items) => this.entityItems.set(subj_id, items))
     );
   }

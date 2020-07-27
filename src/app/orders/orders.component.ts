@@ -87,15 +87,14 @@ export class OrdersComponent {
         switchMap((subj_id) =>
           combineLatest(
             this.data.loadMarketOrders(subj_id, 'sell'),
-            this.data
-              .loadWalletTransactions(subj_id)
-              .pipe(
-                map((wts) =>
-                  wts.filter(
-                    (wt) => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth
-                  )
+            this.data.loadWalletTransactions(subj_id).pipe(
+              this.data.scoped([] as EsiWalletTransaction[]),
+              map((wts) =>
+                wts.filter(
+                  (wt) => wt.is_personal && !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth
                 )
-              ),
+              )
+            ),
             (orders, trans) => this.analyzeData(orders, trans)
           )
         ),

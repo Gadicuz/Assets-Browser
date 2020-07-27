@@ -141,7 +141,7 @@ export class EsiDataService {
     return catchError((err) => {
       const scope = isScopedOut(err);
       if (scope === '') throw err;
-      this.sbq.msg(`ESI scope ${scope} is not granted. Data unavailable.`);
+      this.sbq.msg(`ESI scope '${scope}' is not granted.`);
       return of(val);
     });
   }
