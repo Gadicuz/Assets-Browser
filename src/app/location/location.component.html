@@ -11,9 +11,11 @@
 
     <mat-card-content fxLayout="row wrap" fxLayoutGap="8px" fxLayoutAlign="start">
       <ng-container *ngFor="let stat of info.stats">
-        <mat-card *ngIf="stat.value !== ''">
-          <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="start">
-            <div class="mat-caption">{{stat.title}}</div>
+        <mat-card *ngIf="stat.value !== ''" class="compact">
+          <mat-card-header class="compact">
+            <mat-card-title class="compact">{{stat.title}}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="start" class="compact">
             <div class="mat-display-1 no-margin">
               <ng-container *ngIf="isNum(stat.value)">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
               <ng-container *ngIf="!isNum(stat.value) && stat.value !== 'n/a'">{{stat.value}}</ng-container>
@@ -22,7 +24,12 @@
               [routerLink]="['/browse',info.data.Link,'deep']" queryParamsHandling="preserve">
               Load
             </button>
-          </div>
+          </mat-card-content>
+          <mat-card-actions class="compact">
+            <button mat-icon-button (click)="viewLogistics()">
+              <mat-icon>poll</mat-icon>
+            </button>  
+          </mat-card-actions>
         </mat-card>
       </ng-container>      
       <mat-progress-bar *ngIf="!info.done" mode="indeterminate"></mat-progress-bar>

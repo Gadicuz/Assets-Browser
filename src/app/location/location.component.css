@@ -1,6 +1,18 @@
 .mat-card-header {
   min-height: 61px;
 }
+.mat-card-header.compact {
+  min-height: 0;
+}
+.mat-card-title.compact {
+  font-size: 14px;
+}
+.mat-card-content.compact {
+  margin-bottom: 0;
+}
+.mat-card-actions.compact {
+  padding: 0;
+}
 
 .mat-row {
   min-height: 40px;

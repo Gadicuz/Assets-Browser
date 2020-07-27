@@ -43,6 +43,8 @@ import {
 import { autoMap, set, mapGet } from '../utils/utils';
 import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
 import { SnackBarQueueService } from '../services/snackbar-queue/snackbar-queue.service';
+import { LocationLogisticsDialog } from './location-logistics-dialog';
+import { MatDialog } from '@angular/material/dialog';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -232,6 +234,7 @@ export class LocationComponent {
     private esi: EsiService,
     private data: EsiDataService,
     private cache: EsiCacheService,
+    private dialog: MatDialog,
     private sbq: SnackBarQueueService
   ) {
     // Define 'universe' item
@@ -633,6 +636,13 @@ export class LocationComponent {
         );
       })
     );
+  }
+
+  public viewLogistics(): void {
+    this.dialog.open(LocationLogisticsDialog, {
+        width: '800px',
+        height: '80%',
+    });
   }
 }
 

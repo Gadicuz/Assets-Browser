@@ -6,6 +6,7 @@ import { Component } from '@angular/core';
   styleUrls: ['./location-logistics-dialog.css'],
 })
 export class LocationLogisticsDialog {
+  
   title = 'Angular Charts';
   view: any[] = [600, 400];
   // options for the chart

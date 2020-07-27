@@ -72,6 +72,6 @@ const ssoConfig: EVESSOConfig = {
   ],
   bootstrap: [AppComponent],
   exports: [DefVarDirective],
-  entryComponents: [ScopesSetupComponent],
+  entryComponents: [ScopesSetupComponent, LocationLogisticsDialog],
 })
 export class AppModule {}
