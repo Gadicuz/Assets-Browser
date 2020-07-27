@@ -21,9 +21,10 @@ import {
   EsiDataItem,
   EsiDataInfo,
   EsiDataBpd,
+  EsiDataCharMarketOrder,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
-import { EsiService, isNoItemIconAvailable, isWrapping, esiForbidden } from '../services/eve-esi/eve-esi.module';
+import { EsiService, isNoItemIconAvailable, isWrapping } from '../services/eve-esi/eve-esi.module';
 
 import { MatSort, Sort } from '@angular/material/sort';
 import { DataSource } from '@angular/cdk/collections';
@@ -601,6 +602,7 @@ export class LocationComponent {
 
   private loadSellOrders(subj_id: number): Observable<LocData[]> {
     return this.cache.loadMarketOrders(subj_id).pipe(
+      this.data.scoped([] as EsiDataCharMarketOrder[]),
       map((orders) => {
         return Array.from(
           orders
@@ -629,11 +631,6 @@ export class LocationComponent {
             );
           }
         );
-      }),
-      catchError((err) => {
-        if (!esiForbidden(err)) throw err;
-        this.sbq.msg('Market orders data is forbidden. Ignored.');
-        return of([]);
       })
     );
   }

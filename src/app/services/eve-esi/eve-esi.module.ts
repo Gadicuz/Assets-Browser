@@ -58,10 +58,6 @@ export class EsiHttpErrorResponse implements Error {
   }
 }
 
-export function esiForbidden(e: unknown): boolean {
-  return e && typeof e === 'object' && (e as EsiHttpErrorResponse).status === 403;
-}
-
 /*400*/
 export type EsiBadRequestErrorData = EsiErrorData;
 /*401*/
@@ -188,6 +184,16 @@ export function isWrapping(type_id: number): boolean {
   return type_id === EsiService.TYPE_ID_AssetSafetyWrap || type_id === EsiService.TYPE_ID_PlasticWrap;
 }
 
+export function isScopedOut(e: unknown): string {
+  if (!e || typeof e !== 'object' || (e as Error).name !== 'EsiHttpErrorResponse') return '';
+  const err = e as EsiHttpErrorResponse;
+  if (err.status !== 403 || !err.esiData) return '';
+  const d = err.esiData as EsiForbiddenErrorData;
+  if (d.sso_status !== 200) return '';
+  // d.error message example: "token is not valid for scope: esi-characters.read_blueprints.v1"
+  const val = /^token is not valid for scope: ([\w.-]+)$/.exec(d.error);
+  return (val && val[1]) || '';
+}
 
 @Injectable({
   providedIn: 'root',
@@ -277,7 +283,7 @@ export class EsiService {
     return this.config.datasource || '(default)';
   }
 
-  constructor(private httpClient: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
+  constructor(private http: HttpClient, @Inject(EVEESI_CONFIG) private config: EVEESIConfig) {
     this.commonParams = {
       datasource: config.datasource,
     };
@@ -309,14 +315,14 @@ export class EsiService {
 
   private getData<T>(route: string, parameters: EsiHttpParams = {}, retry = EsiService.retry()): Observable<T> {
     const params = this.httpParams(parameters);
-    return this.httpClient
+    return this.http
       .get<T>(this.getUrl(route), { params })
       .pipe(retryWhen(retry));
   }
 
   private postData<T>(route: string, data: unknown, retry = EsiService.retry()): Observable<T> {
     const params = this.httpParams();
-    return this.httpClient
+    return this.http
       .post<T>(this.getUrl(route), data, { params })
       .pipe(retryWhen(retry));
   }

@@ -1,9 +1,15 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, of, empty, from, throwError } from 'rxjs';
+import { Observable, of, empty, from, throwError, MonoTypeOperatorFunction } from 'rxjs';
 import { catchError, expand, map, mergeMap, takeWhile, toArray } from 'rxjs/operators';
 
-import { EsiService, EsiHttpErrorResponse, EsiMailRecipient, EsiMailHeader, EsiSubjType } from './eve-esi.module';
+import {
+  EsiService,
+  EsiHttpErrorResponse,
+  EsiMailRecipient,
+  EsiMailHeader,
+  EsiSubjType,
+  isScopedOut,
+} from './eve-esi.module';
 
 import {
   EsiItem,
@@ -22,6 +28,7 @@ import {
 } from './eve-esi.models';
 
 import { autoMap, set, tuple } from '../../utils/utils';
+import { SnackBarQueueService } from '../snackbar-queue/snackbar-queue.service';
 
 export * from './eve-esi.models';
 
@@ -128,7 +135,16 @@ export class EsiDataService {
     return set(ids).filter((id) => ![...knownIDs].includes(id));
   }
 
-  constructor(private http: HttpClient, private esi: EsiService) {}
+  constructor(private esi: EsiService, private sbq: SnackBarQueueService) {}
+
+  public scoped<T>(val: T): MonoTypeOperatorFunction<T> {
+    return catchError((err) => {
+      const scope = isScopedOut(err);
+      if (scope === '') throw err;
+      this.sbq.msg(`ESI scope ${scope} is not granted. Data unavailable.`);
+      return of(val);
+    });
+  }
 
   public subjs: EsiSubject[] = [];
   public findSubject(subj_id: number | undefined, subj_type?: EsiSubjType): EsiSubject | undefined {
