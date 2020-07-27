@@ -1,4 +1,16 @@
-import { Component } from '@angular/core';
+import { Component, Inject } from '@angular/core';
+import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+
+export interface LocationLogisticData {
+  items: { value: number; volume: number }[];
+}
+
+interface ChartDataChunk {
+  name: string;
+  series: { name: unknown; value: unknown }[];
+}
+
+const maxPoints = 100;
 
 @Component({
   selector: 'location-logistics',
@@ -6,131 +18,38 @@ import { Component } from '@angular/core';
   styleUrls: ['./location-logistics-dialog.css'],
 })
 export class LocationLogisticsDialog {
-  
-  title = 'Angular Charts';
-  view: any[] = [600, 400];
-  // options for the chart
-  showXAxis = true;
-  showYAxis = true;
-  gradient = false;
-  showLegend = true;
-  showXAxisLabel = true;
-  xAxisLabel = 'Country';
-  showYAxisLabel = true;
-  yAxisLabel = 'Sales';
-  timeline = true;
+  public value: ChartDataChunk[];
+
+  constructor(@Inject(MAT_DIALOG_DATA) public data: LocationLogisticData) {
+    const step = Math.ceil(data.items.reduce((v, x) => v + x.volume, 0) / maxPoints);
+    this.value = [
+      {
+        name: 'Value',
+        series: data.items
+          .filter((i) => i.volume)
+          .map((i) => ({ ...i, rate: i.value / i.volume }))
+          .sort((a, b) => b.rate - a.rate)
+          .reduce(
+            (acc, x) => {
+              let z = acc.data[acc.data.length - 1];
+              if (z.name >= acc.milestone) {
+                z = { ...z };
+                acc.data.push(z);
+                acc.milestone += step * Math.ceil((z.name - acc.milestone) / step);
+              }
+              z.name += x.volume;
+              z.value += x.value;
+              return acc;
+            },
+            { data: [{ name: 0, value: 0 }], milestone: 0 }
+          ).data,
+      },
+    ];
+  }
+
   colorScheme = {
     domain: ['#9370DB', '#87CEFA', '#FA8072', '#FF7F50', '#90EE90', '#9370DB']
   };
-  //pie
-  showLabels = true;
-  // data goes here
-public single = [
-  {
-    "name": "China",
-    "value": 2243772
-  },
-  {
-    "name": "USA",
-    "value": 1126000
-  },
-  {
-    "name": "Norway",
-    "value": 296215
-  },
-  {
-    "name": "Japan",
-    "value": 257363
-  },
-  {
-    "name": "Germany",
-    "value": 196750
-  },
-  {
-    "name": "France",
-    "value": 204617
-  }
-];
-public multi = [
-  {
-    "name": "China",
-    "series": [
-      {
-        "name": "2018",
-        "value": 2243772
-      },
-      {
-        "name": "2017",
-        "value": 1227770
-      }
-    ]
-  },
-  {
-    "name": "USA",
-    "series": [
-      {
-        "name": "2018",
-        "value": 1126000
-      },
-      {
-        "name": "2017",
-        "value": 764666
-      }
-    ]
-  },
-  {
-    "name": "Norway",
-    "series": [
-      {
-        "name": "2018",
-        "value": 296215
-      },
-      {
-        "name": "2017",
-        "value": 209122
-      }
-    ]
-  },
-  {
-    "name": "Japan",
-    "series": [
-      {
-        "name": "2018",
-        "value": 257363
-      },
-      {
-        "name": "2017",
-        "value": 205350
-      }
-    ]
-  },
-  {
-    "name": "Germany",
-    "series": [
-      {
-        "name": "2018",
-        "value": 196750
-      },
-      {
-        "name": "2017",
-        "value": 129246
-      }
-    ]
-  },
-  {
-    "name": "France",
-    "series": [
-      {
-        "name": "2018",
-        "value": 204617
-      },
-      {
-        "name": "2017",
-        "value": 149797
-      }
-    ]
-  }
-];
+
 onSelect(event){}
-  constructor() {}
 }

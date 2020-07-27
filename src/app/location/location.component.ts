@@ -43,7 +43,7 @@ import {
 import { autoMap, set, mapGet } from '../utils/utils';
 import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
 import { SnackBarQueueService } from '../services/snackbar-queue/snackbar-queue.service';
-import { LocationLogisticsDialog } from './location-logistics-dialog';
+import { LocationLogisticsDialog, LocationLogisticData } from './location-logistics-dialog';
 import { MatDialog } from '@angular/material/dialog';
 
 const UNIVERSE_UID = 'universe';
@@ -65,6 +65,7 @@ interface LocationRouteNode {
 interface LocationStat {
   title: string;
   value: LocPropVal;
+  actions: { name: string; value: string }[];
 }
 
 interface LocationInfo {
@@ -309,11 +310,19 @@ export class LocationComponent {
           image: typeof loc.info.icon === 'number' ? this.esi.getItemIconURI(loc.info.icon, 32) : loc.info.icon,
           stats: totals
             ? [
-                { title: 'Value (ISK)', value: loc.Value },
-                { title: 'Content Value (ISK)', value: loc.ContentValue },
-                { title: 'Item Volume (m3)', value: loc.Volume },
-                { title: 'Content Volume (m3)', value: loc.ContentVolume },
-                { title: 'Assembled Volume (m3)', value: loc.AssembledVolume },
+                { title: 'Item Value (ISK)', value: loc.Value, actions: [] },
+                { title: 'Item Packaged (m3)', value: loc.VolumePackaged(), actions: [] },
+                { title: 'Content Value (ISK)', value: loc.ContentValue, actions: [] },
+                {
+                  title: 'Packaged Content (m3)',
+                  value: loc.VolumeContentCargo(),
+                  actions: [{ name: 'poll', value: 'packaged' }],
+                },
+                {
+                  title: 'Assembled Content (m3)',
+                  value: loc.VolumeContentAssembled(),
+                  actions: [{ name: 'poll', value: 'assembled' }],
+                },
               ]
             : [],
           route: route.map((l) => ({ name: l.info.name, comment: l.info.comment, link: l.Link as string })), //TODO: set position as hint
@@ -340,8 +349,8 @@ export class LocationComponent {
       link: i.Link,
       quantity: i.quantity || '',
       value: i.TotalValue,
-      volume: i.TotalVolume,
-      volume_assembled: i.AssembledVolume,
+      volume: i.VolumeCargo(),
+      volume_assembled: i.VolumeAssembled(),
     }));
   }
 
@@ -366,10 +375,19 @@ export class LocationComponent {
       this.addChild(loc);
     }
   }
-  private static flatten(l: LocData[], f = false): LocData[] {
-    if (f) l = l.filter((i) => i.content_uid);
+  /** nodes: only locations with content, assm: don't flatten assembled items */
+  private static flatten(
+    l: LocData[],
+    opt: { nodes?: boolean; assm?: boolean } = { nodes: false, assm: false }
+  ): LocData[] {
+    if (opt.nodes) l = l.filter((i) => i.content_uid);
     return l.length
-      ? l.map((i) => [i, ...LocationComponent.flatten(i.content_items || [], f)]).reduce((s, i) => s.concat(i))
+      ? l
+          .map((i) => {
+            if (!i.content_items || i.info.do_not_pack) return [i];
+            return [i, ...LocationComponent.flatten(i.content_items, opt)];
+          })
+          .reduce((s, i) => s.concat(i))
       : [];
   }
   private loadLocations(subj_id: number): Observable<never> {
@@ -380,7 +398,9 @@ export class LocationComponent {
           tap({
             complete: () => {
               locs.forEach((loc) => this.addChild(loc));
-              LocationComponent.flatten(locs, true).forEach((loc) => this.locs.set(loc.content_uid as LocUID, loc));
+              LocationComponent.flatten(locs, { nodes: true }).forEach((loc) =>
+                this.locs.set(loc.content_uid as LocUID, loc)
+              );
             },
           })
         )
@@ -638,10 +658,21 @@ export class LocationComponent {
     );
   }
 
-  public viewLogistics(): void {
+  public viewLogistics(loc: LocData, value: string): void {
+    const cargo = value === 'packaged';
+    const locs = LocationComponent.flatten(loc.content_items || [], { assm: true });
+    const data: LocationLogisticData = {
+      items: locs
+        .map((l) =>
+          cargo ? { vol: l.VolumeCargo(true), val: l.Value } : { vol: l.VolumeAssembled(true), val: l.TotalValue }
+        )
+        .filter((x) => typeof x.val === 'number' && typeof x.vol === 'number')
+        .map((x) => ({ value: x.val as number, volume: x.vol as number })),
+    };
     this.dialog.open(LocationLogisticsDialog, {
-        width: '800px',
-        height: '80%',
+      width: '800px',
+      height: '80%',
+      data: data,
     });
   }
 }

@@ -66,39 +66,46 @@ export class LocData {
     return locPropAdd(this.Value, this.ContentValue);
   }
 
-  /** Calculates item volume (packaged) */
-  get Volume(): LocPropVal {
+  /** item packaged volume */
+  public VolumePackaged(): LocPropVal {
     if (this.is_vcont || !this.quantity) return implicit0;
     if (this.info.volume == undefined) return 'n/a';
     return this.quantity * this.info.volume;
   }
 
-  /** Calculates item content volume (packaged) */
-  get ContentVolume(): LocPropVal {
-    if (this.content_cache_vol == undefined) {
-      const vol = this.calcPropVal((i) => i.TotalVolume);
-      if (typeof vol === 'string' && vol !== '') return vol;
-      this.content_cache_vol = vol;
-    }
-    return this.content_cache_vol;
+  /** item's assembled volume (for container/ship)*/
+  public VolumeAssembled(self = false): LocPropVal {
+    if (!this.content_items) return implicit0; // auto pack any empty item
+    if (this.info.do_not_pack) return this.info.assembled_volume ?? 'n/a'; // can't be repacked
+    if (self) return implicit0; // not empty, but can be repacked
+    return this.VolumeContentAssembled(); // auto pack item and return content assembled volume
   }
 
-  /** Calculates item total volume (packaged) */
-  get TotalVolume(): LocPropVal {
-    let vol = this.Volume;
-    if (!this.content_items) return vol;
-    if (this.info.do_not_pack) return implicit0;
-    vol = locPropAdd(vol, this.ContentVolume);
+  /** item's content assembled volume */
+  public VolumeContentAssembled(): LocPropVal {
+    return this.calcPropVal((i) => i.VolumeAssembled());
+  }
+
+  /** item's volume as packaged cargo (self + content) */
+  public VolumeCargo(self = false): LocPropVal {
+    let vol = this.VolumePackaged();
+    if (!this.content_items) return vol; // empty items can be packaged
+    if (this.info.do_not_pack) return implicit0; // marked 'do not pack if not empty' can't be packed
+    if (self) return vol;
+    vol = locPropAdd(vol, this.VolumeContentCargo()); // packaged content
     if (typeof vol === 'string') return vol;
     if (this.info.assembled_volume && vol > this.info.assembled_volume) vol = this.info.assembled_volume;
     return vol;
   }
 
-  /** Calculates item's assembled volume (for container/ship)*/
-  get AssembledVolume(): LocPropVal {
-    if (!this.content_items) return implicit0;
-    if (this.info.do_not_pack) return this.info.assembled_volume ?? 'n/a';
-    return this.calcPropVal((i) => i.AssembledVolume);
+  /** item's content total volume */
+  public VolumeContentCargo(): LocPropVal {
+    if (this.content_cache_vol == undefined) {
+      const vol = this.calcPropVal((i) => i.VolumeCargo());
+      if (typeof vol === 'string' && vol !== '') return vol;
+      this.content_cache_vol = vol;
+    }
+    return this.content_cache_vol;
   }
 
   /** Returns URL parameter for this location, undefined if no content is available */

@@ -25,9 +25,9 @@
               Load
             </button>
           </mat-card-content>
-          <mat-card-actions class="compact">
-            <button mat-icon-button (click)="viewLogistics()">
-              <mat-icon>poll</mat-icon>
+          <mat-card-actions *ngIf="stat.actions.length && isNum(stat.value)" class="compact">
+            <button *ngFor="let act of stat.actions" mat-icon-button (click)="viewLogistics(info.data, act.value)">
+              <mat-icon>{{act.name}}</mat-icon>
             </button>  
           </mat-card-actions>
         </mat-card>
@@ -84,7 +84,7 @@
     </ng-container>
 
     <ng-container matColumnDef="volume">
-      <mat-header-cell *matHeaderCellDef mat-sort-header> Volume<br>(m3) </mat-header-cell>
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Packaged<br>(m3) </mat-header-cell>
       <mat-cell *matCellDef="let rec">
         <ng-container *ngIf="isNum(rec.volume)">{{rec.volume | number:'.2-2'}}</ng-container>
         <ng-container *ngIf="!isNum(rec.volume)">{{rec.volume}}</ng-container>
