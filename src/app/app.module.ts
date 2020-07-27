@@ -7,6 +7,7 @@ import { FlexLayoutModule } from '@angular/flex-layout';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { NgxChartsModule } from '@swimlane/ngx-charts';
 
 import { AngularMaterialModule } from './angular-material.module';
 
@@ -29,6 +30,7 @@ import { ErrorComponent } from './error/error.component';
 import { ssoClientId } from '../environments/sso.client';
 
 import { ScopesSetupComponent } from './scopes-setup/scopes-setup.component';
+import { LocationLogisticsDialog } from './location/location-logistics-dialog';
 
 const esiConfig: EVEESIConfig = {
   url: 'https://esi.evetech.net/',
@@ -52,6 +54,7 @@ const ssoConfig: EVESSOConfig = {
     OrdersListComponent,
     ErrorComponent,
     ScopesSetupComponent,
+    LocationLogisticsDialog,
   ],
   imports: [
     BrowserModule,
@@ -65,6 +68,7 @@ const ssoConfig: EVESSOConfig = {
     EVEESIModule.forRoot(esiConfig),
     LocationModule,
     OrdersModule,
+    NgxChartsModule,
   ],
   bootstrap: [AppComponent],
   exports: [DefVarDirective],
