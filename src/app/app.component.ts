@@ -14,6 +14,7 @@ import { catchError, map, delay, switchMap, tap } from 'rxjs/operators';
 
 import { getScopes, TOOL_SCOPES, ToolScopes, ScopesSetupComponent } from './scopes-setup/scopes-setup.component';
 import { MatDialog } from '@angular/material/dialog';
+import { SnackBarQueueService } from './services/snackbar-queue/snackbar-queue.service';
 
 export interface SubjTab extends EsiSubject {
   avatar: string;
@@ -46,14 +47,18 @@ export class AppComponent {
   public scopes = '';
   private scopesUpdated = false;
 
+  public sbQueue$: Observable<never>;
+
   constructor(
     private router: Router,
     private route: ActivatedRoute,
     private dialog: MatDialog,
     private sso: EVESSOService,
     private data: EsiDataService,
+    private sbq: SnackBarQueueService,
     @Inject(TOOL_SCOPES) private tools: ToolScopes[]
   ) {
+    this.sbQueue$ = sbq.queue$;
     X_WWW_FORM_UrlEncodingCodec.hook();
     this.updateScopes();
     this.subjects$ = this.relog.asObservable().pipe(
