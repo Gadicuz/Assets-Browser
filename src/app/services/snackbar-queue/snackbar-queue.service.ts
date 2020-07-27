@@ -17,7 +17,7 @@ export class SnackBarQueueService {
     this.queue$ = this.subj.asObservable().pipe(
       concatMap((text) =>
         this.snackBar
-          .open(text, '', { duration: 3000 })
+          .open(text, 'DISMISS', { duration: 5000 })
           .afterDismissed()
           .pipe(
             map((dis) => dis.dismissedByAction),

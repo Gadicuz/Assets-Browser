@@ -58,6 +58,10 @@ export class EsiHttpErrorResponse implements Error {
   }
 }
 
+export function esiForbidden(e: unknown): boolean {
+  return e && typeof e === 'object' && (e as EsiHttpErrorResponse).status === 403;
+}
+
 /*400*/
 export type EsiBadRequestErrorData = EsiErrorData;
 /*401*/

@@ -23,7 +23,7 @@ import {
   EsiDataBpd,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
-import { EsiService, isNoItemIconAvailable, isWrapping } from '../services/eve-esi/eve-esi.module';
+import { EsiService, isNoItemIconAvailable, isWrapping, esiForbidden } from '../services/eve-esi/eve-esi.module';
 
 import { MatSort, Sort } from '@angular/material/sort';
 import { DataSource } from '@angular/cdk/collections';
@@ -41,6 +41,7 @@ import {
 
 import { autoMap, set, mapGet } from '../utils/utils';
 import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
+import { SnackBarQueueService } from '../services/snackbar-queue/snackbar-queue.service';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -229,7 +230,8 @@ export class LocationComponent {
     private route: ActivatedRoute,
     private esi: EsiService,
     private data: EsiDataService,
-    private cache: EsiCacheService
+    private cache: EsiCacheService,
+    private sbq: SnackBarQueueService
   ) {
     // Define 'universe' item
     this.locs.set(
@@ -599,7 +601,6 @@ export class LocationComponent {
 
   private loadSellOrders(subj_id: number): Observable<LocData[]> {
     return this.cache.loadMarketOrders(subj_id).pipe(
-      // todo
       map((orders) => {
         return Array.from(
           orders
@@ -628,6 +629,11 @@ export class LocationComponent {
             );
           }
         );
+      }),
+      catchError((err) => {
+        if (!esiForbidden(err)) throw err;
+        this.sbq.msg('Market orders data is forbidden. Ignored.');
+        return of([]);
       })
     );
   }
