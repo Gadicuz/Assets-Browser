@@ -61,10 +61,10 @@ export class EsiCacheService {
               })
             );
           item.name = `${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
-          item.bpd = {
+          item.bp_data = {
+            runs: bp.runs > 0 ? bp.runs : undefined,
             me: bp.material_efficiency,
             te: bp.time_efficiency,
-            copy: bp.runs > 0 ? bp.runs : undefined,
             in_use,
           };
         });

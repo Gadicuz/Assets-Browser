@@ -119,7 +119,8 @@ interface LocationItem {
   location: LocPos;
   type_id: number;
   quantity: number;
-  bpd?: EsiDataBpd;
+  bp_type?: 'original' | 'copy' | undefined; // undefined for nonBP, also can be undefined for BPO
+  bp_data?: EsiDataBpd; // undefined fot nonBP or no blueprints data available
 }
 const locItemHash = (i: LocationItem): string =>
   `${i.item_id || 0}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos || ''}`;
@@ -500,14 +501,16 @@ export class LocationComponent {
     }
   }
 
-  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, name: string, bpd?: EsiDataBpd): void {
+  private updateLocTypeInfo(info: LocTypeInfo, type_id: number, item: LocationItem): void {
     const typeInfo = mapGet(this.cache.typesInfo, type_id);
-    if (bpd) {
+    if (item.bp_data || item.bp_type) {
+      const d = item.bp_data;
+      const [c, r, m, t] = d ? [d.runs, d.runs || '?', d.me, d.te] : [item.bp_type === 'copy', '?', '?', '?'];
       info.name = typeInfo.name;
-      info.comment = (bpd.copy ? `Copy (${bpd.copy})` : 'Original') + ` - ${bpd.me}/${bpd.te}`;
+      info.comment = (c ? `Copy (${r})` : 'Original') + ` - ${m}/${t}`;
     } else {
-      info.name = name || typeInfo.name;
-      info.comment = (name && typeInfo.name) || undefined;
+      info.name = item.name || typeInfo.name;
+      info.comment = (item.name && typeInfo.name) || undefined;
     }
     info.icon = getIconID(type_id) || UNKNOWN_IMAGE_URL;
     //info.value = this.cache.marketPrices.get(type_id);
@@ -520,17 +523,15 @@ export class LocationComponent {
   private typeInfoLoader(item: LocationItem): LocTypeInfo {
     const type_id = item.type_id;
     const loader = (info: LocTypeInfo): Observable<never> =>
-      this.cache
-        .loadTypeInfo(type_id)
-        .pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item.name, item.bpd) }));
+      this.cache.loadTypeInfo(type_id).pipe(tap({ complete: () => this.updateLocTypeInfo(info, type_id, item) }));
     const infoLoader = {
       name: '',
       image: '',
-      value: item.bpd?.copy ? undefined : this.cache.marketPrices.get(type_id),
+      value: item.bp_type === 'copy' ? undefined : this.cache.marketPrices.get(type_id),
       do_not_pack: this.data.isShipType(type_id), // keep assembled for ships
       loader,
     };
-    if (item.name || item.bpd) return infoLoader;
+    if (item.name || item.bp_type || item.bp_data) return infoLoader;
     // common type_id loader
     const info = this.typeInfos.get(type_id);
     if (info) return info;
@@ -583,7 +584,12 @@ export class LocationComponent {
             },
             type_id: item.type_id,
             quantity: item.quantity,
-            bpd: item.bpd,
+            bp_type: item.is_blueprint_copy
+              ? 'copy'
+              : item.bp_data || this.data.isBlueprintType(item.type_id)
+              ? 'original'
+              : undefined,
+            bp_data: item.bp_data,
           }))
         );
         locs

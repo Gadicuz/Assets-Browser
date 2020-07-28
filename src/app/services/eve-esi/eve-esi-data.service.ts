@@ -53,15 +53,15 @@ export interface EsiDataItemName {
 }
 
 export interface EsiDataBpd {
+  runs: number | undefined; // undefined for BPO
   me: number;
   te: number;
-  copy?: number; // 0/undefined - original, >0 - copy
-  in_use?: boolean;
+  in_use: boolean;
 }
 
 export interface EsiDataItem extends EsiItem {
-  name?: string;
-  bpd?: EsiDataBpd;
+  name?: string; // user name
+  bp_data?: EsiDataBpd; // extended blueprint data
 }
 
 type EsiDataInfoSelectors = 'structures' | 'types';
@@ -187,6 +187,7 @@ export function getLocationTypeById(id: number): EsiLocationType {
 }
 
 export const CATEGORY_ID_Ship = 6;
+export const CATEGORY_ID_Blueprint = 9;
 export const CATEGORY_ID_Deployable = 22;
 export const CATEGORY_ID_Structure = 65;
 
@@ -353,10 +354,15 @@ export class EsiDataService {
   }
 
   private shipTIDs: number[] = [];
+  private blueprintTIDs: number[] = [];
   private namedTIDs: number[] = [];
   public loadCategories(): Observable<never> {
     if (this.shipTIDs.length && this.namedTIDs.length) return empty();
     return merge(
+      this.loadCategoryTypes(CATEGORY_ID_Blueprint).pipe(
+        tap((types) => (this.blueprintTIDs = types)),
+        ignoreElements()
+      ),
       this.loadCategoryTypes(CATEGORY_ID_Ship).pipe(tap((types) => (this.shipTIDs = types))),
       this.loadCategoryTypes(CATEGORY_ID_Structure),
       this.loadCategoryTypes(CATEGORY_ID_Deployable),
@@ -373,6 +379,9 @@ export class EsiDataService {
   }
   public isShipType(tid: number): boolean {
     return this.shipTIDs.includes(tid);
+  }
+  public isBlueprintType(tid: number): boolean {
+    return this.blueprintTIDs.includes(tid);
   }
   public isUserNameSupported(tid: number): boolean {
     return this.namedTIDs.includes(tid);
