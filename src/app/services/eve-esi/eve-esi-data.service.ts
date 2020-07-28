@@ -277,7 +277,7 @@ export class EsiDataService {
           if (esiError.status === 404 && esiError.message === 'Invalid IDs in the request') {
             console.log(ids);
             console.log(((ids as unknown) as NamedItemTypesIDs).ids);
-            this.sbq.msg('Failed to get items user names. IDs have been logged.');
+            this.sbq.msg('Failed to get assets names. Item ID list has been logged.', 'snack-bar-error');
             return of([]);
           }
         }

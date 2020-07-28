@@ -4,3 +4,8 @@
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+.mat-snack-bar-container.snack-bar-error {
+    background-color: #ffd740;
+    color: rgba(0,0,0,.87);
+}
