@@ -10,6 +10,7 @@ import {
   EsiSubjType,
   isScopedOut,
   EsiWalletDivisionId,
+  isStationService,
 } from './eve-esi.module';
 
 import {
@@ -128,6 +129,14 @@ export interface EsiSubject {
   type: EsiSubjType;
 }
 
+function isUserNameApplicable(): (item: EsiDataItem) => boolean {
+  return (i) => i.is_singleton && !isStationService(i.type_id);
+}
+
+interface NamedItemTypesIDs {
+  ids: number[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -166,8 +175,8 @@ export class EsiDataService {
 
   public getSubjectAvatarURI(subj: EsiSubject, size: number): string {
     return subj.type === 'characters'
-      ? this.esi.getCharacterAvatarURI(subj.id, size)
-      : this.esi.getCorporationLogoURI(subj.id, size);
+      ? EsiService.getCharacterAvatarURI(subj.id, size)
+      : EsiService.getCorporationLogoURI(subj.id, size);
   }
 
   loadSubjects(id$: Observable<number>): Observable<EsiSubject[]> {
@@ -247,6 +256,13 @@ export class EsiDataService {
     return this.esi.getEntityItems(this.getSubjectType(subj_id), subj_id);
   }
 
+  getNameApplicableIDs(items: EsiDataItem[]): number[] {
+    const named = [...items.values()].filter(isUserNameApplicable());
+    const ids = named.map((i) => i.item_id);
+    ((ids as unknown) as NamedItemTypesIDs).ids = set(named.map((i) => i.type_id));
+    return ids;
+  }
+
   loadItemNames(subj_id: number, ids: number[]): Observable<EsiDataItemName[]> {
     return this.esi.getEntityItemNames(this.getSubjectType(subj_id), subj_id, ids).pipe(
       map((names) =>
@@ -254,7 +270,19 @@ export class EsiDataService {
           item_id: n.item_id,
           name: n.name === 'None' ? undefined : n.name,
         }))
-      )
+      ),
+      catchError((err) => {
+        if (err && typeof err === 'object' && (err as Error).name === 'EsiHttpErrorResponse') {
+          const esiError = err as EsiHttpErrorResponse;
+          if (esiError.status === 404 && esiError.message === 'Invalid IDs in the request') {
+            console.log(ids);
+            console.log(((ids as unknown) as NamedItemTypesIDs).ids);
+            this.sbq.msg('Failed to get items user names. IDs have been logged.');
+            return of([]);
+          }
+        }
+        throw err;
+      })
     );
   }
 

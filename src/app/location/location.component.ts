@@ -24,7 +24,7 @@ import {
   EsiDataCharMarketOrder,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
-import { EsiService, isNoItemIconAvailable, isWrapping } from '../services/eve-esi/eve-esi.module';
+import { EsiService, isWrapping } from '../services/eve-esi/eve-esi.module';
 
 import { MatSort, Sort } from '@angular/material/sort';
 import { DataSource } from '@angular/cdk/collections';
@@ -42,7 +42,6 @@ import {
 
 import { autoMap, set, mapGet } from '../utils/utils';
 import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
-import { SnackBarQueueService } from '../services/snackbar-queue/snackbar-queue.service';
 import { LocationLogisticsDialog, LocationLogisticData } from './location-logistics-dialog';
 import { MatDialog } from '@angular/material/dialog';
 
@@ -235,8 +234,7 @@ export class LocationComponent {
     private esi: EsiService,
     private data: EsiDataService,
     private cache: EsiCacheService,
-    private dialog: MatDialog,
-    private sbq: SnackBarQueueService
+    private dialog: MatDialog
   ) {
     // Define 'universe' item
     this.locs.set(
@@ -307,7 +305,7 @@ export class LocationComponent {
       : {
           name: loc.info.name,
           comment: loc.info.comment,
-          image: typeof loc.info.icon === 'number' ? this.esi.getItemIconURI(loc.info.icon, 32) : loc.info.icon,
+          image: typeof loc.info.icon === 'number' ? EsiService.getTypeIconURI(loc.info.icon, 32) : loc.info.icon,
           stats: totals
             ? [
                 { title: ['Item Value', '(ISK)'], value: loc.Value, actions: [] },
@@ -449,7 +447,7 @@ export class LocationComponent {
     const char_subj = this.data.findSubject(id, 'characters');
     return {
       name: char_subj ? char_subj.name : `Character #${id}`,
-      icon: this.esi.getCharacterAvatarURI(id, 32),
+      icon: EsiService.getCharacterAvatarURI(id, 32),
     };
   }
 
@@ -518,7 +516,7 @@ export class LocationComponent {
       info.name = name || typeInfo.name;
       info.comment = (name && typeInfo.name) || undefined;
     }
-    info.icon = isNoItemIconAvailable(type_id) ? UNKNOWN_IMAGE_URL : type_id;
+    info.icon = EsiService.getIconID(type_id) || UNKNOWN_IMAGE_URL;
     //info.value = this.cache.marketPrices.get(type_id);
     info.volume = typeInfo.packaged_volume || typeInfo.volume; // (packaged) item's volume
     if (typeInfo.packaged_volume) info.assembled_volume = typeInfo.volume; // assembled volume

@@ -170,16 +170,8 @@ enum imageResource {
 
 type EsiHttpParams = Record<string, string | undefined>;
 
-function isStationServiceType(type_id: number): boolean {
+export function isStationService(type_id: number): boolean {
   return type_id >= 26 && type_id <= 28;
-}
-
-export function isNoItemIconAvailable(type_id: number): boolean {
-  return isStationServiceType(type_id); // no icon is available for 'Station Services' types (???)
-}
-
-export function isAssetsNameInvalidType(type_id: number): boolean {
-  return isStationServiceType(type_id);
 }
 
 export function isWrapping(type_id: number): boolean {
@@ -195,6 +187,13 @@ export function isScopedOut(e: unknown): string {
   // d.error message example: "token is not valid for scope: esi-characters.read_blueprints.v1"
   const val = /^token is not valid for scope: ([\w.-]+)$/.exec(d.error);
   return (val && val[1]) || '';
+}
+
+const imageUrl = 'https://images.evetech.net/';
+function getImage(resource: imageResource, id: number, size?: number): string {
+  let uri = resource.replace('{}', String(id));
+  if (size) uri += `?size=${size}`;
+  return imageUrl + uri;
 }
 
 @Injectable({
@@ -217,20 +216,18 @@ export class EsiService {
   }
   //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
-  private static imageUrl = 'https://images.evetech.net/';
-  private static getImage(resource: imageResource, id: number, size?: number): string {
-    let uri = resource.replace('{}', String(id));
-    if (size) uri += `?size=${size}`;
-    return EsiService.imageUrl + uri;
+  public static getCharacterAvatarURI(character_id: number, size: number): string {
+    return getImage(imageResource.CharPortrait, character_id, size);
   }
-  public getCharacterAvatarURI(character_id: number, size: number): string {
-    return EsiService.getImage(imageResource.CharPortrait, character_id, size);
+  public static getCorporationLogoURI(corporation_id: number, size: number): string {
+    return getImage(imageResource.CorporationLogo, corporation_id, size);
   }
-  public getCorporationLogoURI(corporation_id: number, size: number): string {
-    return EsiService.getImage(imageResource.CorporationLogo, corporation_id, size);
+  public static getTypeIconURI(type_id: number, size: number): string {
+    return getImage(imageResource.TypeIcon, type_id, size);
   }
-  public getItemIconURI(type_id: number, size: number): string {
-    return EsiService.getImage(imageResource.TypeIcon, type_id, size);
+  public static getIconID(type_id: number): number | undefined {
+    if (isStationService(type_id)) return undefined; // no icon is available for 'Station Services' types (???)
+    return type_id;
   }
 
   public static getTypeById(id: number): string {
