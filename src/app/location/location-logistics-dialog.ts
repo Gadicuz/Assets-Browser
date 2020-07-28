@@ -2,7 +2,11 @@ import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 export interface LocationLogisticData {
-  items: { value: number; volume: number }[];
+  title: string;
+  data: {
+    name: string;
+    items: { value: number; volume: number; quantity: number }[];
+  }[];
 }
 
 interface ChartDataChunk {
@@ -18,14 +22,20 @@ const maxPoints = 100;
   styleUrls: ['./location-logistics-dialog.css'],
 })
 export class LocationLogisticsDialog {
+  public title: string;
   public value: ChartDataChunk[];
+  public colorScheme: unknown;
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: LocationLogisticData) {
-    const step = Math.ceil(data.items.reduce((v, x) => v + x.volume, 0) / maxPoints);
-    this.value = [
-      {
-        name: 'Value',
-        series: data.items
+    this.title = data.title;
+    this.colorScheme = {
+      domain: data.data.map(() => '#3F51B5'),
+    };
+    this.value = data.data.map((d) => {
+      const step = Math.ceil(d.items.reduce((v, x) => v + x.volume, 0) / maxPoints);
+      return {
+        name: d.name,
+        series: d.items
           .filter((i) => i.volume)
           .map((i) => ({ ...i, rate: i.value / i.volume }))
           .sort((a, b) => b.rate - a.rate)
@@ -43,13 +53,7 @@ export class LocationLogisticsDialog {
             },
             { data: [{ name: 0, value: 0 }], milestone: 0 }
           ).data,
-      },
-    ];
+      };
+    });
   }
-
-  colorScheme = {
-    domain: ['#9370DB', '#87CEFA', '#FA8072', '#FF7F50', '#90EE90', '#9370DB']
-  };
-
-onSelect(event){}
 }

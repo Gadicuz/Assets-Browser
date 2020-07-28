@@ -3,36 +3,47 @@
   <div></div>
 
   <mat-card *ngIf="location?.info as info" class="mat-elevation-z4">
+
     <mat-card-header>
       <img *ngIf="info.image" mat-card-avatar [src]="info.image">
       <mat-card-title>{{info.name}}</mat-card-title>
       <mat-card-subtitle *ngIf="info.comment">{{info.comment}}</mat-card-subtitle>
     </mat-card-header>
 
-    <mat-card-content fxLayout="row wrap" fxLayoutGap="8px" fxLayoutAlign="start">
+    <mat-progress-bar *ngIf="!info.done" mode="indeterminate"></mat-progress-bar>
+
+    <mat-card-content gdColumns="repeat(auto-fill, minmax(220px, 1fr))" gdGap="16px">
       <ng-container *ngFor="let stat of info.stats">
-        <mat-card *ngIf="stat.value !== ''" class="compact">
-          <mat-card-header class="compact">
-            <mat-card-title class="compact">{{stat.title}}</mat-card-title>
-          </mat-card-header>
-          <mat-card-content fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="start" class="compact">
-            <div class="mat-display-1 no-margin">
-              <ng-container *ngIf="isNum(stat.value)">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
-              <ng-container *ngIf="!isNum(stat.value) && stat.value !== 'n/a'">{{stat.value}}</ng-container>
+        <mat-card *ngIf="stat.value !== ''" class="num-card mat-elevation-z5" fxLayout="column" fxLayoutGap="8px" fxLayoutAlign="space-between stretch">
+
+          <div class="num-card-value" fxFlex="grow" fxLayout="column" fxLayoutGap="8px" fxLayoutAlign="center center">
+            <ng-container *ngIf="stat.value === 'n/a'; else datavalue">
+              <button  mat-stroked-button color="primary"
+                [routerLink]="['/browse',info.data.Link,'deep']" queryParamsHandling="preserve">
+                Load
+              </button>            
+            </ng-container>
+            <ng-template #datavalue>
+              <div class="mat-display-1">
+                <ng-container *ngIf="isNum(stat.value); else textvalue">{{stat.value | scale:'kMB':'.2-2'}}</ng-container>
+                <ng-template #textvalue>{{stat.value}}</ng-template>
+              </div>
+            </ng-template>
+          </div>
+
+          <div class="num-card-actions" fxFlex="none" fxLayout="row" fxLayoutGap="8px" fxLayoutAlign="space-between stretch">
+            <div fxFlex="grow" fxLayout="row" fxLayoutGap="4px" fxLayoutAlign="start center"> 
+              <span>{{stat.title}}</span>
             </div>
-            <button *ngIf="stat.value === 'n/a'" mat-stroked-button color="primary" fxFlexFill
-              [routerLink]="['/browse',info.data.Link,'deep']" queryParamsHandling="preserve">
-              Load
-            </button>
-          </mat-card-content>
-          <mat-card-actions *ngIf="stat.actions.length && isNum(stat.value)" class="compact">
-            <button *ngFor="let act of stat.actions" mat-icon-button (click)="viewLogistics(info.data, act.value)">
+            <ng-container *ngIf="stat.actions.length && isNum(stat.value)">
+            <button *ngFor="let act of stat.actions" mat-icon-button (click)="viewLogistics(info.data, act.value)" fxFlex="none">
               <mat-icon>{{act.name}}</mat-icon>
             </button>  
-          </mat-card-actions>
+            </ng-container>
+          </div>
+
         </mat-card>
       </ng-container>      
-      <mat-progress-bar *ngIf="!info.done" mode="indeterminate"></mat-progress-bar>
     </mat-card-content>
 
     <mat-card-actions fxLayout="row wrap" fxLayoutAlign="flex-start">

@@ -1,14 +1,24 @@
+<div fxLayout="column" fxLayoutGap="16px">
+  <h2 matDialogTitle fxFlex="none">{{title}}</h2>
 
-<ngx-charts-line-chart
-  [results]="value"
-  [scheme]="colorScheme"
-  [gradient]="true"
-  [xAxis]="true"
-  [showXAxisLabel]="true"
-  xAxisLabel="m3"
-  [yAxis]="true"
-  [showYAxisLabel]="true"
-  yAxisLabel="ISK"
-  (select)="onSelect($event)">
-</ngx-charts-line-chart>
+  <div class="chart-container" fxFlex="none">
 
+    <ngx-charts-line-chart
+      [view]="[752, 352]"
+      [results]="value"
+      [scheme]="colorScheme"
+      [gradient]="true"
+      [xAxis]="true"
+      [showXAxisLabel]="true"
+      xAxisLabel="m3"
+      [yAxis]="true"
+      [showYAxisLabel]="true"
+      yAxisLabel="ISK">
+    </ngx-charts-line-chart>
+
+  </div>
+
+  <div MatDialogActions align="end" fxFlex="none">
+    <button matDialogClose class="mat-button">Close</button>
+  </div>
+</div>

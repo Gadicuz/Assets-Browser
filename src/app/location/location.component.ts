@@ -316,12 +316,12 @@ export class LocationComponent {
                 {
                   title: 'Packaged Content (m3)',
                   value: loc.VolumeContentCargo(),
-                  actions: [{ name: 'poll', value: 'packaged' }],
+                  actions: [{ name: 'insert_chart_outlined', value: 'packaged' }],
                 },
                 {
                   title: 'Assembled Content (m3)',
                   value: loc.VolumeContentAssembled(),
-                  actions: [{ name: 'poll', value: 'assembled' }],
+                  actions: [{ name: 'insert_chart_outlined', value: 'assembled' }],
                 },
               ]
             : [],
@@ -662,16 +662,24 @@ export class LocationComponent {
     const cargo = value === 'packaged';
     const locs = LocationComponent.flatten(loc.content_items || [], { assm: true });
     const data: LocationLogisticData = {
-      items: locs
-        .map((l) =>
-          cargo ? { vol: l.VolumeCargo(true), val: l.Value } : { vol: l.VolumeAssembled(true), val: l.TotalValue }
-        )
-        .filter((x) => typeof x.val === 'number' && typeof x.vol === 'number')
-        .map((x) => ({ value: x.val as number, volume: x.vol as number })),
+      title: cargo ? 'Packaged content' : 'Assembled content',
+      data: [
+        {
+          name: loc.info.name,
+          items: locs
+            .map((l) =>
+              cargo
+                ? { vol: l.VolumeCargo(true), val: l.Value, q: l.quantity }
+                : { vol: l.VolumeAssembled(true), val: l.TotalValue, q: l.quantity }
+            )
+            .filter((x) => x.q && typeof x.val === 'number' && typeof x.vol === 'number')
+            .map((x) => ({ value: x.val as number, volume: x.vol as number, quantity: x.q as number })),
+        },
+      ],
     };
     this.dialog.open(LocationLogisticsDialog, {
       width: '800px',
-      height: '80%',
+      height: '500px',
       data: data,
     });
   }
