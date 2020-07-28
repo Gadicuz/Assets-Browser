@@ -1,6 +1,17 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, empty, from, throwError, MonoTypeOperatorFunction } from 'rxjs';
-import { catchError, expand, map, mergeMap, takeWhile, toArray, scan } from 'rxjs/operators';
+import { Observable, of, empty, from, throwError, MonoTypeOperatorFunction, merge } from 'rxjs';
+import {
+  catchError,
+  expand,
+  map,
+  mergeMap,
+  takeWhile,
+  toArray,
+  scan,
+  reduce,
+  tap,
+  ignoreElements,
+} from 'rxjs/operators';
 
 import {
   EsiService,
@@ -175,12 +186,18 @@ export function getLocationTypeById(id: number): EsiLocationType {
   return 'unknown'; // ItemID, StructureID, CustomOfficeID, CorporationOfficeID
 }
 
+export const CATEGORY_ID_Ship = 6;
+export const CATEGORY_ID_Deployable = 22;
+export const CATEGORY_ID_Structure = 65;
+
+export const GROUP_ID_Cargo_Container = 12;
+export const GROUP_ID_Biomass = 14;
+export const GROUP_ID_Secure_Cargo_Container = 340;
+export const GROUP_ID_Audit_Log_Secure_Container = 448;
+export const GROUP_ID_Freight_Container = 649;
+
 export function isStationId(id: number): boolean {
   return getLocationTypeById(id) === 'station';
-}
-
-function isUserNameApplicable(): (item: EsiDataItem) => boolean {
-  return (i) => i.is_singleton && !isStationService(i.type_id);
 }
 
 export function isStationService(type_id: number): boolean {
@@ -324,12 +341,49 @@ export class EsiDataService {
     );
   }
 
+  private loadGroupTypes(gid: number): Observable<number[]> {
+    return this.loadGroupInfo(gid).pipe(map((grp) => grp.types));
+  }
+
+  private loadCategoryTypes(cid: number): Observable<number[]> {
+    return this.loadCategoryInfo(cid).pipe(
+      mergeMap((cat) => merge(...cat.groups.map((gid) => this.loadGroupTypes(gid)))),
+      reduce((c, g) => [...c, ...g], [] as number[])
+    );
+  }
+
+  private shipTIDs: number[] = [];
+  private namedTIDs: number[] = [];
+  public loadCategories(): Observable<never> {
+    if (this.shipTIDs.length && this.namedTIDs.length) return empty();
+    return merge(
+      this.loadCategoryTypes(CATEGORY_ID_Ship).pipe(tap((types) => (this.shipTIDs = types))),
+      this.loadCategoryTypes(CATEGORY_ID_Structure),
+      this.loadCategoryTypes(CATEGORY_ID_Deployable),
+      this.loadGroupTypes(GROUP_ID_Audit_Log_Secure_Container),
+      this.loadGroupTypes(GROUP_ID_Cargo_Container),
+      this.loadGroupTypes(GROUP_ID_Freight_Container),
+      this.loadGroupTypes(GROUP_ID_Secure_Cargo_Container),
+      this.loadGroupTypes(GROUP_ID_Biomass)
+    ).pipe(
+      reduce((c, g) => [...c, ...g], [] as number[]),
+      tap((types) => (this.namedTIDs = types)),
+      ignoreElements()
+    );
+  }
+  public isShipType(tid: number): boolean {
+    return this.shipTIDs.includes(tid);
+  }
+  public isUserNameSupported(tid: number): boolean {
+    return this.namedTIDs.includes(tid);
+  }
+
   loadItems(subj_id: number): Observable<EsiItem[]> {
     return this.esi.getEntityItems(this.getSubjectType(subj_id), subj_id);
   }
 
   getNameApplicableIDs(items: EsiDataItem[]): number[] {
-    const named = [...items.values()].filter(isUserNameApplicable());
+    const named = [...items.values()].filter((i) => i.is_singleton && this.isUserNameSupported(i.type_id));
     const ids = named.map((i) => i.item_id);
     ((ids as unknown) as NamedItemTypesIDs).ids = set(named.map((i) => i.type_id));
     return ids;

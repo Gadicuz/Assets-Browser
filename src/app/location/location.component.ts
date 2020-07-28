@@ -2,17 +2,7 @@ import { Component, ViewChild, NgModule } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { combineLatest, defer, of, merge, throwError, concat, empty } from 'rxjs';
-import {
-  concatMap,
-  map,
-  tap,
-  mergeMap,
-  switchAll,
-  switchMap,
-  reduce,
-  catchError,
-  ignoreElements,
-} from 'rxjs/operators';
+import { concatMap, map, tap, switchAll, switchMap, catchError } from 'rxjs/operators';
 
 import {
   EsiDataService,
@@ -537,7 +527,7 @@ export class LocationComponent {
       name: '',
       image: '',
       value: item.bpd?.copy ? undefined : this.cache.marketPrices.get(type_id),
-      do_not_pack: this.isShip(type_id), // keep assembled for ships
+      do_not_pack: this.data.isShipType(type_id), // keep assembled for ships
       loader,
     };
     if (item.name || item.bpd) return infoLoader;
@@ -568,25 +558,13 @@ export class LocationComponent {
     });
   }
 
-  private shipTIDs: number[] = [];
-  private isShip(tid: number): boolean {
-    return this.shipTIDs.includes(tid);
-  }
-  private loadShipsTIDs(): Observable<never> {
-    return this.data.loadCategoryInfo(EsiService.CATEGORY_ID_Ship).pipe(
-      mergeMap((cat) => merge(...cat.groups.map((gid) => this.data.loadGroupInfo(gid)))),
-      reduce((types, grp) => [...types, ...grp.types], [] as number[]),
-      tap((types) => (this.shipTIDs = types)),
-      ignoreElements()
-    );
-  }
   private moveShips(items: EsiDataItem[]): void {
     items
-      .filter((i) => i.location_flag === 'Hangar' && this.isShip(i.type_id)) // move all ships from 'Hangar' ...
+      .filter((i) => i.location_flag === 'Hangar' && this.data.isShipType(i.type_id)) // move all ships from 'Hangar' ...
       .forEach((i) => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
   }
   private loadAssets(subj_id: number): Observable<LocData[]> {
-    return concat(this.loadShipsTIDs(), this.cache.loadItems(subj_id)).pipe(
+    return concat(this.data.loadCategories(), this.cache.loadItems(subj_id)).pipe(
       map((cache) => {
         const items = [...cache.values()];
         this.moveShips(items);
