@@ -5,19 +5,24 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, Subject } from 'rxjs';
 import { delay, concatMap, ignoreElements, map } from 'rxjs/operators';
 
+interface Snack {
+  text: string;
+  cls: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class SnackBarQueueService {
   public queue$: Observable<never>;
 
-  private subj = new Subject<string>();
+  private subj = new Subject<Snack>();
 
   constructor(private snackBar: MatSnackBar) {
     this.queue$ = this.subj.asObservable().pipe(
-      concatMap((text) =>
+      concatMap((s) =>
         this.snackBar
-          .open(text, 'DISMISS', { duration: 5000 })
+          .open(s.text, 'CLOSE', { duration: 5000, panelClass: s.cls })
           .afterDismissed()
           .pipe(
             map((dis) => dis.dismissedByAction),
@@ -28,8 +33,8 @@ export class SnackBarQueueService {
     );
   }
 
-  public msg(text: string): void {
-    this.subj.next(text);
+  public msg(text: string, cls = ''): void {
+    this.subj.next({ text, cls });
   }
 }
 
