@@ -1,28 +1,18 @@
 .num-card {
-  padding: 8px;
+  height: 125px;
+  padding: 28px 18px 10px;
 }
 .num-card-value > .mat-display-1 {
-  padding-top: 6px;
+  font-size: 36px;
+  padding: 0 8px;
   margin-bottom: 0;
 }
-.num-card-value {
-  margin-left: 20px;
-  margin-right: 20px;
-}
 .num-card-actions {
-  height: 40px;
-  font-style: italic;
+  font-size: 15px;
 }
 .mat-card-header {
   min-height: 61px;
 }
-.mat-card-title.compact {
-  font-size: 14px;
-}
-.mat-card-content.compact {
-  margin-bottom: 0;
-}
-
 .mat-row {
   min-height: 40px;
 }

@@ -63,7 +63,7 @@ interface LocationRouteNode {
 }
 
 interface LocationStat {
-  title: string;
+  title: string[];
   value: LocPropVal;
   actions: { name: string; value: string }[];
 }
@@ -310,16 +310,16 @@ export class LocationComponent {
           image: typeof loc.info.icon === 'number' ? this.esi.getItemIconURI(loc.info.icon, 32) : loc.info.icon,
           stats: totals
             ? [
-                { title: 'Item Value (ISK)', value: loc.Value, actions: [] },
-                { title: 'Item Packaged (m3)', value: loc.VolumePackaged(), actions: [] },
-                { title: 'Content Value (ISK)', value: loc.ContentValue, actions: [] },
+                { title: ['Item Value', '(ISK)'], value: loc.Value, actions: [] },
+                { title: ['Item Packaged', '(m3)'], value: loc.VolumePackaged(), actions: [] },
+                { title: ['Cont. Value', '(ISK)'], value: loc.ContentValue, actions: [] },
                 {
-                  title: 'Packaged Content (m3)',
+                  title: ['Cont. Packaged', '(m3)'],
                   value: loc.VolumeContentCargo(),
                   actions: [{ name: 'insert_chart_outlined', value: 'packaged' }],
                 },
                 {
-                  title: 'Assembled Content (m3)',
+                  title: ['Cont. Assembled', '(m3)'],
                   value: loc.VolumeContentAssembled(),
                   actions: [{ name: 'insert_chart_outlined', value: 'assembled' }],
                 },
