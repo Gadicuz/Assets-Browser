@@ -11,10 +11,10 @@ import {
   EsiDataService,
   EsiMarketOrderType,
   EsiDataInfo,
+  isStationId,
 } from '../services/eve-esi/eve-esi-data.service';
 
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
-import { EsiService } from '../services/eve-esi/eve-esi.module';
 
 import { autoMap, set, tuple, updateMapValues } from '../utils/utils';
 import { ActivatedRoute } from '@angular/router';
@@ -113,7 +113,7 @@ export class OrdersComponent {
   ): Observable<EsiDataLocMarketOrders> {
     const l = locs.reduce<{ stations: EsiDataLocMarketTypes[]; others: EsiDataLocMarketTypes[] }>(
       (s, x) => {
-        (EsiService.isStationId(x.l_id) ? s.stations : s.others).push(x);
+        (isStationId(x.l_id) ? s.stations : s.others).push(x);
         return s;
       },
       { stations: [], others: [] }
@@ -242,7 +242,7 @@ export class OrdersComponent {
     ids: number[]
   ): LocationInfo {
     const l_id = orders.l_id;
-    const name = EsiService.isStationId(l_id)
+    const name = isStationId(l_id)
       ? (this.cache.stationsInfo.get(l_id) as EsiDataInfo<'stations'>).name
       : (this.cache.structuresInfo.get(l_id) as EsiDataInfo<'structures'>).name;
 

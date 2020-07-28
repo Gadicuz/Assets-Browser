@@ -20,7 +20,6 @@ import {
   EsiItemName,
   EsiInfoSelector,
   EsiInfo,
-  EsiLocationType,
   EsiMarketOrderType,
   EsiMarketOrderCharacter,
   EsiMarketOrderCorporation,
@@ -170,31 +169,27 @@ enum imageResource {
 
 type EsiHttpParams = Record<string, string | undefined>;
 
-export function isStationService(type_id: number): boolean {
-  return type_id >= 26 && type_id <= 28;
-}
-
-export function isWrapping(type_id: number): boolean {
-  return type_id === EsiService.TYPE_ID_AssetSafetyWrap || type_id === EsiService.TYPE_ID_PlasticWrap;
-}
-
-export function isScopedOut(e: unknown): string {
-  if (!e || typeof e !== 'object' || (e as Error).name !== 'EsiHttpErrorResponse') return '';
-  const err = e as EsiHttpErrorResponse;
-  if (err.status !== 403 || !err.esiData) return '';
-  const d = err.esiData as EsiForbiddenErrorData;
-  if (d.sso_status !== 200) return '';
-  // d.error message example: "token is not valid for scope: esi-characters.read_blueprints.v1"
-  const val = /^token is not valid for scope: ([\w.-]+)$/.exec(d.error);
-  return (val && val[1]) || '';
-}
-
 const imageUrl = 'https://images.evetech.net/';
 function getImage(resource: imageResource, id: number, size?: number): string {
   let uri = resource.replace('{}', String(id));
   if (size) uri += `?size=${size}`;
   return imageUrl + uri;
 }
+
+export function getCharacterAvatarURI(character_id: number, size: number): string {
+  return getImage(imageResource.CharPortrait, character_id, size);
+}
+export function getCorporationLogoURI(corporation_id: number, size: number): string {
+  return getImage(imageResource.CorporationLogo, corporation_id, size);
+}
+export function getTypeIconURI(type_id: number, size: number): string {
+  return getImage(imageResource.TypeIcon, type_id, size);
+}
+
+function status_is_4xx(status: number): boolean {
+  return status >= 400 && status < 500;
+}
+//private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
 
 @Injectable({
   providedIn: 'root',
@@ -211,72 +206,6 @@ export class EsiService {
   static readonly STD_MAIL_LABEL_ID_Alliance = 8;
 
   private readonly commonParams: EsiHttpParams;
-  private static status_is_4xx(status: number): boolean {
-    return status >= 400 && status < 500;
-  }
-  //private static readonly noRetryStatuses: number[] = [400, 401, 403, 420];
-
-  public static getCharacterAvatarURI(character_id: number, size: number): string {
-    return getImage(imageResource.CharPortrait, character_id, size);
-  }
-  public static getCorporationLogoURI(corporation_id: number, size: number): string {
-    return getImage(imageResource.CorporationLogo, corporation_id, size);
-  }
-  public static getTypeIconURI(type_id: number, size: number): string {
-    return getImage(imageResource.TypeIcon, type_id, size);
-  }
-  public static getIconID(type_id: number): number | undefined {
-    if (isStationService(type_id)) return undefined; // no icon is available for 'Station Services' types (???)
-    return type_id;
-  }
-
-  public static getTypeById(id: number): string {
-    // https://github.com/esi/esi-docs/blob/master/docs/id_ranges.md
-    if (id >= 2147483648) return 'unknown';
-    if (id < 10000) return 'special';
-    if (id >= 500000 && id < 1000000) return 'faction';
-    if (id >= 1000000 && id < 2000000) return 'corporation.npc';
-    if (id >= 3000000 && id < 4000000) return 'character.npc';
-    if (id >= 9000000 && id < 10000000) return 'universe';
-    if (id >= 10000000 && id < 11000000) return 'region';
-    if (id >= 11000000 && id < 12000000) return 'region.wormhole';
-    if (id >= 12000000 && id < 13000000) return 'region.abyssal';
-    if (id >= 20000000 && id < 21000000) return 'constellation';
-    if (id >= 21000000 && id < 22000000) return 'constellation.wormhole';
-    if (id >= 22000000 && id < 23000000) return 'constellation.abyssal';
-    if (id >= 30000000 && id < 31000000) return 'solar_system';
-    if (id >= 31000000 && id < 32000000) return 'solar_system.wormhole';
-    if (id >= 32000000 && id < 33000000) return 'solar_system.abyssal';
-    if (id >= 40000000 && id < 50000000) return 'celestial';
-    if (id >= 50000000 && id < 60000000) return 'stargate';
-    if (id >= 60000000 && id < 61000000) return 'station.ccp';
-    if (id >= 61000000 && id < 64000000) return 'station.outpost';
-    if (id >= 68000000 && id < 69000000) return 'station_folder.ccp';
-    if (id >= 69000000 && id < 70000000) return 'station_folder.outpost';
-    if (id >= 70000000 && id < 80000000) return 'asteroid';
-    if (id >= 80000000 && id < 80100000) return 'control_bunker';
-    if (id >= 81000000 && id < 82000000) return 'wis_promenade';
-    if (id >= 82000000 && id < 85000000) return 'planetary_district';
-    if (id >= 90000000 && id < 98000000) return 'character'; // created after 2010-11-03
-    if (id >= 98000000 && id < 99000000) return 'corporation'; // created after 2010-11-03
-    if (id >= 99000000 && id < 100000000) return 'alliance'; // created after 2010-11-03
-    if (id >= 100000000 && id < 2100000000) return 'character.corporation.alliance'; // EVE characters, corporations and alliances created before 2010-11-03
-    return 'character'; // DUST characters, EVE characters created after 2016-05-30
-  }
-
-  public static getLocationTypeById(id: number): EsiLocationType {
-    // https://github.com/esi/esi-docs/blob/master/docs/asset_location_id.md
-    if (id == EsiService.LOCATION_ID_AssetSafety) return 'asset_safety';
-    const idTypes = EsiService.getTypeById(id).split('.');
-    if (idTypes.includes('solar_system')) return 'solar_system';
-    if (idTypes.includes('station')) return 'station';
-    if (idTypes.includes('character')) return 'character';
-    return 'unknown'; // ItemID, StructureID, CustomOfficeID, CorporationOfficeID
-  }
-
-  public static isStationId(id: number): boolean {
-    return EsiService.getLocationTypeById(id) === 'station';
-  }
 
   public get serverName(): string {
     return this.config.datasource || '(default)';
@@ -288,11 +217,7 @@ export class EsiService {
     };
   }
 
-  private static retry(
-    count = 3,
-    timeout = 1000,
-    noRetry: (status: number) => boolean = EsiService.status_is_4xx.bind(EsiService)
-  ) {
+  private static retry(count = 3, timeout = 1000, noRetry: (status: number) => boolean = status_is_4xx) {
     return (errors: Observable<HttpErrorResponse>): Observable<number> =>
       errors.pipe(
         mergeMap((error, i) => {

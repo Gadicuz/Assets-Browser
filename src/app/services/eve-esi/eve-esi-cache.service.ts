@@ -13,10 +13,10 @@ import {
   EsiDataCharMarketOrder,
   EsiDataService,
   EsiDataInfo,
+  isStationId,
 } from './eve-esi-data.service';
 
 import { autoMap, set, removeKeys } from '../../utils/utils';
-import { EsiService } from './eve-esi.module';
 
 type EsiDataItems = Map<number, EsiDataItem>;
 
@@ -273,7 +273,7 @@ export class EsiCacheService {
   }
 
   public getSCR(ss_id: number): { sys: number; con: number; reg: number } {
-    const sys = EsiService.isStationId(ss_id)
+    const sys = isStationId(ss_id)
       ? mapGet(this.stationsInfo, ss_id).system_id
       : mapGet(this.structuresInfo, ss_id).solar_system_id;
     const con = mapGet(this.systemsInfo, sys).constellation_id;

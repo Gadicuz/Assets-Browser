@@ -22,9 +22,12 @@ import {
   EsiDataInfo,
   EsiDataBpd,
   EsiDataCharMarketOrder,
+  isWrapping,
+  getIconID,
+  getLocationTypeById,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
-import { EsiService, isWrapping } from '../services/eve-esi/eve-esi.module';
+import { EsiService, getCharacterAvatarURI, getTypeIconURI } from '../services/eve-esi/eve-esi.module';
 
 import { MatSort, Sort } from '@angular/material/sort';
 import { DataSource } from '@angular/cdk/collections';
@@ -305,7 +308,7 @@ export class LocationComponent {
       : {
           name: loc.info.name,
           comment: loc.info.comment,
-          image: typeof loc.info.icon === 'number' ? EsiService.getTypeIconURI(loc.info.icon, 32) : loc.info.icon,
+          image: typeof loc.info.icon === 'number' ? getTypeIconURI(loc.info.icon, 32) : loc.info.icon,
           stats: totals
             ? [
                 { title: ['Item Value', '(ISK)'], value: loc.Value, actions: [] },
@@ -412,7 +415,7 @@ export class LocationComponent {
       .map((loc) => +loc.ploc.uid)
       .reduce(
         (m, id) => {
-          m[EsiService.getLocationTypeById(id)].push(id);
+          m[getLocationTypeById(id)].push(id);
           return m;
         },
         {
@@ -447,7 +450,7 @@ export class LocationComponent {
     const char_subj = this.data.findSubject(id, 'characters');
     return {
       name: char_subj ? char_subj.name : `Character #${id}`,
-      icon: EsiService.getCharacterAvatarURI(id, 32),
+      icon: getCharacterAvatarURI(id, 32),
     };
   }
 
@@ -477,7 +480,7 @@ export class LocationComponent {
     const locData = (info: LocTypeInfo, parent: LocPos = { uid: UNIVERSE_UID }): LocData =>
       new LocData(info, parent, uid, items);
     const id = +uid;
-    const locType = EsiService.getLocationTypeById(id);
+    const locType = getLocationTypeById(id);
     switch (locType) {
       case 'asset_safety':
         return locData(this.locInfo_AssetSafety());
@@ -516,7 +519,7 @@ export class LocationComponent {
       info.name = name || typeInfo.name;
       info.comment = (name && typeInfo.name) || undefined;
     }
-    info.icon = EsiService.getIconID(type_id) || UNKNOWN_IMAGE_URL;
+    info.icon = getIconID(type_id) || UNKNOWN_IMAGE_URL;
     //info.value = this.cache.marketPrices.get(type_id);
     info.volume = typeInfo.packaged_volume || typeInfo.volume; // (packaged) item's volume
     if (typeInfo.packaged_volume) info.assembled_volume = typeInfo.volume; // assembled volume
