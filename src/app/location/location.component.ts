@@ -271,7 +271,7 @@ export class LocationComponent {
   private buildLocationData(uid: LocUID, all: boolean): Observable<LocationRecord> {
     const loc = this.locs.get(uid);
     if (loc == undefined) return throwError(new Error(`Unknown location '${uid}'`));
-    const route = this.getRoute(loc);
+    const route = this.getRoute(loc, undefined);
     let content = loc.content_items || [];
     if (all) content = LocationComponent.flatten(content);
     return concat(
@@ -324,8 +324,8 @@ export class LocationComponent {
   }
 
   /** Creates LocData[] route from the top of loc's tree to the loc */
-  private getRoute(loc: LocData | undefined, route: LocData[] = []): LocData[] {
-    return loc != undefined ? this.getRoute(this.locs.get(loc.ploc.uid), [loc, ...route]) : route;
+  private getRoute(loc: LocData | undefined, root: LocData | undefined, route: LocData[] = []): LocData[] {
+    return loc != root && loc != undefined ? this.getRoute(this.locs.get(loc.ploc.uid), root, [loc, ...route]) : route;
   }
 
   private buildLocationTree(subj_id: number): Observable<never> {
