@@ -14,7 +14,7 @@
 
     <mat-card-content gdColumns="repeat(auto-fill, minmax(210px, 1fr))" gdGap="16px">
       <ng-container *ngFor="let stat of info.stats">
-        <mat-card *ngIf="stat.value !== ''" class="num-card mat-elevation-z5" fxLayout="column" fxLayoutGap="10px" fxLayoutAlign="space-between stretch">
+        <mat-card *ngIf="stat.value !== ''" class="num-card mat-elevation-z5" fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="space-between stretch">
 
           <div class="num-card-value" fxFlex="grow">
             <ng-container *ngIf="stat.value === 'n/a'; else datavalue">
@@ -30,19 +30,21 @@
               </div>
             </ng-template>
           </div>
-
-          <div class="num-card-actions" fxFlex="none" fxLayout="row" fxLayoutGap="8px" fxLayoutAlign="space-between stretch">
-            <div>         
-            </div>
-            <div fxFlex="grow" fxLayout="row" fxLayoutGap="4px" fxLayoutAlign="start center"> 
-              <span>{{stat.title[0]}}<br><small>{{stat.title[1]}}</small></span>
-            </div>
-            <ng-container *ngIf="stat.actions.length && isNum(stat.value)">
-            <button *ngFor="let act of stat.actions" mat-icon-button class="num-card-button" fxFlex="none"
-              (click)="viewLogistics(info.data, act.value)" >
-              <mat-icon>{{act.name}}</mat-icon>
-            </button>  
-            </ng-container>
+          <div>
+            <mat-divider></mat-divider>
+          </div>
+          <div class="num-card-actions" fxFlex="none" fxLayout="row" fxLayoutGap="8px" fxLayoutAlign="space-between stretch"> 
+              <div>
+              </div>
+              <div fxFlex="grow" fxLayout="row" fxLayoutGap="4px" fxLayoutAlign="start center"> 
+                <span>{{stat.title[0]}}<br><small>{{stat.title[1]}}</small></span>
+              </div>
+              <ng-container *ngIf="stat.actions.length && isNum(stat.value)">
+              <button *ngFor="let act of stat.actions" mat-icon-button class="num-card-button" fxFlex="none"
+                (click)="viewLogistics(info.data, act.value)" >
+                <mat-icon>{{act.name}}</mat-icon>
+              </button>  
+              </ng-container>
           </div>
 
         </mat-card>
