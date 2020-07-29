@@ -647,12 +647,11 @@ export class LocationComponent {
     const cargo = value === 'packaged';
     const locs = LocationComponent.flatten(loc.content_items || [], { assm: true });
     const data: LocationLogisticData = {
-      title: cargo ? 'Packaged content' : 'Assembled content',
+      title: cargo ? 'packaged content' : 'assembled content',
       name: loc.info.name,
       items: locs
         .map((l) => {
           const id = this.getRoute(l, loc)
-            .slice(1)
             .map((l) => l.info.name)
             .join(' > ');
           const quantity = l.quantity;
@@ -665,8 +664,7 @@ export class LocationComponent {
         ) as LocationLogisticsDataItem[],
     };
     this.dialog.open(LocationLogisticsDialog, {
-      width: '800px',
-      height: '500px',
+      width: '1000px',
       data,
     });
   }

@@ -1,4 +1,46 @@
-.chart-container {
-    height: 352px;
-    width: 752px;
+.logistics-report.mat-dialog-content {
+   height: 800px;
 }
+
+.chart-container {
+  height: 300px;
+  min-height: 300px;
+  max-height: 300px;
+}
+
+.report-container {
+  overflow-y: scroll;
+  padding: 8px;
+}
+
+.report-value {
+  display: flex;
+  flex-direction: row;
+  place-content: center flex-end;
+  align-items: center;
+}
+
+.chunk-report .mat-expansion-panel-header-title,
+.chunk-report .mat-expansion-panel-header-description {
+  flex-basis: 0;
+  height: 40px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chunk-report .mat-expansion-panel-header-description {
+  margin-right: 0;
+}
+
+.spacer {
+  width: 40px;
+  height: 40px;
+}
+
+.chunk-report .mat-list-item {
+  font-size: 10pt;
+  height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+

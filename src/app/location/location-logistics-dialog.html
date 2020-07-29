@@ -1,10 +1,9 @@
-<div fxLayout="column" fxLayoutGap="16px">
-  <h2 matDialogTitle fxFlex="none">{{title}}</h2>
+<h2 mat-dialog-title>{{title}}</h2>
+
+<mat-dialog-content class="logistics-report" fxLayout="column" fxLayoutGap="16px">
 
   <div class="chart-container" fxFlex="none">
-
     <ngx-charts-line-chart
-      [view]="[752, 352]"
       [results]="value"
       [scheme]="colorScheme"
       [gradient]="true"
@@ -16,10 +15,50 @@
       yAxisLabel="ISK"
       (select)="onSelect($event)">
     </ngx-charts-line-chart>
-
   </div>
 
-  <div MatDialogActions align="end" fxFlex="none">
-    <button matDialogClose class="mat-button">Close</button>
-  </div>
-</div>
+  <div class="report-container" fxFlex="grow">
+    <mat-accordion class="chunk-report">
+
+      <mat-expansion-panel *ngFor="let c of (chunks$ | async); let idx = index"
+        [expanded]="chunk === idx" (opened)="chunk = idx" (closed)="chunk = -1" hideToggle>
+        <mat-expansion-panel-header fxLayout="row" fxLayoutGap="16px">
+          <mat-panel-title fxFlex="none">
+            #{{idx}}
+          </mat-panel-title>
+          <mat-panel-description fxLayout="row" fxLayoutGap="64px" fxFlex="grow">
+            <div fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+              <div class="report-value" fxFlex="grow">{{c.volume | scale:'kMB':'.2-2'}}</div>
+              <mat-icon fxFlex="none">category</mat-icon>
+            </div>
+            <div fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+              <div class="report-value" fxFlex="grow">{{c.value | scale:'kMB':'.2-2'}}</div>
+              <mat-icon fxFlex="none">money</mat-icon>
+            </div>
+            <div fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+              <div class="report-value" fxFlex="grow">{{c.ids.length}}</div>
+              <mat-icon fxFlex="none">list</mat-icon>
+            </div>
+            <button *ngIf="idx" mat-icon-button (click)="del(idx)" fxFlex="none">
+              <mat-icon>arrow_circle_up</mat-icon>
+            </button>
+            <div *ngIf="!idx" class="spacer" fxFlex="none">              
+            </div>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <mat-list>
+          <mat-list-item *ngFor="let id of c.ids">{{id}}</mat-list-item>
+        </mat-list>
+
+      </mat-expansion-panel>
+
+    </mat-accordion>
+  </div>      
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="reset()">Reset</button>
+  <button mat-button color="primary" matDialogClose>Close</button>
+</mat-dialog-actions>
