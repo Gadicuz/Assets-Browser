@@ -35,7 +35,7 @@ import {
 
 import { autoMap, set, mapGet } from '../utils/utils';
 import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
-import { LocationLogisticsDialog, LocationLogisticData } from './location-logistics-dialog';
+import { LocationLogisticsDialog, LocationLogisticData, LocationLogisticsDataItem } from './location-logistics-dialog';
 import { MatDialog } from '@angular/material/dialog';
 
 const UNIVERSE_UID = 'universe';
@@ -648,24 +648,26 @@ export class LocationComponent {
     const locs = LocationComponent.flatten(loc.content_items || [], { assm: true });
     const data: LocationLogisticData = {
       title: cargo ? 'Packaged content' : 'Assembled content',
-      data: [
-        {
-          name: loc.info.name,
-          items: locs
-            .map((l) =>
-              cargo
-                ? { vol: l.VolumeCargo(true), val: l.Value, q: l.quantity }
-                : { vol: l.VolumeAssembled(true), val: l.TotalValue, q: l.quantity }
-            )
-            .filter((x) => x.q && typeof x.val === 'number' && typeof x.vol === 'number')
-            .map((x) => ({ value: x.val as number, volume: x.vol as number, quantity: x.q as number })),
-        },
-      ],
+      name: loc.info.name,
+      items: locs
+        .map((l) => {
+          const id = this.getRoute(l, loc)
+            .slice(1)
+            .map((l) => l.info.name)
+            .join(' > ');
+          const quantity = l.quantity;
+          return cargo
+            ? { id, value: l.Value, volume: l.VolumeCargo(true), quantity }
+            : { id, value: l.TotalValue, volume: l.VolumeAssembled(true), quantity };
+        })
+        .filter(
+          (x) => x.quantity && typeof x.value === 'number' && typeof x.volume === 'number'
+        ) as LocationLogisticsDataItem[],
     };
     this.dialog.open(LocationLogisticsDialog, {
       width: '800px',
       height: '500px',
-      data: data,
+      data,
     });
   }
 }
