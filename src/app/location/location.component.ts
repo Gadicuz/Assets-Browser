@@ -31,6 +31,7 @@ import {
   LocPropVal,
   locPropVal,
   locPropAdd,
+  locPropDiv,
 } from './location.models';
 
 import { autoMap, set, mapGet } from '../utils/utils';
@@ -80,6 +81,7 @@ interface ItemRecord {
   value: LocPropVal;
   volume: LocPropVal;
   volume_assembled: LocPropVal;
+  value_average: LocPropVal;
 }
 
 const cmpItemRecords = (sort: Sort) => (r1: ItemRecord, r2: ItemRecord): number => {
@@ -98,6 +100,9 @@ const cmpItemRecords = (sort: Sort) => (r1: ItemRecord, r2: ItemRecord): number 
       break;
     case 'assembled':
       r = locPropVal(r1.volume_assembled) - locPropVal(r2.volume_assembled);
+      break;
+    case 'average':
+      r = locPropVal(r1.value_average) - locPropVal(r2.value_average);
       break;
     default:
       return 0;
@@ -201,7 +206,7 @@ const features: ToolScopes = [
 export class LocationComponent {
   location$: Observable<LocationRecord>;
 
-  displayedColumns: string[] = ['link', 'name', 'quantity', 'value', 'volume', 'assembled'];
+  displayedColumns: string[] = ['link', 'name', 'quantity', 'volume', 'assembled', 'average', 'value'];
   displayedHeaderColumns: string[] = ['name'];
   dataSource = new LocationDataSource();
 
@@ -334,16 +339,22 @@ export class LocationComponent {
 
   private createDataRecords(loc: LocData): ItemRecord[] {
     if (loc.content_items == undefined) return [];
-    return loc.content_items.map((i) => ({
-      position: i.ploc.pos || '',
-      name: i.info.name,
-      comment: i.info.comment,
-      link: i.Link,
-      quantity: i.quantity || '',
-      value: i.TotalValue,
-      volume: i.VolumeCargo(),
-      volume_assembled: i.VolumeAssembled(),
-    }));
+    return loc.content_items.map((i) => {
+      const value = i.TotalValue;
+      const volume = i.VolumeCargo();
+      const volume_assembled = i.VolumeAssembled();
+      return {
+        position: i.ploc.pos || '',
+        name: i.info.name,
+        comment: i.info.comment,
+        link: i.Link,
+        quantity: i.quantity || '',
+        value,
+        volume,
+        volume_assembled,
+        value_average: locPropDiv(value, locPropAdd(volume, volume_assembled)),
+      };
+    });
   }
 
   private invalidateLoc(loc: LocData): void {

@@ -99,6 +99,14 @@
       </mat-cell>
     </ng-container>
 
+    <ng-container matColumnDef="average">
+      <mat-header-cell *matHeaderCellDef mat-sort-header> Average<br>(ISK.m3) </mat-header-cell>
+      <mat-cell *matCellDef="let rec">
+        <ng-container *ngIf="isNum(rec.value_average)">{{rec.value_average | scale:'kMB':'.2-2'}}</ng-container>
+        <ng-container *ngIf="!isNum(rec.value_average)">{{rec.value_average}}</ng-container>
+      </mat-cell>
+    </ng-container>
+
     <ng-container matColumnDef="volume">
       <mat-header-cell *matHeaderCellDef mat-sort-header> Packaged<br>(m3) </mat-header-cell>
       <mat-cell *matCellDef="let rec">

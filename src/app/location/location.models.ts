@@ -36,6 +36,11 @@ export function locPropAdd(s: LocPropVal, p: LocPropVal): LocPropVal {
   return s + p;
 }
 
+export function locPropDiv(s: LocPropVal, p: LocPropVal): LocPropVal {
+  if (typeof s === 'string' || typeof p === 'string') return implicit0;
+  return s / p;
+}
+
 export class LocData {
   constructor(info: LocTypeInfo, ploc: LocPos, uid?: LocUID, items?: LocData[], is_vcont?: boolean) {
     this.info = info;

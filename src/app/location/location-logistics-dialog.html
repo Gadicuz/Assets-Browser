@@ -27,15 +27,19 @@
             #{{idx}}
           </mat-panel-title>
           <mat-panel-description fxLayout="row" fxLayoutGap="64px" fxFlex="grow">
-            <div fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+            <div matTooltip="Volume (m3)" fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
               <div class="report-value" fxFlex="grow">{{c.volume | scale:'kMB':'.2-2'}}</div>
               <mat-icon fxFlex="none">category</mat-icon>
             </div>
-            <div fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+            <div matTooltip="Value (ISK)" fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
               <div class="report-value" fxFlex="grow">{{c.value | scale:'kMB':'.2-2'}}</div>
               <mat-icon fxFlex="none">money</mat-icon>
             </div>
-            <div fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+            <div matTooltip="Avg.price (ISK/m3)" fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
+              <div class="report-value" fxFlex="grow">{{c.value / c.volume | scale:'kMB':'.2-2'}}</div>
+              <mat-icon fxFlex="none">import_export</mat-icon>
+            </div>
+            <div matTooltip="List size" fxLayout="row" fxLayoutGap="8px" fxFlex="grow">
               <div class="report-value" fxFlex="grow">{{c.ids.length}}</div>
               <mat-icon fxFlex="none">list</mat-icon>
             </div>
