@@ -29,6 +29,7 @@ import {
   EsiWalletTransaction,
   EsiMarketPrice,
   EsiBlueprint,
+  EsiFitting,
 } from './eve-esi.models';
 
 export { EVEESIConfig } from './eve-esi.config';
@@ -340,6 +341,10 @@ export class EsiService {
     division: EsiWalletDivisionId
   ): Observable<EsiWalletTransaction[]> {
     return this.getCorporationInformation<EsiWalletTransaction[]>(corporation_id, `wallets/${division}/transactions/`);
+  }
+
+  public getCharacterFittings(character_id: number): Observable<EsiFitting[]> {
+    return this.getCharacterInformation<EsiFitting[]>(character_id, 'fittings/');
   }
 
   public getCharacterMailHeaders(
