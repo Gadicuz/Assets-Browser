@@ -387,7 +387,7 @@ export class LocationComponent {
     return l.length
       ? l
           .map((i) => {
-            if (!i.content_items || i.info.do_not_pack) return [i];
+            if (!i.content_items || (opt.assm && i.info.do_not_pack)) return [i];
             return [i, ...LocationComponent.flatten(i.content_items, opt)];
           })
           .reduce((s, i) => s.concat(i))
