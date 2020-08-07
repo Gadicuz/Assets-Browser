@@ -99,7 +99,8 @@ export class LocData {
     if (self) return vol;
     vol = locPropAdd(vol, this.VolumeContentCargo()); // packaged content
     if (typeof vol === 'string') return vol;
-    if (!this.is_vcont && this.info.assembled_volume && vol > this.info.assembled_volume) vol = this.info.assembled_volume;
+    if (!this.is_vcont && this.info.assembled_volume && vol > this.info.assembled_volume)
+      vol = this.info.assembled_volume;
     return vol;
   }
 
