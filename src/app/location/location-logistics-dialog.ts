@@ -144,7 +144,6 @@ export class LocationLogisticsDialog {
   }
 
   onSelect(ev: unknown): void {
-    console.log(ev);
     const pt = ev as ChartMainDataItem;
     if (pt.si == 0 || pt.si == this.value[0].series.length - 1) return;
     const pos = this.cuts.indexOf(pt.si);
