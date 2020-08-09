@@ -15,6 +15,8 @@ import {
   isWrapping,
   getIconID,
   getLocationTypeById,
+  EsiIndustryJob,
+  EsiIndustryActivity_Manufacturing,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService, getCharacterAvatarURI, getTypeIconURI } from '../services/eve-esi/eve-esi.module';
@@ -38,6 +40,7 @@ import { autoMap, set, mapGet } from '../utils/utils';
 import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component';
 import { LocationLogisticsDialog, LocationLogisticData, LocationLogisticsDataItem } from './location-logistics-dialog';
 import { MatDialog } from '@angular/material/dialog';
+import { SdeService } from '../services/eve-sde/eve-sde-service';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -46,8 +49,10 @@ const SYSTEM_IMAGE_URL = ''; // TODO
 const UNKNOWN_IMAGE_URL = ''; // TODO
 const STRUCTURE_IMAGE_URL = ''; // TODO
 const MARKET_IMAGE_URL = ''; // TODO
+const INDUSTRY_IMAGE_URL = ''; // TODO
 
 const TRADE_POS = 'Trade Hangar';
+const INDUSTRY_POS = 'Industry Jobs Outcome';
 
 interface LocationRouteNode {
   name: string;
@@ -196,6 +201,12 @@ const features: ToolScopes = [
     corp_scopes: 'esi-markets.read_corporation_orders.v1',
     corp_role: 'Accountant,Trader',
   },
+  {
+    name: 'industry products',
+    char_scopes: 'esi-industry.read_character_jobs.v1',
+    corp_scopes: 'esi-industry.read_corporation_jobs.v1',
+    corp_role: 'Factory_Manager',
+  },
 ];
 
 @Component({
@@ -231,6 +242,7 @@ export class LocationComponent {
   constructor(
     private route: ActivatedRoute,
     private esi: EsiService,
+    private sde: SdeService,
     private data: EsiDataService,
     private cache: EsiCacheService,
     private dialog: MatDialog
@@ -394,7 +406,10 @@ export class LocationComponent {
       : [];
   }
   private loadLocations(subj_id: number): Observable<never> {
-    return concat(this.cache.loadMarketPrices(), merge(this.loadAssets(subj_id), this.loadSellOrders(subj_id))).pipe(
+    return concat(
+      this.cache.loadMarketPrices(),
+      merge(this.loadAssets(subj_id), this.loadSellOrders(subj_id), this.loadIndustryProducts(subj_id))
+    ).pipe(
       map((locs) => locs.filter((loc) => loc.ploc.uid)), // console.log(`Location ${loc} has no link data. Ignored.`);
       concatMap((locs) =>
         this.preloadLocations(locs).pipe(
@@ -651,6 +666,64 @@ export class LocationComponent {
           }
         );
       })
+    );
+  }
+
+  private loadIndustryProducts(subj_id: number): Observable<LocData[]> {
+    return this.data.loadIndustryJobs(subj_id).pipe(
+      this.data.scoped([] as EsiIndustryJob[]),
+      map((jobs) => jobs.filter((j) => j.status === 'active' || j.status === 'paused' || j.status === 'ready')),
+      map((jobs) => jobs.filter((j) => j.activity_id === EsiIndustryActivity_Manufacturing)),
+      map((jobs) => jobs.filter((j) => j.product_type_id)),
+      switchMap((jobs) =>
+        this.sde
+          .loadBlueprints(set(jobs.map((j) => j.blueprint_type_id)), {
+            activities: ['manufacturing', 'reaction'],
+            properties: ['products'],
+          })
+          .pipe(
+            map((bps) => {
+              function getProductQuantity(j: EsiIndustryJob): number {
+                /*
+                station_id: number;
+                blueprint_type_id: number;
+                activity_id: number;
+                product_type_id?: number;
+                runs: number;*/
+                return 1;
+              }
+              return Array.from(
+                jobs
+                  .reduce(
+                    autoMap((j) => j.station_id),
+                    new Map()
+                  )
+                  .entries(),
+                ([l_id, jobs]) => {
+                  const l_uid = `ind${l_id}`;
+                  return new LocData(
+                    { name: 'Product Hangar', icon: INDUSTRY_IMAGE_URL },
+                    { uid: String(l_id), pos: INDUSTRY_POS },
+                    l_uid,
+                    this.createLocContentItems(
+                      jobs.map((j) => ({
+                        is_vcont: false,
+                        name: String(j.job_id),
+                        location: {
+                          uid: l_uid,
+                          pos: String(j.activity_id),
+                        },
+                        type_id: j.product_type_id || 0,
+                        quantity: getProductQuantity(j),
+                      }))
+                    ),
+                    true
+                  );
+                }
+              );
+            })
+          )
+      )
     );
   }
 
