@@ -91,7 +91,7 @@ export type EsiLocationFlag =
   | 'OfficeFolder'
   | 'Pilot'
   | 'PlanetSurface'
-  | 'ServiceModule' // non-standard flag for blueprints being used
+  | 'ServiceFacility' // non-standard flag for blueprints being used
   | 'QuafeBay'
   | 'Reward'
   | 'SecondaryStorage'
@@ -449,4 +449,31 @@ export interface EsiFitting {
   description: string;
   ship_type_id: number;
   items: EsiFittingItem[];
+}
+
+export const EsiIndustryActivity_Manufacturing = 1;
+
+export interface EsiIndustryJob {
+  activity_id: number;
+  blueprint_id: number;
+  blueprint_location_id: number;
+  blueprint_type_id: number;
+  completed_character_id?: number;
+  completed_date?: string;
+  cost?: number;
+  duration: number;
+  end_date: string;
+  facility_id: number;
+  installer_id: number;
+  job_id: number;
+  licensed_runs?: number;
+  output_location_id: number;
+  pause_date?: string;
+  probability?: number;
+  product_type_id?: number;
+  runs: number;
+  start_date: string;
+  station_id: number;
+  status: 'active' | 'cancelled' | 'delivered' | 'paused' | 'ready' | 'reverted';
+  successful_runs?: number;
 }

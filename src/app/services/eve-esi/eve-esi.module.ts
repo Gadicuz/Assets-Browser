@@ -30,6 +30,7 @@ import {
   EsiMarketPrice,
   EsiBlueprint,
   EsiFitting,
+  EsiIndustryJob,
 } from './eve-esi.models';
 
 export { EVEESIConfig } from './eve-esi.config';
@@ -327,6 +328,16 @@ export class EsiService {
   }
   public getCorporationBlueprints(corporation_id: number): Observable<EsiBlueprint[]> {
     return this.getEntityBlueprints('corporations', corporation_id);
+  }
+
+  public getEntityIndustryJobs(entity: EsiSubjType, id: number): Observable<EsiIndustryJob[]> {
+    return this.getEntityInformation<EsiIndustryJob[]>(entity, id, 'industry/jobs/');
+  }
+  public getCharacterIndustryJobs(character_id: number): Observable<EsiIndustryJob[]> {
+    return this.getEntityIndustryJobs('characters', character_id);
+  }
+  public getCorporationIndustryJobs(corporation_id: number): Observable<EsiIndustryJob[]> {
+    return this.getEntityIndustryJobs('corporations', corporation_id);
   }
 
   public getCharacterOrdersHistory(character_id: number): Observable<EsiMarketHistoryOrderCharacter[]> {

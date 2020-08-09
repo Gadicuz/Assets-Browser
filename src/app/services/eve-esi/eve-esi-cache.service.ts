@@ -54,7 +54,7 @@ export class EsiCacheService {
                 is_singleton: true,
                 item_id: bp.item_id,
                 location_id: bp.location_id,
-                location_flag: 'ServiceModule', //bp.location_flag,
+                location_flag: 'ServiceFacility', //bp.location_flag,
                 location_type: 'other',
                 type_id: bp.type_id,
                 quantity: bp.quantity > 0 ? bp.quantity : 1,

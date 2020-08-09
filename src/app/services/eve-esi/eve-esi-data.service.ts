@@ -40,6 +40,7 @@ import {
   EsiMarketOrderRange,
   EsiBlueprint,
   EsiLocationType,
+  EsiIndustryJob,
 } from './eve-esi.models';
 
 import { autoMap, set, tuple } from '../../utils/utils';
@@ -578,6 +579,10 @@ export class EsiDataService {
 
   loadBlueprints(subj_id: number): Observable<EsiBlueprint[]> {
     return this.esi.getEntityBlueprints(this.getSubjectType(subj_id), subj_id);
+  }
+
+  loadIndustryJobs(subj_id: number): Observable<EsiIndustryJob[]> {
+    return this.esi.getEntityIndustryJobs(this.getSubjectType(subj_id), subj_id);
   }
 
   loadCharacterWalletTransactions(character_id: number, personal?: boolean): Observable<EsiWalletTransaction[]> {
