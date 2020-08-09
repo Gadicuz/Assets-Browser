@@ -581,8 +581,8 @@ export class EsiDataService {
     return this.esi.getEntityBlueprints(this.getSubjectType(subj_id), subj_id);
   }
 
-  loadIndustryJobs(subj_id: number): Observable<EsiIndustryJob[]> {
-    return this.esi.getEntityIndustryJobs(this.getSubjectType(subj_id), subj_id);
+  loadIndustryJobs(subj_id: number, completed?: boolean): Observable<EsiIndustryJob[]> {
+    return this.esi.getEntityIndustryJobs(this.getSubjectType(subj_id), subj_id, completed);
   }
 
   loadCharacterWalletTransactions(character_id: number, personal?: boolean): Observable<EsiWalletTransaction[]> {

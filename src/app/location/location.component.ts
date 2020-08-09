@@ -16,7 +16,8 @@ import {
   getIconID,
   getLocationTypeById,
   EsiIndustryJob,
-  EsiIndustryActivity_Manufacturing,
+  ESI_MANUFACTURING,
+  ESI_REACTION,
 } from '../services/eve-esi/eve-esi-data.service';
 import { EsiCacheService } from '../services/eve-esi/eve-esi-cache.service';
 import { EsiService, getCharacterAvatarURI, getTypeIconURI } from '../services/eve-esi/eve-esi.module';
@@ -672,8 +673,8 @@ export class LocationComponent {
   private loadIndustryProducts(subj_id: number): Observable<LocData[]> {
     return this.data.loadIndustryJobs(subj_id).pipe(
       this.data.scoped([] as EsiIndustryJob[]),
-      map((jobs) => jobs.filter((j) => j.status === 'active' || j.status === 'paused' || j.status === 'ready')),
-      map((jobs) => jobs.filter((j) => j.activity_id === EsiIndustryActivity_Manufacturing)), // TODO
+      map((jobs) => jobs.filter((j) => ['active', 'paused', 'ready'].includes(j.status))),
+      map((jobs) => jobs.filter((j) => [ESI_MANUFACTURING, ESI_REACTION].includes(j.activity_id))),
       map((jobs) => jobs.filter((j) => j.product_type_id)),
       switchMap((jobs) =>
         this.sde
@@ -684,7 +685,7 @@ export class LocationComponent {
           .pipe(
             map((bps) => {
               function getProductsQuantity(j: EsiIndustryJob): number {
-                const n: SDE_BlueprintActivityName = 'manufacturing'; // TODO
+                const n: SDE_BlueprintActivityName = j.activity_id === ESI_MANUFACTURING ? 'manufacturing' : 'reaction';
                 const q =
                   bps
                     .find((bp) => bp.blueprintTypeID === j.blueprint_type_id)
@@ -710,7 +711,7 @@ export class LocationComponent {
                         name: String(j.job_id),
                         location: {
                           uid: l_uid,
-                          pos: 'Manufacturing', // String(j.activity_id), TODO
+                          pos: j.activity_id === ESI_MANUFACTURING ? 'Manufacturing' : 'Reaction',
                         },
                         type_id: j.product_type_id || 0,
                         quantity: getProductsQuantity(j),

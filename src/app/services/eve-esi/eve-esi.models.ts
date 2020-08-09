@@ -451,7 +451,12 @@ export interface EsiFitting {
   items: EsiFittingItem[];
 }
 
-export const EsiIndustryActivity_Manufacturing = 1;
+export const ESI_MANUFACTURING = 1;
+export const ESI_COPYING = 5;
+//export const ESI_INVENTION = ;
+//export const ESI_RESEARCH_MATERIAL = ;
+//export const ESI_RESEARCH_TIME = ;
+export const ESI_REACTION = 9;
 
 export interface EsiIndustryJob {
   activity_id: number;
