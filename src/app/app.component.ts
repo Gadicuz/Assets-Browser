@@ -55,7 +55,7 @@ export class AppComponent {
     private dialog: MatDialog,
     private sso: EVESSOService,
     private data: EsiDataService,
-    private sbq: SnackBarQueueService,
+    sbq: SnackBarQueueService,
     @Inject(TOOL_SCOPES) private tools: ToolScopes[]
   ) {
     this.sbQueue$ = sbq.queue$;
