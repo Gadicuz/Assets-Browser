@@ -41,6 +41,7 @@ import { ToolScopes, TOOL_SCOPES } from '../scopes-setup/scopes-setup.component'
 import { LocationLogisticsDialog, LocationLogisticData, LocationLogisticsDataItem } from './location-logistics-dialog';
 import { MatDialog } from '@angular/material/dialog';
 import { SdeService } from '../services/eve-sde/eve-sde-service';
+import { SDE_BlueprintActivityName } from '../services/eve-sde/models/eve-sde-blueprints';
 
 const UNIVERSE_UID = 'universe';
 const UNIVERSE_IMAGE_URL = ''; // TODO
@@ -52,7 +53,6 @@ const MARKET_IMAGE_URL = ''; // TODO
 const INDUSTRY_IMAGE_URL = ''; // TODO
 
 const TRADE_POS = 'Trade Hangar';
-const INDUSTRY_POS = 'Industry Jobs Outcome';
 
 interface LocationRouteNode {
   name: string;
@@ -673,7 +673,7 @@ export class LocationComponent {
     return this.data.loadIndustryJobs(subj_id).pipe(
       this.data.scoped([] as EsiIndustryJob[]),
       map((jobs) => jobs.filter((j) => j.status === 'active' || j.status === 'paused' || j.status === 'ready')),
-      map((jobs) => jobs.filter((j) => j.activity_id === EsiIndustryActivity_Manufacturing)),
+      map((jobs) => jobs.filter((j) => j.activity_id === EsiIndustryActivity_Manufacturing)), // TODO
       map((jobs) => jobs.filter((j) => j.product_type_id)),
       switchMap((jobs) =>
         this.sde
@@ -683,14 +683,13 @@ export class LocationComponent {
           })
           .pipe(
             map((bps) => {
-              function getProductQuantity(j: EsiIndustryJob): number {
-                /*
-                station_id: number;
-                blueprint_type_id: number;
-                activity_id: number;
-                product_type_id?: number;
-                runs: number;*/
-                return 1;
+              function getProductsQuantity(j: EsiIndustryJob): number {
+                const n: SDE_BlueprintActivityName = 'manufacturing'; // TODO
+                const q =
+                  bps
+                    .find((bp) => bp.blueprintTypeID === j.blueprint_type_id)
+                    ?.activities?.[n]?.products?.find((p) => p.typeID === j.product_type_id)?.quantity || 0;
+                return q * j.runs;
               }
               return Array.from(
                 jobs
@@ -702,8 +701,8 @@ export class LocationComponent {
                 ([l_id, jobs]) => {
                   const l_uid = `ind${l_id}`;
                   return new LocData(
-                    { name: 'Product Hangar', icon: INDUSTRY_IMAGE_URL },
-                    { uid: String(l_id), pos: INDUSTRY_POS },
+                    { name: 'Industry Jobs Outcome', icon: INDUSTRY_IMAGE_URL },
+                    { uid: String(l_id), pos: 'Service Facility' },
                     l_uid,
                     this.createLocContentItems(
                       jobs.map((j) => ({
@@ -711,10 +710,10 @@ export class LocationComponent {
                         name: String(j.job_id),
                         location: {
                           uid: l_uid,
-                          pos: String(j.activity_id),
+                          pos: 'Manufacturing', // String(j.activity_id), TODO
                         },
                         type_id: j.product_type_id || 0,
-                        quantity: getProductQuantity(j),
+                        quantity: getProductsQuantity(j),
                       }))
                     ),
                     true
