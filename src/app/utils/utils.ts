@@ -29,3 +29,9 @@ export function mapGet<A, T>(m: Map<A, T>, k: A): T {
   if (!v) throw new Error('Unknown key: ' + String(k));
   return v;
 }
+
+// Removes undefined keys
+export function san(obj: Record<string, unknown>): Record<string, unknown> {
+  Object.keys(obj).forEach((key) => obj[key] === undefined && delete obj[key]);
+  return obj;
+}
