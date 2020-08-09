@@ -3,7 +3,7 @@ import { HttpClient, HttpParams, HttpErrorResponse, HTTP_INTERCEPTORS } from '@a
 import { Observable, from, throwError, timer } from 'rxjs';
 import { map, mergeMap, mergeAll, bufferCount, reduce, retryWhen } from 'rxjs/operators';
 
-import { tuple } from '../../utils/utils';
+import { tuple, san } from '../../utils/utils';
 
 import { OAuthModuleConfig } from 'angular-oauth2-oidc';
 //import { NostoreInterceptorService } from './nostore.interceptor.service';
@@ -235,7 +235,7 @@ export class EsiService {
   }
 
   private httpParams(parameters: EsiHttpParams = {}): HttpParams {
-    const params = { ...this.commonParams, ...parameters } as Record<string, string>; // TODO
+    const params = { ...this.commonParams, ...san(parameters) } as Record<string, string>; // TODO
     return new HttpParams({ fromObject: params });
   }
 
@@ -330,14 +330,16 @@ export class EsiService {
     return this.getEntityBlueprints('corporations', corporation_id);
   }
 
-  public getEntityIndustryJobs(entity: EsiSubjType, id: number): Observable<EsiIndustryJob[]> {
-    return this.getEntityInformation<EsiIndustryJob[]>(entity, id, 'industry/jobs/');
+  public getEntityIndustryJobs(entity: EsiSubjType, id: number, completed?: boolean): Observable<EsiIndustryJob[]> {
+    return this.getEntityInformation<EsiIndustryJob[]>(entity, id, 'industry/jobs/', {
+      include_completed: completed != undefined ? String(completed) : undefined,
+    });
   }
-  public getCharacterIndustryJobs(character_id: number): Observable<EsiIndustryJob[]> {
-    return this.getEntityIndustryJobs('characters', character_id);
+  public getCharacterIndustryJobs(character_id: number, completed?: boolean): Observable<EsiIndustryJob[]> {
+    return this.getEntityIndustryJobs('characters', character_id, completed);
   }
-  public getCorporationIndustryJobs(corporation_id: number): Observable<EsiIndustryJob[]> {
-    return this.getEntityIndustryJobs('corporations', corporation_id);
+  public getCorporationIndustryJobs(corporation_id: number, completed?: boolean): Observable<EsiIndustryJob[]> {
+    return this.getEntityIndustryJobs('corporations', corporation_id, completed);
   }
 
   public getCharacterOrdersHistory(character_id: number): Observable<EsiMarketHistoryOrderCharacter[]> {
