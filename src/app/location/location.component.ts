@@ -127,6 +127,7 @@ interface LocationItem {
   is_vcont: boolean;
   item_id?: number;
   name: string;
+  comment: string;
   location: LocPos;
   type_id: number;
   quantity: number;
@@ -134,7 +135,7 @@ interface LocationItem {
   bp_data?: EsiDataBpd; // undefined fot nonBP or no blueprints data available
 }
 const locItemHash = (i: LocationItem): string =>
-  `${i.item_id || 0}|${i.name}|${i.type_id}|${i.location.uid}|${i.location.pos || ''}`;
+  `${i.item_id || 0}|${i.name}|${i.comment}|${i.type_id}|${i.location.uid}|${i.location.pos || ''}`;
 
 class LocationDataSource implements DataSource<ItemRecord> {
   private _data = new BehaviorSubject<ItemRecord[]>([]);
@@ -530,15 +531,8 @@ export class LocationComponent {
 
   private updateLocTypeInfo(info: LocTypeInfo, type_id: number, item: LocationItem): void {
     const typeInfo = mapGet(this.cache.typesInfo, type_id);
-    if (item.bp_data || item.bp_type) {
-      const d = item.bp_data;
-      const [c, r, m, t] = d ? [d.runs, d.runs || '?', d.me, d.te] : [item.bp_type === 'copy', '?', '?', '?'];
-      info.name = typeInfo.name;
-      info.comment = (c ? `Copy (${r})` : 'Original') + ` - ${m}/${t}`;
-    } else {
-      info.name = item.name || typeInfo.name;
-      info.comment = (item.name && typeInfo.name) || undefined;
-    }
+    info.name = item.name || typeInfo.name;
+    info.comment = item.comment || (item.name && typeInfo.name) || undefined;
     info.icon = getIconID(type_id) || UNKNOWN_IMAGE_URL;
     //info.value = this.cache.marketPrices.get(type_id);
     info.volume = typeInfo.packaged_volume || typeInfo.volume; // (packaged) item's volume
@@ -558,7 +552,7 @@ export class LocationComponent {
       do_not_pack: this.data.isShipType(type_id), // keep assembled for ships
       loader,
     };
-    if (item.name || item.bp_type || item.bp_data) return infoLoader;
+    if (item.name || item.comment || item.bp_type || item.bp_data) return infoLoader;
     // common type_id loader
     const info = this.typeInfos.get(type_id);
     if (info) return info;
@@ -592,6 +586,11 @@ export class LocationComponent {
       .forEach((i) => (i.location_flag = 'ShipHangar')); // ... to 'ShipHangar'
   }
   private loadAssets(subj_id: number): Observable<LocData[]> {
+    function bpComment(d?: EsiDataBpd, isCopy?: boolean): string {
+      if (!d && !isCopy) return '';
+      const [c, r, m, t] = d ? [d.runs, d.runs || '?', d.me, d.te] : [isCopy, '?', '?', '?'];
+      return (c ? `Copy (${r})` : 'Original') + ` - ${m}/${t}`;
+    }
     return concat(this.data.loadCategories(), this.cache.loadItems(subj_id)).pipe(
       map((cache) => {
         const items = [...cache.values()];
@@ -602,6 +601,7 @@ export class LocationComponent {
             is_vcont: isWrapping(item.type_id),
             item_id: cIds.includes(item.item_id) ? item.item_id : undefined,
             name: item.name || '',
+            comment: bpComment(item.bp_data, item.is_blueprint_copy),
             location: {
               uid: String(item.location_id),
               pos: item.location_flag
@@ -657,6 +657,7 @@ export class LocationComponent {
                 orders.map((o) => ({
                   is_vcont: false,
                   name: '',
+                  comment: `Price: ${o.price}, total: ${o.volume_total}`,
                   location,
                   type_id: o.type_id,
                   quantity: o.volume_remain,
@@ -708,7 +709,8 @@ export class LocationComponent {
                     this.createLocContentItems(
                       jobs.map((j) => ({
                         is_vcont: false,
-                        name: String(j.job_id),
+                        name: '',
+                        comment: `Status: ${j.status}`,
                         location: {
                           uid: l_uid,
                           pos: j.activity_id === ESI_MANUFACTURING ? 'Manufacturing' : 'Reaction',

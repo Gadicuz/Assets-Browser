@@ -60,7 +60,7 @@ export class EsiCacheService {
                 quantity: bp.quantity > 0 ? bp.quantity : 1,
               })
             );
-          item.name = `${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
+          item.name = ''; //`${bp.runs}/${bp.material_efficiency}/${bp.time_efficiency}`; // unique name
           item.bp_data = {
             runs: bp.runs > 0 ? bp.runs : undefined,
             me: bp.material_efficiency,
