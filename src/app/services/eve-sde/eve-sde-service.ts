@@ -50,7 +50,7 @@ export class SdeService {
 
   private load<T>(name: string): Observable<T[]> {
     return this.http
-      .get(SDE_BASE + name, { headers: { Accept: 'text/csv' }, responseType: 'text' })
+      .get(SDE_BASE + name, { headers: { Accept: 'text/csv; header=present' }, responseType: 'text' })
       .pipe(switchMap((csv_data) => this.parse<T>(csv_data)));
   }
 
