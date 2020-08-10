@@ -146,7 +146,7 @@ export class EsiCacheService {
     );
   }
   private getTypesInfo(): Observable<Map<number, EsiDataInfo<'types'>>> {
-    return this.typesInfo == undefined
+    return !this.typesInfo.size
       ? this.http
           .get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json')
           .pipe(map((data) => (this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data))))
