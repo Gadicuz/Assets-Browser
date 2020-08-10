@@ -1,7 +1,18 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, concat, defer, from, merge, of } from 'rxjs';
-import { bufferCount, delay, ignoreElements, map, mergeMap, publish, refCount, switchMap, tap } from 'rxjs/operators';
+import {
+  bufferCount,
+  delay,
+  ignoreElements,
+  map,
+  mergeMap,
+  publish,
+  refCount,
+  switchMap,
+  tap,
+  publishLast,
+} from 'rxjs/operators';
 import { mapGet } from '../../utils/utils';
 
 import {
@@ -24,7 +35,17 @@ type EsiDataItems = Map<number, EsiDataItem>;
   providedIn: 'root',
 })
 export class EsiCacheService {
-  constructor(private data: EsiDataService, private http: HttpClient) {}
+  constructor(private data: EsiDataService, http: HttpClient) {
+    this.getTypesInfo$ = http.get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json').pipe(
+      map((data) => {
+        this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data);
+        this.getTypesInfo$ = of(this.typesInfo);
+        return this.typesInfo;
+      }),
+      publishLast(),
+      refCount()
+    );
+  }
 
   private _loadItems(subj_id: number): Observable<EsiDataItems> {
     return this.data.loadItems(subj_id).pipe(map((items) => new Map(items.map((i) => [i.item_id, i]))));
@@ -134,8 +155,9 @@ export class EsiCacheService {
   }
 
   public typesInfo = new Map<number, EsiDataInfo<'types'>>();
+  private getTypesInfo$: Observable<Map<number, EsiDataInfo<'types'>>>;
   public loadTypesInfo(ids: number[]): Observable<never> {
-    return this.getTypesInfo().pipe(
+    return this.getTypesInfo$.pipe(
       switchMap((typesInfo) =>
         from(removeKeys(ids, typesInfo)).pipe(
           delay(0),
@@ -144,13 +166,6 @@ export class EsiCacheService {
         )
       )
     );
-  }
-  private getTypesInfo(): Observable<Map<number, EsiDataInfo<'types'>>> {
-    return !this.typesInfo.size
-      ? this.http
-          .get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json')
-          .pipe(map((data) => (this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data))))
-      : of(this.typesInfo);
   }
   private tidSet = new Set<number>();
   private tidObservable$ = new Observable<never>();
