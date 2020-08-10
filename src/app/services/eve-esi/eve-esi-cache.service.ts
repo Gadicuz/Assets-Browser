@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable, concat, defer, from, merge, of } from 'rxjs';
 import {
   bufferCount,
@@ -28,6 +27,7 @@ import {
 } from './eve-esi-data.service';
 
 import { autoMap, set, removeKeys } from '../../utils/utils';
+import { SdeService } from '../eve-sde/eve-sde-service';
 
 type EsiDataItems = Map<number, EsiDataItem>;
 
@@ -35,10 +35,20 @@ type EsiDataItems = Map<number, EsiDataItem>;
   providedIn: 'root',
 })
 export class EsiCacheService {
-  constructor(private data: EsiDataService, http: HttpClient) {
-    this.getTypesInfo$ = http.get<[number, EsiDataInfo<'types'>][]>('/assets/sde/universe-types.json').pipe(
+  constructor(private data: EsiDataService, sde: SdeService) {
+    this.getTypesInfo$ = sde.loadTypes('en').pipe(
       map((data) => {
-        this.typesInfo = new Map<number, EsiDataInfo<'types'>>(data);
+        this.typesInfo = new Map<number, EsiDataInfo<'types'>>(
+          data.map((d) => [
+            d.typeID,
+            {
+              group_id: d.groupID,
+              name: d.name,
+              volume: d.volume,
+              packaged_volume: d.packaged,
+            },
+          ])
+        );
         this.getTypesInfo$ = of(this.typesInfo);
         return this.typesInfo;
       }),

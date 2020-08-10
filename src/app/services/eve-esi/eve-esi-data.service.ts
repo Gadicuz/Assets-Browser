@@ -78,6 +78,7 @@ interface EsiDataStructureInfo extends EsiInfo<'structures'> {
   forbidden?: boolean;
 }
 interface EsiDataTypeInfo {
+  group_id: number;
   name: string;
   volume?: number;
   packaged_volume?: number;
@@ -336,6 +337,7 @@ export class EsiDataService {
   loadTypeInfo(id: number): Observable<EsiDataTypeInfo> {
     return this.esi.getInformation('types', id).pipe(
       map((info) => ({
+        group_id: info.group_id,
         name: info.name,
         volume: info.volume,
         packaged_volume: info.packaged_volume,

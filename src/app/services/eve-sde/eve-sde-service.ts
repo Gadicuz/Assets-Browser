@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, zip } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
+
+import { autoMap, san } from 'src/app/utils/utils';
 
 import * as CSV from 'papaparse';
-import { map, switchMap } from 'rxjs/operators';
+
 import {
   SDE_Blueprint,
   SDE_CSV_ActivityName,
@@ -20,7 +23,8 @@ import {
   SDE_CSV_Blueprints_ActivitySkill,
   SDE_CSV_Blueprints_ActivityTime,
 } from './models/eve-sde-blueprints';
-import { autoMap, san } from 'src/app/utils/utils';
+
+import { SDE_Type, SDE_CSV_Types, SDE_CSV_Types_Names } from './models/eve-sde-types';
 
 const SDE_BASE = 'assets/sde/';
 
@@ -44,6 +48,30 @@ export class SdeService {
           throw new Error(res.errors.map((e) => `CSV error (${name} @${e.row}):' + ${e.message}`).join('\n'));
         return res.data;
       })
+    );
+  }
+
+  loadTypes(lang?: string): Observable<SDE_Type[]> {
+    return this.load<SDE_CSV_Types>('types/types.csv').pipe(
+      map((data) =>
+        data.map((d) => ({
+          ...d,
+          name: '',
+        }))
+      ),
+      switchMap((types) =>
+        lang
+          ? this.load<SDE_CSV_Types_Names>(`types/types-names.${lang}.csv`).pipe(
+              map((names) => {
+                names.forEach((n) => {
+                  const t = types.find((t) => t.typeID === n.typeID);
+                  if (t) t.name = n.name;
+                });
+                return types;
+              })
+            )
+          : of(types)
+      )
     );
   }
 
