@@ -5,7 +5,7 @@ import { map, switchMap } from 'rxjs/operators';
 
 import { autoMap, san } from 'src/app/utils/utils';
 
-import * as CSV from 'papaparse';
+import * as CSV from '@vanillaes/csv';
 
 import {
   SDE_Blueprint,
@@ -34,21 +34,24 @@ const SDE_BASE = 'assets/sde/';
 export class SdeService {
   constructor(private http: HttpClient) {}
 
-  private load<T>(name: string): Observable<T[]> {
-    return this.http.get(SDE_BASE + name, { headers: { Accept: 'text/csv' }, responseType: 'text' }).pipe(
-      map((csv) => {
-        const res = CSV.parse<T>(csv, {
-          header: true,
-          delimiter: ',',
-          skipEmptyLines: true,
-          dynamicTyping: true,
-          fastMode: true,
-        });
-        if (res.errors.length)
-          throw new Error(res.errors.map((e) => `CSV error (${name} @${e.row}):' + ${e.message}`).join('\n'));
-        return res.data;
-      })
+  private parse<T>(csv_data: string): Observable<T[]> {
+    const data = CSV.parse(csv_data, { typed: true }) as unknown[][];
+    if (data.length <= 1) return of([]);
+    const fields = data[0] as string[];
+    const result = data.slice(1).map(
+      (row) =>
+        row.reduce((obj: Record<string, unknown>, v, i) => {
+          obj[fields[i]] = v;
+          return obj;
+        }, {}) as T
     );
+    return of(result);
+  }
+
+  private load<T>(name: string): Observable<T[]> {
+    return this.http
+      .get(SDE_BASE + name, { headers: { Accept: 'text/csv' }, responseType: 'text' })
+      .pipe(switchMap((csv_data) => this.parse<T>(csv_data)));
   }
 
   loadTypes(lang?: string): Observable<SDE_Type[]> {
