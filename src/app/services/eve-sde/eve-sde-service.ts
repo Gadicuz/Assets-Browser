@@ -19,9 +19,8 @@ import {
   SDE_CSV_Blueprints_ActivityID,
   SDE_CSV_Blueprints_ActivitySkill,
   SDE_CSV_Blueprints_ActivityTime,
-  SDE_BlueprintActivityData,
 } from './models/eve-sde-blueprints';
-import { autoMap } from 'src/app/utils/utils';
+import { autoMap, san } from 'src/app/utils/utils';
 
 const SDE_BASE = 'assets/sde/';
 
@@ -80,12 +79,12 @@ export class SdeService {
             const skills = s.get(blueprintTypeID)?.get(a);
             const time = correctTime(t.get(blueprintTypeID)?.get(a));
             if (products || materials || skills || time) {
-              const d: SDE_BlueprintActivityData = {};
-              if (products) d.products = products;
-              if (materials) d.materials = materials;
-              if (skills) d.skills = skills;
-              if (time) d.time = time;
-              v[SDE_CSV_ActivityName[a]] = d;
+              v[SDE_CSV_ActivityName[a]] = san({
+                products,
+                materials,
+                skills,
+                time,
+              });
             }
             return v;
           }, {} as SDE_BlueprintActivities);
