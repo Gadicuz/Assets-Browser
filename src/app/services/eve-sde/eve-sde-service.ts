@@ -3,14 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, zip } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 
-import { autoMap, san, tuple, fromEntries } from 'src/app/utils/utils';
+import { autoMap, tuple, fromEntries } from 'src/app/utils/utils';
 
 import {
   SDE_Blueprint,
   SDE_CSV_ActivityName,
   SDE_CSV_Blueprints_ActivityItem,
   SDE_BlueprintActivityProp,
-  SDE_BlueprintActivities,
   SDE_BlueprintActivityProduct,
   SDE_BlueprintActivityMaterial,
   SDE_BlueprintActivitySkill,
@@ -103,27 +102,26 @@ export class SdeService {
       this.loadBlueprintsSkills(blueprintTypeIDs, act, prop),
       this.loadBlueprintsTime(blueprintTypeIDs, act, prop),
       (p, m, s, t) => {
-        return blueprintTypeIDs.map((blueprintTypeID) => {
-          const activities = act.reduce((v, a) => {
-            const products = p.get(blueprintTypeID)?.get(a);
-            const materials = m.get(blueprintTypeID)?.get(a);
-            const skills = s.get(blueprintTypeID)?.get(a);
-            const time = correctTime(t.get(blueprintTypeID)?.get(a));
-            if (products || materials || skills || time) {
-              v[SDE_CSV_ActivityName[a]] = san({
-                products,
-                materials,
-                skills,
-                time,
-              });
-            }
-            return v;
-          }, {} as SDE_BlueprintActivities);
-          return {
-            blueprintTypeID,
-            activities,
-          };
-        });
+        return blueprintTypeIDs.map((blueprintTypeID) => ({
+          blueprintTypeID,
+          activities: fromEntries(
+            act
+              .map(
+                (a) =>
+                  [
+                    a,
+                    [
+                      tuple('products', p.get(blueprintTypeID)?.get(a)),
+                      tuple('materials', m.get(blueprintTypeID)?.get(a)),
+                      tuple('skills', s.get(blueprintTypeID)?.get(a)),
+                      tuple('time', correctTime(t.get(blueprintTypeID)?.get(a))),
+                    ].filter(([, v]) => v != undefined),
+                  ] as [number, [string, unknown][]] // [ activity index, (activity data properties array) ]
+              )
+              .filter(([, d]) => d.length) // remove activities with empty data
+              .map(([a, d]) => [SDE_CSV_ActivityName[a], fromEntries(d)]) // lookup activity name and assemble data object
+          ),
+        }));
       }
     );
   }
