@@ -3,9 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, zip } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 
-import { autoMap, san } from 'src/app/utils/utils';
-
-import * as CSV from '@vanillaes/csv';
+import { autoMap, san, tuple, fromEntries } from 'src/app/utils/utils';
 
 import {
   SDE_Blueprint,
@@ -26,6 +24,22 @@ import {
 
 import { SDE_Type, SDE_CSV_Types, SDE_CSV_Types_Names } from './models/eve-sde-types';
 
+import * as CSV from '@vanillaes/csv';
+type CsvItemType = number | string;
+function convert(value: string): CsvItemType {
+  return /^[-+]?[0-9]*\.?[0-9]+$/.test(value) ? (value.includes('.') ? parseFloat(value) : parseInt(value)) : value;
+}
+function parse<T>(csv_data: string): Observable<T[]> {
+  const data = CSV.parse(csv_data) as string[][];
+  const result =
+    data.length <= 1
+      ? []
+      : data
+          .slice(1)
+          .map((row) => fromEntries(row.map((v, i) => tuple(data[0][i], convert(v))).filter(([, v]) => v !== '')) as T);
+  return of(result);
+}
+
 const SDE_BASE = 'assets/sde/';
 
 @Injectable({
@@ -34,24 +48,10 @@ const SDE_BASE = 'assets/sde/';
 export class SdeService {
   constructor(private http: HttpClient) {}
 
-  private parse<T>(csv_data: string): Observable<T[]> {
-    const data = CSV.parse(csv_data, { typed: true }) as unknown[][];
-    if (data.length <= 1) return of([]);
-    const fields = data[0] as string[];
-    const result = data.slice(1).map(
-      (row) =>
-        row.reduce((obj: Record<string, unknown>, v, i) => {
-          obj[fields[i]] = v;
-          return obj;
-        }, {}) as T
-    );
-    return of(result);
-  }
-
   private load<T>(name: string): Observable<T[]> {
     return this.http
       .get(SDE_BASE + name, { headers: { Accept: 'text/csv; header=present' }, responseType: 'text' })
-      .pipe(switchMap((csv_data) => this.parse<T>(csv_data)));
+      .pipe(switchMap((csv_data) => parse<T>(csv_data)));
   }
 
   loadTypes(lang?: string): Observable<SDE_Type[]> {
