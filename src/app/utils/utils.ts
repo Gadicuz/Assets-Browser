@@ -35,3 +35,7 @@ export function san(obj: Record<string, unknown>): Record<string, unknown> {
   Object.keys(obj).forEach((key) => obj[key] === undefined && delete obj[key]);
   return obj;
 }
+
+export function fromEntries(entries: [string, unknown][]): Record<string, unknown> {
+  return entries.reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
+}
