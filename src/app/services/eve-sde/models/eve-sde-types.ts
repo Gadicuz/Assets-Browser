@@ -18,7 +18,7 @@ export const SDE_CSV_Types_S = {
     typeID: { type: 'integer' },
     groupID: { type: 'integer' },
     volume: { type: 'number' },
-    packaged: { type: 'number' },
+    packaged: { type: ['number', 'null'] },
   },
   additionalProperties: false,
   required: ['typeID', 'groupID', 'volume'],

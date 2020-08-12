@@ -41,16 +41,15 @@ class CsvParserError extends Error {
   }
 }
 
-type CsvType = string | undefined;
-function parse(header?: false): OperatorFunction<string, CsvType[]>;
-function parse(header: true): OperatorFunction<string, Record<string, CsvType>>;
-function parse<T>(header: false, cnv: (values: CsvType[]) => T): OperatorFunction<string, T>;
-function parse<T>(header: true, cnv: (values: CsvType[], names: string[]) => T): OperatorFunction<string, T>;
+function parse(header?: false): OperatorFunction<string, string[]>;
+function parse(header: true): OperatorFunction<string, Record<string, string>>;
+function parse<T>(header: false, cnv: (values: string[]) => T): OperatorFunction<string, T>;
+function parse<T>(header: true, cnv: (values: string[], names: string[]) => T): OperatorFunction<string, T>;
 function parse<T>(
   header?: boolean,
-  cnv?: ((values: CsvType[]) => T) | ((values: CsvType[], names: string[]) => T)
-): OperatorFunction<string, CsvType[] | Record<string, CsvType> | T> {
-  return function (csv: Observable<string>): Observable<CsvType[] | Record<string, CsvType> | T> {
+  cnv?: ((values: string[]) => T) | ((values: string[], names: string[]) => T)
+): OperatorFunction<string, string[] | Record<string, string> | T> {
+  return function (csv: Observable<string>): Observable<string[] | Record<string, string> | T> {
     return new Observable((subscriber) => {
       const r = new RegExp(/"|,|\r\n|\n|\r|[^",\r\n]+/y);
       let pos = 0;
@@ -63,32 +62,32 @@ function parse<T>(
         subscriber.error(new CsvParserError(msg, pos));
       }
       function commit(eor = true): void {
-        if (eor && !row.length && value === '') return; // empty row
+        if (eor && !row.length && value === '') return; // ignore empty row
         row.push(value);
         value = '';
         if (!eor) return;
         if (header && !headers) {
-          if (row.indexOf('') >= 0) {
-            err('empty header detected');
+          const i = row.indexOf('');
+          if (i >= 0) {
+            err(`Empty header name (#${i}).`);
             return;
           }
           headers = [...row];
         } else {
-          const values = row.map((v) => (v !== '' ? v : undefined));
-          let data: T | Record<string, CsvType> | CsvType[];
+          let data: T | Record<string, string> | string[];
           if (cnv) {
             try {
               data = headers
-                ? (cnv as (values: CsvType[], names: string[]) => T)(values, headers)
-                : (cnv as (values: CsvType[]) => T)(values);
+                ? (cnv as (values: string[], names: string[]) => T)(row, headers)
+                : (cnv as (values: string[]) => T)(row);
             } catch (e) {
-              err(`conversion failed: ${String(e)}`);
+              err(`Conversion failed: ${String(e)}`);
               return;
             }
           } else {
             data = headers
-              ? (Object.assign({}, ...headers.map((h, i) => ({ [h]: values[i] }))) as Record<string, CsvType>)
-              : values;
+              ? (Object.assign({}, ...headers.map((h, i) => ({ [h]: row[i] }))) as Record<string, string>)
+              : row;
           }
           subscriber.next(data);
         }
@@ -105,7 +104,7 @@ function parse<T>(
                 switch (true) {
                   case '"' === m:
                     if (state === 'PLAIN') {
-                      err('quote in plain record');
+                      err('Quote in unquoted field.');
                       return;
                     }
                     state = 'QUOTED';
@@ -140,7 +139,7 @@ function parse<T>(
                     commit(m != ',');
                     break;
                   default:
-                    err('text after closing quote');
+                    err('Invalid escape sequence.');
                     return;
                 }
                 break;
@@ -157,7 +156,7 @@ function parse<T>(
               subscriber.complete();
               break;
             case 'QUOTED':
-              err('missed closing quote');
+              err('Closing quote is missing.');
               break;
             case 'ERROR':
               break;
@@ -186,10 +185,20 @@ function validate<T>(schema: Record<string, unknown>, coerce = false): OperatorF
       const validate = ajv.compile(schema);
       if (validate.$async) throw new Error('unsupported schema');
       const unsub = data.subscribe({
-        next(item: unknown | T): void {
+        next(item: unknown): void {
           const r = validate(item) as boolean;
-          if (!r) subscriber.error(new Error(ajv.errorsText()));
-          else subscriber.next(item as T);
+          if (!r) subscriber.error(new Error(ajv.errorsText(validate.errors)));
+          else {
+            if (item && typeof item === 'object') {
+              item = Object.assign(
+                {},
+                ...Object.entries(item)
+                  .filter(([, v]) => v != undefined)
+                  .map(([k, v]) => ({ [k]: v as unknown }))
+              ) as unknown;
+            }
+            subscriber.next(item as T);
+          }
         },
         complete(): void {
           subscriber.complete();
