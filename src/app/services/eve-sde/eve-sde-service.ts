@@ -13,7 +13,6 @@ import {
   SDE_BlueprintActivitySkill,
   SDE_BlueprintActivityName,
   SDE_CSV_ActivityName,
-  SDE_CSV_Blueprints_ActivityID,
   SDE_CSV_Blueprints,
   SDE_CSV_Blueprints_S,
   SDE_CSV_Blueprints_ActivityTime,
@@ -332,7 +331,14 @@ export class SdeService {
     );
   }
 
-  private loadBlueprintsData<T extends SDE_CSV_Blueprints_ActivityID, R>(
+  private loadBlueprintsData<
+    T extends
+      | SDE_CSV_Blueprints_ActivityTime
+      | SDE_CSV_Blueprints_ActivityItem
+      | SDE_CSV_Blueprints_ActivityProb
+      | SDE_CSV_Blueprints_ActivitySkill,
+    R
+  >(
     ids: number[],
     act: number[],
     props: SDE_BlueprintActivityProp[],

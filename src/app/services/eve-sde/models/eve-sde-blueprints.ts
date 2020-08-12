@@ -29,12 +29,9 @@ export type SDE_Blueprint = {
   maxProductionLimit?: number;
 };
 
-type SDE_CSV_Blueprints_ID = {
-  blueprintTypeID: number;
-};
-
 // 'blueprints.csv'
-export type SDE_CSV_Blueprints = SDE_CSV_Blueprints_ID & {
+export type SDE_CSV_Blueprints = {
+  blueprintTypeID: number;
   maxProductionLimit: number;
 };
 export const SDE_CSV_Blueprints_S = {
@@ -56,12 +53,10 @@ export const SDE_CSV_ActivityName: SDE_BlueprintActivityName[] = [
   'reaction',
 ];
 
-export type SDE_CSV_Blueprints_ActivityID = SDE_CSV_Blueprints_ID & {
-  activity: number;
-};
-
 // 'blueprints-activities.csv'
-export type SDE_CSV_Blueprints_ActivityTime = SDE_CSV_Blueprints_ActivityID & {
+export type SDE_CSV_Blueprints_ActivityTime = {
+  blueprintTypeID: number;
+  activity: number;
   time: number;
 };
 export const SDE_CSV_Blueprints_ActivityTime_S = {
@@ -75,12 +70,11 @@ export const SDE_CSV_Blueprints_ActivityTime_S = {
   required: ['blueprintTypeID', 'activity', 'time'],
 };
 
-export type SDE_CSV_Blueprints_ActivityType = SDE_CSV_Blueprints_ActivityID & {
-  typeID: number;
-};
-
 // 'blueprints-materials.csv','blueprints-products.csv'
-export type SDE_CSV_Blueprints_ActivityItem = SDE_CSV_Blueprints_ActivityType & {
+export type SDE_CSV_Blueprints_ActivityItem = {
+  blueprintTypeID: number;
+  activity: number;
+  typeID: number;
   quantity: number;
 };
 export const SDE_CSV_Blueprints_ActivityItem_S = {
@@ -96,7 +90,10 @@ export const SDE_CSV_Blueprints_ActivityItem_S = {
 };
 
 // 'blueprints-probabilities.csv'
-export type SDE_CSV_Blueprints_ActivityProb = SDE_CSV_Blueprints_ActivityType & {
+export type SDE_CSV_Blueprints_ActivityProb = {
+  blueprintTypeID: number;
+  activity: number;
+  typeID: number;
   probability: number;
 };
 export const SDE_CSV_Blueprints_ActivityProb_S = {
@@ -112,7 +109,10 @@ export const SDE_CSV_Blueprints_ActivityProb_S = {
 };
 
 // 'blueprints-skills.csv'
-export type SDE_CSV_Blueprints_ActivitySkill = SDE_CSV_Blueprints_ActivityType & {
+export type SDE_CSV_Blueprints_ActivitySkill = {
+  blueprintTypeID: number;
+  activity: number;
+  typeID: number;
   level: number;
 };
 export const SDE_CSV_Blueprints_ActivitySkill_S = {
