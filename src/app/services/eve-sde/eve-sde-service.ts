@@ -7,21 +7,32 @@ import { autoMap, tuple, fromEntries } from 'src/app/utils/utils';
 
 import {
   SDE_Blueprint,
-  SDE_CSV_ActivityName,
-  SDE_CSV_Blueprints_ActivityItem,
   SDE_BlueprintActivityProp,
   SDE_BlueprintActivityProduct,
   SDE_BlueprintActivityMaterial,
   SDE_BlueprintActivitySkill,
   SDE_BlueprintActivityName,
-  SDE_CSV_Blueprints_ActivityProb,
-  SDE_CSV_Blueprints,
+  SDE_CSV_ActivityName,
   SDE_CSV_Blueprints_ActivityID,
-  SDE_CSV_Blueprints_ActivitySkill,
+  SDE_CSV_Blueprints,
+  SDE_CSV_Blueprints_S,
   SDE_CSV_Blueprints_ActivityTime,
+  SDE_CSV_Blueprints_ActivityTime_S,
+  SDE_CSV_Blueprints_ActivityItem,
+  SDE_CSV_Blueprints_ActivityItem_S,
+  SDE_CSV_Blueprints_ActivityProb,
+  SDE_CSV_Blueprints_ActivityProb_S,
+  SDE_CSV_Blueprints_ActivitySkill,
+  SDE_CSV_Blueprints_ActivitySkill_S,
 } from './models/eve-sde-blueprints';
 
-import { SDE_Type, SDE_CSV_Types, SDE_CSV_Types_Names } from './models/eve-sde-types';
+import {
+  SDE_Type,
+  SDE_CSV_Types,
+  SDE_CSV_Types_S,
+  SDE_CSV_Types_Names,
+  SDE_CSV_Types_Names_S,
+} from './models/eve-sde-types';
 
 class CsvParserError extends Error {
   public readonly name = 'CsvParserError';
@@ -31,15 +42,16 @@ class CsvParserError extends Error {
   }
 }
 
-function parse(header?: false): OperatorFunction<string, string[]>;
-function parse(header: true): OperatorFunction<string, Record<string, string | undefined>>;
-function parse<T>(header: false, cnv: (values: string[]) => T): OperatorFunction<string, T>;
-function parse<T>(header: true, cnv: (values: string[], names: string[]) => T): OperatorFunction<string, T>;
+type CsvType = string | undefined;
+function parse(header?: false): OperatorFunction<string, CsvType[]>;
+function parse(header: true): OperatorFunction<string, Record<string, CsvType>>;
+function parse<T>(header: false, cnv: (values: CsvType[]) => T): OperatorFunction<string, T>;
+function parse<T>(header: true, cnv: (values: CsvType[], names: string[]) => T): OperatorFunction<string, T>;
 function parse<T>(
   header?: boolean,
-  cnv?: ((values: string[]) => T) | ((values: string[], names: string[]) => T)
-): OperatorFunction<string, string[] | Record<string, string | undefined> | T> {
-  return function (csv: Observable<string>): Observable<string[] | Record<string, string | undefined> | T> {
+  cnv?: ((values: CsvType[]) => T) | ((values: CsvType[], names: string[]) => T)
+): OperatorFunction<string, CsvType[] | Record<string, CsvType> | T> {
+  return function (csv: Observable<string>): Observable<CsvType[] | Record<string, CsvType> | T> {
     return new Observable((subscriber) => {
       const r = new RegExp(/"|,|\r\n|\n|\r|[^",\r\n]+/y);
       let pos = 0;
@@ -63,20 +75,21 @@ function parse<T>(
           }
           headers = [...row];
         } else {
-          let data: T | Record<string, string | undefined> | string[];
+          const values = row.map((v) => (v !== '' ? v : undefined));
+          let data: T | Record<string, CsvType> | CsvType[];
           if (cnv) {
             try {
               data = headers
-                ? (cnv as (values: string[], names: string[]) => T)(row, headers)
-                : (cnv as (values: string[]) => T)(row);
+                ? (cnv as (values: CsvType[], names: string[]) => T)(values, headers)
+                : (cnv as (values: CsvType[]) => T)(values);
             } catch (e) {
               err(`conversion failed: ${String(e)}`);
               return;
             }
           } else {
             data = headers
-              ? (Object.assign({}, ...headers.map((h, i) => ({ [h]: row[i] }))) as Record<string, string | undefined>)
-              : row;
+              ? (Object.assign({}, ...headers.map((h, i) => ({ [h]: values[i] }))) as Record<string, CsvType>)
+              : values;
           }
           subscriber.next(data);
         }
@@ -163,6 +176,37 @@ function parse<T>(
   };
 }
 
+import Ajv from 'ajv';
+
+function validate<T>(schema: Record<string, unknown>, coerce: true): OperatorFunction<unknown, T>;
+function validate<T>(schema: Record<string, unknown>, coerce: false): OperatorFunction<T, T>;
+function validate<T>(schema: Record<string, unknown>, coerce = false): OperatorFunction<unknown | T, T> {
+  return function (data: Observable<unknown | T>): Observable<T> {
+    return new Observable((subscriber) => {
+      const ajv = new Ajv({ coerceTypes: coerce ? 'array' : false });
+      const validate = ajv.compile(schema);
+      if (validate.$async) throw new Error('unsupported schema');
+      const unsub = data.subscribe({
+        next(item: unknown | T): void {
+          const r = validate(item) as boolean;
+          if (!r) subscriber.error(new Error(ajv.errorsText()));
+          else subscriber.next(item as T);
+        },
+        complete(): void {
+          subscriber.complete();
+        },
+        error(err: unknown): void {
+          subscriber.error(err);
+        },
+      });
+
+      return () => {
+        unsub.unsubscribe();
+      };
+    });
+  };
+}
+
 const SDE_BASE = 'assets/sde/';
 
 @Injectable({
@@ -171,7 +215,8 @@ const SDE_BASE = 'assets/sde/';
 export class SdeService {
   constructor(private http: HttpClient) {}
 
-  private load<T>(name: string): Observable<T[]> {
+  private load<T>(name: string, schema: Record<string, unknown>): Observable<T[]> {
+    /*
     function cnvNumUndef(val: string | undefined): string | number | undefined {
       if (val == undefined) return undefined;
       const v = val.trim();
@@ -181,13 +226,14 @@ export class SdeService {
     function cnv<T>(values: string[], names: string[]): T {
       return fromEntries(names.map((n, i) => [n, cnvNumUndef(values[i])])) as T;
     }
+    */
     return this.http
       .get(SDE_BASE + name, { headers: { Accept: 'text/csv; header=present' }, responseType: 'text' })
-      .pipe(parse<T>(true, cnv), toArray());
+      .pipe(parse(true), validate<T>(schema, true), toArray());
   }
 
   loadTypes(lang?: string): Observable<SDE_Type[]> {
-    return this.load<SDE_CSV_Types>('types/types.csv').pipe(
+    return this.load<SDE_CSV_Types>('types/types.csv', SDE_CSV_Types_S).pipe(
       map((data) =>
         data.map((d) => ({
           ...d,
@@ -196,7 +242,7 @@ export class SdeService {
       ),
       switchMap((types) =>
         lang
-          ? this.load<SDE_CSV_Types_Names>(`types/types-names.${lang}.csv`).pipe(
+          ? this.load<SDE_CSV_Types_Names>(`types/types-names.${lang}.csv`, SDE_CSV_Types_Names_S).pipe(
               map((names) => {
                 names.forEach((n) => {
                   const t = types.find((t) => t.typeID === n.typeID);
@@ -211,7 +257,7 @@ export class SdeService {
   }
 
   loadBlueprintIDs(): Observable<number[]> {
-    return this.load<SDE_CSV_Blueprints>('blueprints/blueprints.csv').pipe(
+    return this.load<SDE_CSV_Blueprints>('blueprints/blueprints.csv', SDE_CSV_Blueprints_S).pipe(
       map((data) => data.map((d) => d.blueprintTypeID))
     );
   }
@@ -292,12 +338,13 @@ export class SdeService {
     props: SDE_BlueprintActivityProp[],
     opt: {
       fname: string;
+      schema: Record<string, unknown>;
       prop: SDE_BlueprintActivityProp;
       valfn: (_: T) => R;
     }
   ): Observable<Map<number, Map<number, R[]>>> {
     if (!ids.length || !act.length || !props.includes(opt.prop)) return of(new Map<number, Map<number, R[]>>());
-    return this.load<T>(opt.fname).pipe(
+    return this.load<T>(opt.fname, opt.schema).pipe(
       map((data) =>
         this.reassembleData(
           data
@@ -319,6 +366,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, SDE_BlueprintActivityProduct[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivityItem, SDE_BlueprintActivityProduct>(ids, act, props, {
       fname: 'blueprints/blueprints-products.csv',
+      schema: SDE_CSV_Blueprints_ActivityItem_S,
       prop: 'products',
       valfn: (d) => ({
         typeID: d.typeID,
@@ -328,7 +376,10 @@ export class SdeService {
       switchMap((data) =>
         !props.includes('probabilities')
           ? of(data)
-          : this.load<SDE_CSV_Blueprints_ActivityProb>('blueprints/blueprints-probabilities.csv').pipe(
+          : this.load<SDE_CSV_Blueprints_ActivityProb>(
+              'blueprints/blueprints-probabilities.csv',
+              SDE_CSV_Blueprints_ActivityProb_S
+            ).pipe(
               map((prob) => {
                 prob.forEach((p) => {
                   const d = data
@@ -351,6 +402,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, SDE_BlueprintActivityMaterial[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivityItem, SDE_BlueprintActivityMaterial>(ids, act, props, {
       fname: 'blueprints/blueprints-materials.csv',
+      schema: SDE_CSV_Blueprints_ActivityItem_S,
       prop: 'materials',
       valfn: (d) => ({
         typeID: d.typeID,
@@ -366,6 +418,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, SDE_BlueprintActivitySkill[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivitySkill, SDE_BlueprintActivitySkill>(ids, act, props, {
       fname: 'blueprints/blueprints-skills.csv',
+      schema: SDE_CSV_Blueprints_ActivitySkill_S,
       prop: 'skills',
       valfn: (d) => ({
         typeID: d.typeID,
@@ -381,6 +434,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, number[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivityTime, number>(ids, act, props, {
       fname: 'blueprints/blueprints-activities.csv',
+      schema: SDE_CSV_Blueprints_ActivityTime_S,
       prop: 'time',
       valfn: (d) => d.time,
     });
