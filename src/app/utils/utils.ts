@@ -36,6 +36,9 @@ export function san(obj: Record<string, unknown>): Record<string, unknown> {
   return obj;
 }
 
-export function fromEntries(entries: [string, unknown][]): Record<string, unknown> {
-  return entries.reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
+export function fromEntries(entries: [string, unknown][], includeUndef = false): Record<string, unknown> {
+  return Object.assign(
+    {},
+    ...entries.filter(([, v]) => includeUndef || v != undefined).map(([k, v]) => ({ [k]: v }))
+  ) as Record<string, unknown>;
 }
