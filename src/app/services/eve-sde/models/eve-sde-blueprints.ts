@@ -37,6 +37,15 @@ type SDE_CSV_Blueprints_ID = {
 export type SDE_CSV_Blueprints = SDE_CSV_Blueprints_ID & {
   maxProductionLimit: number;
 };
+export const SDE_CSV_Blueprints_S = {
+  type: 'object',
+  properties: {
+    blueprintTypeID: { type: 'integer' },
+    maxProductionLimit: { type: 'integer' },
+  },
+  additionalProperties: false,
+  required: ['blueprintTypeID', 'maxProductionLimit'],
+};
 
 export const SDE_CSV_ActivityName: SDE_BlueprintActivityName[] = [
   'manufacturing',
@@ -55,6 +64,16 @@ export type SDE_CSV_Blueprints_ActivityID = SDE_CSV_Blueprints_ID & {
 export type SDE_CSV_Blueprints_ActivityTime = SDE_CSV_Blueprints_ActivityID & {
   time: number;
 };
+export const SDE_CSV_Blueprints_ActivityTime_S = {
+  type: 'object',
+  properties: {
+    blueprintTypeID: { type: 'integer' },
+    activity: { type: 'integer', minimum: 0, maximum: 5 },
+    time: { type: 'integer' },
+  },
+  additionalProperties: false,
+  required: ['blueprintTypeID', 'activity', 'time'],
+};
 
 export type SDE_CSV_Blueprints_ActivityType = SDE_CSV_Blueprints_ActivityID & {
   typeID: number;
@@ -64,13 +83,46 @@ export type SDE_CSV_Blueprints_ActivityType = SDE_CSV_Blueprints_ActivityID & {
 export type SDE_CSV_Blueprints_ActivityItem = SDE_CSV_Blueprints_ActivityType & {
   quantity: number;
 };
+export const SDE_CSV_Blueprints_ActivityItem_S = {
+  type: 'object',
+  properties: {
+    blueprintTypeID: { type: 'integer' },
+    activity: { type: 'integer', minimum: 0, maximum: 5 },
+    typeID: { type: 'integer' },
+    quantity: { type: 'integer' },
+  },
+  additionalProperties: false,
+  required: ['blueprintTypeID', 'activity', 'typeID', 'quantity'],
+};
 
 // 'blueprints-probabilities.csv'
 export type SDE_CSV_Blueprints_ActivityProb = SDE_CSV_Blueprints_ActivityType & {
   probability: number;
 };
+export const SDE_CSV_Blueprints_ActivityProb_S = {
+  type: 'object',
+  properties: {
+    blueprintTypeID: { type: 'integer' },
+    activity: { type: 'integer', minimum: 0, maximum: 5 },
+    typeID: { type: 'integer' },
+    probability: { type: 'number' },
+  },
+  additionalProperties: false,
+  required: ['blueprintTypeID', 'activity', 'typeID', 'probability'],
+};
 
 // 'blueprints-skills.csv'
 export type SDE_CSV_Blueprints_ActivitySkill = SDE_CSV_Blueprints_ActivityType & {
   level: number;
+};
+export const SDE_CSV_Blueprints_ActivitySkill_S = {
+  type: 'object',
+  properties: {
+    blueprintTypeID: { type: 'integer' },
+    activity: { type: 'integer', minimum: 0, maximum: 5 },
+    typeID: { type: 'integer' },
+    level: { type: 'integer' },
+  },
+  additionalProperties: false,
+  required: ['blueprintTypeID', 'activity', 'typeID', 'level'],
 };
