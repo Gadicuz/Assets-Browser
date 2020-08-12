@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, zip } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { Observable, of, zip, OperatorFunction } from 'rxjs';
+import { map, switchMap, toArray } from 'rxjs/operators';
 
 import { autoMap, tuple, fromEntries } from 'src/app/utils/utils';
 
@@ -23,20 +23,144 @@ import {
 
 import { SDE_Type, SDE_CSV_Types, SDE_CSV_Types_Names } from './models/eve-sde-types';
 
-import * as CSV from '@vanillaes/csv';
-type CsvItemType = number | string;
-function convert(value: string): CsvItemType {
-  return /^[-+]?[0-9]*\.?[0-9]+$/.test(value) ? (value.includes('.') ? parseFloat(value) : parseInt(value)) : value;
+class CsvParserError extends Error {
+  public readonly name = 'CsvParserError';
+  constructor(message: string, public readonly position: number) {
+    super(message);
+    Object.setPrototypeOf(this, CsvParserError.prototype);
+  }
 }
-function parse<T>(csv_data: string): Observable<T[]> {
-  const data = CSV.parse(csv_data) as string[][];
-  const result =
-    data.length <= 1
-      ? []
-      : data
-          .slice(1)
-          .map((row) => fromEntries(row.map((v, i) => tuple(data[0][i], convert(v))).filter(([, v]) => v !== '')) as T);
-  return of(result);
+
+function parse(header?: false): OperatorFunction<string, string[]>;
+function parse(header: true): OperatorFunction<string, Record<string, string | undefined>>;
+function parse<T>(header: false, cnv: (values: string[]) => T): OperatorFunction<string, T>;
+function parse<T>(header: true, cnv: (values: string[], names: string[]) => T): OperatorFunction<string, T>;
+function parse<T>(
+  header?: boolean,
+  cnv?: ((values: string[]) => T) | ((values: string[], names: string[]) => T)
+): OperatorFunction<string, string[] | Record<string, string | undefined> | T> {
+  return function (csv: Observable<string>): Observable<string[] | Record<string, string | undefined> | T> {
+    return new Observable((subscriber) => {
+      const r = new RegExp(/"|,|\r\n|\n|\r|[^",\r\n]+/y);
+      let pos = 0;
+      let state: 'IDLE' | 'PLAIN' | 'QUOTED' | 'CLOSED' | 'ERROR' = 'IDLE';
+      let value = '';
+      let headers: string[] | undefined = undefined;
+      let row: string[] = [];
+      function err(msg: string): void {
+        state = 'ERROR';
+        subscriber.error(new CsvParserError(msg, pos));
+      }
+      function commit(eor = true): void {
+        if (eor && !row.length && value === '') return; // empty row
+        row.push(value);
+        value = '';
+        if (!eor) return;
+        if (header && !headers) {
+          if (row.indexOf('') >= 0) {
+            err('empty header detected');
+            return;
+          }
+          headers = [...row];
+        } else {
+          let data: T | Record<string, string | undefined> | string[];
+          if (cnv) {
+            try {
+              data = headers
+                ? (cnv as (values: string[], names: string[]) => T)(row, headers)
+                : (cnv as (values: string[]) => T)(row);
+            } catch (e) {
+              err(`conversion failed: ${String(e)}`);
+              return;
+            }
+          } else {
+            data = headers
+              ? (Object.assign({}, ...headers.map((h, i) => ({ [h]: row[i] }))) as Record<string, string | undefined>)
+              : row;
+          }
+          subscriber.next(data);
+        }
+        row = [];
+      }
+      const unsub = csv.subscribe({
+        next(chunk: string): void {
+          if (state === 'ERROR') return;
+          let m: string | undefined;
+          while ((m = r.exec(chunk)?.[0]) != undefined) {
+            switch (state) {
+              case 'IDLE':
+              case 'PLAIN':
+                switch (true) {
+                  case '"' === m:
+                    if (state === 'PLAIN') {
+                      err('quote in plain record');
+                      return;
+                    }
+                    state = 'QUOTED';
+                    break;
+                  case ',' === m:
+                  case '\r\n'.includes(m[0]):
+                    state = 'IDLE';
+                    commit(m != ',');
+                    break;
+                  default:
+                    state = 'PLAIN';
+                    value += m;
+                }
+                break;
+              case 'QUOTED':
+                if ('"' === m) {
+                  state = 'CLOSED';
+                } else {
+                  state = 'QUOTED';
+                  value += m;
+                }
+                break;
+              case 'CLOSED':
+                switch (true) {
+                  case '"' === m:
+                    state = 'QUOTED';
+                    value += '"';
+                    break;
+                  case ',' === m:
+                  case '\r\n'.includes(m[0]):
+                    state = 'IDLE';
+                    commit(m != ',');
+                    break;
+                  default:
+                    err('text after closing quote');
+                    return;
+                }
+                break;
+            }
+            pos += m.length;
+          }
+        },
+        complete(): void {
+          switch (state) {
+            case 'IDLE':
+            case 'PLAIN':
+            case 'CLOSED':
+              if (row.length || value !== '') commit();
+              subscriber.complete();
+              break;
+            case 'QUOTED':
+              err('missed closing quote');
+              break;
+            case 'ERROR':
+              break;
+          }
+        },
+        error(err: unknown): void {
+          subscriber.error(err);
+        },
+      });
+
+      return () => {
+        unsub.unsubscribe();
+      };
+    });
+  };
 }
 
 const SDE_BASE = 'assets/sde/';
@@ -48,9 +172,18 @@ export class SdeService {
   constructor(private http: HttpClient) {}
 
   private load<T>(name: string): Observable<T[]> {
+    function cnvNumUndef(val: string | undefined): string | number | undefined {
+      if (val == undefined) return undefined;
+      const v = val.trim();
+      if (v === '') return undefined;
+      return /^[-+]?[0-9]*\.?[0-9]+$/.test(v) ? (v.includes('.') ? parseFloat(v) : parseInt(v)) : val;
+    }
+    function cnv<T>(values: string[], names: string[]): T {
+      return fromEntries(names.map((n, i) => [n, cnvNumUndef(values[i])])) as T;
+    }
     return this.http
       .get(SDE_BASE + name, { headers: { Accept: 'text/csv; header=present' }, responseType: 'text' })
-      .pipe(switchMap((csv_data) => parse<T>(csv_data)));
+      .pipe(parse<T>(true, cnv), toArray());
   }
 
   loadTypes(lang?: string): Observable<SDE_Type[]> {
