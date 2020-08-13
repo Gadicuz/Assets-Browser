@@ -10,7 +10,7 @@ export type SDE_CSV_Types = {
   typeID: number;
   groupID: number;
   volume: number;
-  packaged?: number;
+  packaged: number | null;
 };
 export const SDE_CSV_Types_S = {
   type: 'object',
@@ -32,7 +32,7 @@ export const SDE_CSV_Types_Names_S = {
   type: 'object',
   properties: {
     typeID: { type: 'integer' },
-    name: { type: 'string', minLength: 1 },
+    name: { type: 'string' },
   },
   additionalProperties: false,
   required: ['typeID', 'name'],
