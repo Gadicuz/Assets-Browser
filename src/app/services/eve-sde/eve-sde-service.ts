@@ -33,11 +33,11 @@ import {
   SDE_CSV_Types_Names_S,
 } from './models/eve-sde-types';
 
-class CsvParserError extends Error {
-  public readonly name = 'CsvParserError';
-  constructor(message: string, public readonly position: number) {
+class ParserError extends Error {
+  public readonly name = 'ParserError';
+  constructor(message: string, public readonly cause?: unknown) {
     super(message);
-    Object.setPrototypeOf(this, CsvParserError.prototype);
+    Object.setPrototypeOf(this, ParserError.prototype);
   }
 }
 
@@ -50,16 +50,18 @@ function parse<T>(
   cnv?: ((values: string[]) => T) | ((values: string[], names: string[]) => T)
 ): OperatorFunction<string, string[] | Record<string, string> | T> {
   return function (csv: Observable<string>): Observable<string[] | Record<string, string> | T> {
-    return new Observable((subscriber) => {
+    return new Observable((observer) => {
       const r = new RegExp(/"|,|\r\n|\n|\r|[^",\r\n]+/y);
       let pos = 0;
+      let rpos = 0;
       let state: 'IDLE' | 'PLAIN' | 'QUOTED' | 'CLOSED' | 'ERROR' = 'IDLE';
       let value = '';
       let headers: string[] | undefined = undefined;
       let row: string[] = [];
-      function err(msg: string): void {
+      function err(msg: string, isRowError?: boolean, e?: unknown): void {
+        if (state === 'ERROR') return;
         state = 'ERROR';
-        subscriber.error(new CsvParserError(msg, pos));
+        observer.error(new ParserError(`CSV [@${isRowError ? rpos : pos}]: ` + msg, e));
       }
       function commit(eor = true): void {
         if (eor && !row.length && value === '') return; // ignore empty row
@@ -67,12 +69,12 @@ function parse<T>(
         value = '';
         if (!eor) return;
         if (header && !headers) {
-          const i = row.indexOf('');
+          headers = [...row];
+          const i = headers.indexOf('');
           if (i >= 0) {
-            err(`Empty header name (#${i}).`);
+            err(`Empty header name (#${i}).`, true, headers);
             return;
           }
-          headers = [...row];
         } else {
           let data: T | Record<string, string> | string[];
           if (cnv) {
@@ -81,7 +83,7 @@ function parse<T>(
                 ? (cnv as (values: string[], names: string[]) => T)(row, headers)
                 : (cnv as (values: string[]) => T)(row);
             } catch (e) {
-              err(`Conversion failed: ${String(e)}`);
+              err(e instanceof Error ? e.message : String(e), true, e);
               return;
             }
           } else {
@@ -89,11 +91,12 @@ function parse<T>(
               ? (Object.assign({}, ...headers.map((h, i) => ({ [h]: row[i] }))) as Record<string, string>)
               : row;
           }
-          subscriber.next(data);
+          observer.next(data);
         }
+        rpos = pos;
         row = [];
       }
-      const unsub = csv.subscribe({
+      return csv.subscribe({
         next(chunk: string): void {
           if (state === 'ERROR') return;
           let m: string | undefined;
@@ -153,7 +156,7 @@ function parse<T>(
             case 'PLAIN':
             case 'CLOSED':
               if (row.length || value !== '') commit();
-              subscriber.complete();
+              observer.complete();
               break;
             case 'QUOTED':
               err('Closing quote is missing.');
@@ -162,55 +165,59 @@ function parse<T>(
               break;
           }
         },
-        error(err: unknown): void {
-          subscriber.error(err);
+        error(e: unknown): void {
+          err('Input error.', false, e);
         },
       });
-
-      return () => {
-        unsub.unsubscribe();
-      };
     });
   };
 }
 
 import Ajv from 'ajv';
 
-function validate<T>(schema: Record<string, unknown>, coerce: true): OperatorFunction<unknown, T>;
-function validate<T>(schema: Record<string, unknown>, coerce: false): OperatorFunction<T, T>;
-function validate<T>(schema: Record<string, unknown>, coerce = false): OperatorFunction<unknown | T, T> {
-  return function (data: Observable<unknown | T>): Observable<T> {
-    return new Observable((subscriber) => {
-      const ajv = new Ajv({ coerceTypes: coerce ? 'array' : false });
+class ValidationError extends Error {
+  public readonly name = 'ValidationError';
+  constructor(public readonly item: unknown, message: string, public readonly e: unknown) {
+    super(message);
+    Object.setPrototypeOf(this, ValidationError.prototype);
+  }
+}
+
+function validate<T>(
+  schema: Record<string, unknown>,
+  opt?: { coerce?: boolean },
+  completeOnError?: (e: ValidationError) => false | true | unknown
+): OperatorFunction<unknown, T> {
+  return function (data: Observable<unknown>): Observable<T> {
+    return new Observable((observer) => {
+      const ajv = new Ajv({ coerceTypes: opt?.coerce });
       const validate = ajv.compile(schema);
-      if (validate.$async) throw new Error('unsupported schema');
-      const unsub = data.subscribe({
+      if (validate.$async) throw new TypeError('Unsupported schema.');
+      let ok = true;
+      return data.subscribe({
         next(item: unknown): void {
-          const r = validate(item) as boolean;
-          if (!r) subscriber.error(new Error(ajv.errorsText(validate.errors)));
+          if (!ok) return;
+          ok = validate(item) as boolean;
+          if (ok) observer.next(item as T);
           else {
-            if (item && typeof item === 'object') {
-              item = Object.assign(
-                {},
-                ...Object.entries(item)
-                  .filter(([, v]) => v != undefined)
-                  .map(([k, v]) => ({ [k]: v as unknown }))
-              ) as unknown;
+            const e = new ValidationError(item, ajv.errorsText(validate.errors), validate.errors);
+            const c = completeOnError ? completeOnError(e) : e;
+            switch (c) {
+              case false: // ignore error and continue
+                ok = true;
+                break;
+              case true: // ignore error and complete
+                observer.complete();
+                break;
+              default:
+                observer.error(c); // error
+                break;
             }
-            subscriber.next(item as T);
           }
         },
-        complete(): void {
-          subscriber.complete();
-        },
-        error(err: unknown): void {
-          subscriber.error(err);
-        },
+        complete: () => ok && observer.complete(),
+        error: (e) => ok && observer.error(e),
       });
-
-      return () => {
-        unsub.unsubscribe();
-      };
     });
   };
 }
@@ -237,14 +244,21 @@ export class SdeService {
     */
     return this.http
       .get(SDE_BASE + name, { headers: { Accept: 'text/csv; header=present' }, responseType: 'text' })
-      .pipe(parse(true), validate<T>(schema, true), toArray());
+      .pipe(
+        parse(true),
+        validate<T>(schema, { coerce: true }),
+        toArray()
+      );
   }
 
   loadTypes(lang?: string): Observable<SDE_Type[]> {
     return this.load<SDE_CSV_Types>('types/types.csv', SDE_CSV_Types_S).pipe(
       map((data) =>
         data.map((d) => ({
-          ...d,
+          typeID: d.typeID,
+          groupID: d.groupID,
+          volume: d.volume,
+          packaged: d.packaged ?? undefined,
           name: '',
         }))
       ),
