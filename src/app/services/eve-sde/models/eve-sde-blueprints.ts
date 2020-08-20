@@ -1,3 +1,7 @@
+import { JSONSchema7 } from 'json-schema';
+
+type JSONSchema7$id = JSONSchema7 & { $id: string };
+
 export type SDE_BlueprintActivityName =
   | 'copying'
   | 'invention'
@@ -34,7 +38,8 @@ export type SDE_CSV_Blueprints = {
   blueprintTypeID: number;
   maxProductionLimit: number;
 };
-export const SDE_CSV_Blueprints_S = {
+export const SDE_CSV_Blueprints_S: JSONSchema7$id = {
+  $id: 'sde:blueprints/blueprints.csv',
   type: 'object',
   properties: {
     blueprintTypeID: { type: 'integer' },
@@ -59,7 +64,8 @@ export type SDE_CSV_Blueprints_ActivityTime = {
   activity: number;
   time: number;
 };
-export const SDE_CSV_Blueprints_ActivityTime_S = {
+export const SDE_CSV_Blueprints_ActivityTime_S: JSONSchema7$id = {
+  $id: 'sde:blueprints/blueprints-products.csv',
   type: 'object',
   properties: {
     blueprintTypeID: { type: 'integer' },
@@ -77,7 +83,8 @@ export type SDE_CSV_Blueprints_ActivityItem = {
   typeID: number;
   quantity: number;
 };
-export const SDE_CSV_Blueprints_ActivityItem_S = {
+export const SDE_CSV_Blueprints_ActivityItem_S: JSONSchema7$id = {
+  $id: 'sde:blueprints/blueprints-materials.csv',
   type: 'object',
   properties: {
     blueprintTypeID: { type: 'integer' },
@@ -96,7 +103,8 @@ export type SDE_CSV_Blueprints_ActivityProb = {
   typeID: number;
   probability: number;
 };
-export const SDE_CSV_Blueprints_ActivityProb_S = {
+export const SDE_CSV_Blueprints_ActivityProb_S: JSONSchema7$id = {
+  $id: 'sde:blueprints/blueprints-probabilities.csv',
   type: 'object',
   properties: {
     blueprintTypeID: { type: 'integer' },
@@ -115,7 +123,8 @@ export type SDE_CSV_Blueprints_ActivitySkill = {
   typeID: number;
   level: number;
 };
-export const SDE_CSV_Blueprints_ActivitySkill_S = {
+export const SDE_CSV_Blueprints_ActivitySkill_S: JSONSchema7$id = {
+  $id: 'sde:blueprints/blueprints-skills.csv',
   type: 'object',
   properties: {
     blueprintTypeID: { type: 'integer' },

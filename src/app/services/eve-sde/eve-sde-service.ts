@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, zip, OperatorFunction } from 'rxjs';
-import { map, switchMap, toArray, filter, takeWhile } from 'rxjs/operators';
+import { Observable, of, zip } from 'rxjs';
+import { map, switchMap, toArray } from 'rxjs/operators';
 
 import { autoMap, tuple, fromEntries } from 'src/app/utils/utils';
 
@@ -33,43 +33,9 @@ import {
   SDE_CSV_Types_Names_S,
 } from './models/eve-sde-types';
 
-import Ajv from 'ajv';
+import { JSONSchemaID, DataValidator, AjvDataValidator } from 'jsvrx';
 
 import { csvParse, csvConvert, csvAssembler, csvDropHeader } from 'csv-rxjs-kit';
-
-class ValidationError extends Error {
-  public readonly name = 'ValidationError';
-  constructor(public readonly item: unknown, message: string, public readonly e: unknown) {
-    super(message);
-    Object.setPrototypeOf(this, ValidationError.prototype);
-  }
-}
-
-function jsonValidate<T>(
-  schema: Record<string, unknown>,
-  opt?: { coerce?: boolean },
-  completeOnError?: boolean | ((e: ValidationError) => boolean | unknown)
-): OperatorFunction<unknown, T> {
-  return (data$: Observable<unknown>) =>
-    new Observable((observer) => {
-      const ajv = new Ajv({ coerceTypes: opt?.coerce });
-      const validate = ajv.compile(schema);
-      if (validate.$async) throw new TypeError('Unsupported schema.');
-      return data$
-        .pipe(
-          map((item) => {
-            if (validate(item) as boolean) return item as T;
-            const e = new ValidationError(item, ajv.errorsText(validate.errors), validate.errors);
-            const c = typeof completeOnError === 'boolean' ? completeOnError : completeOnError ? completeOnError(e) : e;
-            if (typeof c !== 'boolean') throw c; // report error (on non-boolean value) or...
-            return c; // ...ignore error...
-          }),
-          filter((item) => item !== false) as OperatorFunction<boolean | T, true | T>, // ...and continue (on false)
-          takeWhile((item) => item !== true) as OperatorFunction<true | T, T> // ...and complete (on true)
-        )
-        .subscribe(observer);
-    });
-}
 
 const SDE_BASE = 'assets/sde/';
 
@@ -77,22 +43,28 @@ const SDE_BASE = 'assets/sde/';
   providedIn: 'root',
 })
 export class SdeService {
-  constructor(private http: HttpClient) {}
+  private readonly dv: DataValidator;
+  constructor(private http: HttpClient) {
+    this.dv = new AjvDataValidator({ coerceTypes: true });
+    this.dv.addSchemas([
+      SDE_CSV_Blueprints_S,
+      SDE_CSV_Blueprints_ActivityTime_S,
+      SDE_CSV_Blueprints_ActivityItem_S,
+      SDE_CSV_Blueprints_ActivityProb_S,
+      SDE_CSV_Blueprints_ActivitySkill_S,
+      SDE_CSV_Types_S,
+      SDE_CSV_Types_Names_S,
+    ]);
+  }
 
-  private load<T>(name: string, schema: Record<string, unknown>): Observable<T[]> {
+  private load<T>(name: string, id: JSONSchemaID): Observable<T[]> {
     return this.http
       .get(SDE_BASE + name, { headers: { Accept: 'text/csv; header=present' }, responseType: 'text' })
-      .pipe(
-        csvParse(),
-        csvConvert(true, csvAssembler()),
-        csvDropHeader(),
-        jsonValidate<T>(schema, { coerce: true }, false),
-        toArray()
-      );
+      .pipe(csvParse(), csvConvert(true, csvAssembler()), csvDropHeader(), this.dv.validator<T>(id), toArray());
   }
 
   loadTypes(lang?: string): Observable<SDE_Type[]> {
-    return this.load<SDE_CSV_Types>('types/types.csv', SDE_CSV_Types_S).pipe(
+    return this.load<SDE_CSV_Types>('types/types.csv', SDE_CSV_Types_S.$id).pipe(
       map((data) =>
         data.map((d) => ({
           typeID: d.typeID,
@@ -104,7 +76,7 @@ export class SdeService {
       ),
       switchMap((types) =>
         lang
-          ? this.load<SDE_CSV_Types_Names>(`types/types-names.${lang}.csv`, SDE_CSV_Types_Names_S).pipe(
+          ? this.load<SDE_CSV_Types_Names>(`types/types-names.${lang}.csv`, SDE_CSV_Types_Names_S.$id).pipe(
               map((names) => {
                 names.forEach((n) => {
                   const t = types.find((t) => t.typeID === n.typeID);
@@ -119,7 +91,7 @@ export class SdeService {
   }
 
   loadBlueprintIDs(): Observable<number[]> {
-    return this.load<SDE_CSV_Blueprints>('blueprints/blueprints.csv', SDE_CSV_Blueprints_S).pipe(
+    return this.load<SDE_CSV_Blueprints>('blueprints/blueprints.csv', SDE_CSV_Blueprints_S.$id).pipe(
       map((data) => data.map((d) => d.blueprintTypeID))
     );
   }
@@ -207,13 +179,13 @@ export class SdeService {
     props: SDE_BlueprintActivityProp[],
     opt: {
       fname: string;
-      schema: Record<string, unknown>;
+      id: JSONSchemaID;
       prop: SDE_BlueprintActivityProp;
       valfn: (_: T) => R;
     }
   ): Observable<Map<number, Map<number, R[]>>> {
     if (!ids.length || !act.length || !props.includes(opt.prop)) return of(new Map<number, Map<number, R[]>>());
-    return this.load<T>(opt.fname, opt.schema).pipe(
+    return this.load<T>(opt.fname, opt.id).pipe(
       map((data) =>
         this.reassembleData(
           data
@@ -235,7 +207,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, SDE_BlueprintActivityProduct[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivityItem, SDE_BlueprintActivityProduct>(ids, act, props, {
       fname: 'blueprints/blueprints-products.csv',
-      schema: SDE_CSV_Blueprints_ActivityItem_S,
+      id: SDE_CSV_Blueprints_ActivityItem_S.$id,
       prop: 'products',
       valfn: (d) => ({
         typeID: d.typeID,
@@ -247,7 +219,7 @@ export class SdeService {
           ? of(data)
           : this.load<SDE_CSV_Blueprints_ActivityProb>(
               'blueprints/blueprints-probabilities.csv',
-              SDE_CSV_Blueprints_ActivityProb_S
+              SDE_CSV_Blueprints_ActivityProb_S.$id
             ).pipe(
               map((prob) => {
                 prob.forEach((p) => {
@@ -271,7 +243,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, SDE_BlueprintActivityMaterial[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivityItem, SDE_BlueprintActivityMaterial>(ids, act, props, {
       fname: 'blueprints/blueprints-materials.csv',
-      schema: SDE_CSV_Blueprints_ActivityItem_S,
+      id: SDE_CSV_Blueprints_ActivityItem_S.$id,
       prop: 'materials',
       valfn: (d) => ({
         typeID: d.typeID,
@@ -287,7 +259,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, SDE_BlueprintActivitySkill[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivitySkill, SDE_BlueprintActivitySkill>(ids, act, props, {
       fname: 'blueprints/blueprints-skills.csv',
-      schema: SDE_CSV_Blueprints_ActivitySkill_S,
+      id: SDE_CSV_Blueprints_ActivitySkill_S.$id,
       prop: 'skills',
       valfn: (d) => ({
         typeID: d.typeID,
@@ -303,7 +275,7 @@ export class SdeService {
   ): Observable<Map<number, Map<number, number[]>>> {
     return this.loadBlueprintsData<SDE_CSV_Blueprints_ActivityTime, number>(ids, act, props, {
       fname: 'blueprints/blueprints-activities.csv',
-      schema: SDE_CSV_Blueprints_ActivityTime_S,
+      id: SDE_CSV_Blueprints_ActivityTime_S.$id,
       prop: 'time',
       valfn: (d) => d.time,
     });

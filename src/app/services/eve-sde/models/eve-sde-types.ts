@@ -1,3 +1,7 @@
+import { JSONSchema7 } from 'json-schema';
+
+type JSONSchema7$id = JSONSchema7 & { $id: string };
+
 export type SDE_Type = {
   typeID: number;
   groupID: number;
@@ -12,7 +16,8 @@ export type SDE_CSV_Types = {
   volume: number;
   packaged: number | null;
 };
-export const SDE_CSV_Types_S = {
+export const SDE_CSV_Types_S: JSONSchema7$id = {
+  $id: 'sde:types/types.csv',
   type: 'object',
   properties: {
     typeID: { type: 'integer' },
@@ -28,7 +33,8 @@ export type SDE_CSV_Types_Names = {
   typeID: number;
   name: string;
 };
-export const SDE_CSV_Types_Names_S = {
+export const SDE_CSV_Types_Names_S: JSONSchema7$id = {
+  $id: 'sde:types/types-names.csv',
   type: 'object',
   properties: {
     typeID: { type: 'integer' },
