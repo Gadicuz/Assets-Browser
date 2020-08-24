@@ -33,7 +33,7 @@ import {
   SDE_CSV_Types_Names_S,
 } from './models/eve-sde-types';
 
-import { JSONSchemaID, DataValidator, AjvDataValidator } from 'jsvrx';
+import { JSONSchemaID, AjvDataValidator } from 'jsvrx-ajv';
 
 import { csvParse, csvConvert, csvAssembler, csvDropHeader } from 'csv-rxjs-kit';
 
@@ -43,7 +43,7 @@ const SDE_BASE = 'assets/sde/';
   providedIn: 'root',
 })
 export class SdeService {
-  private readonly dv: DataValidator;
+  private readonly dv: AjvDataValidator;
   constructor(private http: HttpClient) {
     this.dv = new AjvDataValidator({ coerceTypes: true });
     this.dv.addSchemas([

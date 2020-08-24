@@ -29,6 +29,7 @@
     "angular-oauth2-oidc": "^10.0.3",
     "angular-oauth2-oidc-jwks": "^9.0.0",
     "csv-rxjs-kit": "^1.2.0",
+    "jsvrx-ajv": "^1.0.2",
     "rxjs": "^6.6.2",
     "rxjs-compat": "^6.6.2",
     "zone.js": "^0.10.3"
