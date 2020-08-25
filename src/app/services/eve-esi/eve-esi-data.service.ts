@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, empty, from, throwError, MonoTypeOperatorFunction, merge } from 'rxjs';
+import { Observable, of, from, throwError, MonoTypeOperatorFunction, merge, EMPTY } from 'rxjs';
 import {
   catchError,
   expand,
@@ -360,7 +360,7 @@ export class EsiDataService {
   private blueprintTIDs: number[] = [];
   private namedTIDs: number[] = [];
   public loadCategories(): Observable<never> {
-    if (this.shipTIDs.length && this.namedTIDs.length) return empty();
+    if (this.shipTIDs.length && this.namedTIDs.length) return EMPTY;
     return merge(
       this.loadCategoryTypes(CATEGORY_ID_Blueprint).pipe(
         tap((types) => (this.blueprintTIDs = types)),
@@ -637,7 +637,7 @@ export class EsiDataService {
     return this.getCharacterMailHeadersFromId(character_id, undefined, labels, up_to_date).pipe(
       expand((headers) =>
         headers.length < 50
-          ? empty()
+          ? EMPTY
           : this.getCharacterMailHeadersFromId(
               character_id,
               Math.min(...headers.map((h) => h.mail_id)),

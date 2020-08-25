@@ -1,7 +1,7 @@
 import { Component, ViewChild, NgModule } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
-import { combineLatest, defer, of, merge, throwError, concat, empty } from 'rxjs';
+import { combineLatest, defer, of, merge, throwError, concat, EMPTY } from 'rxjs';
 import { concatMap, map, tap, switchAll, switchMap, catchError } from 'rxjs/operators';
 
 import {
@@ -142,7 +142,7 @@ class LocationDataSource implements DataSource<ItemRecord> {
   private _sort = new Subject<Observable<Sort>>();
 
   connect(): Observable<ItemRecord[]> {
-    return combineLatest(this._data.asObservable(), this._sort.asObservable().pipe(switchAll())).pipe(
+    return combineLatest([this._data.asObservable(), this._sort.asObservable().pipe(switchAll())]).pipe(
       map(([data, sort]) => {
         const groups = data.reduce(
           autoMap((item) => item.position),
@@ -260,11 +260,12 @@ export class LocationComponent {
       )
     );
 
-    this.location$ = combineLatest(this.route.paramMap, this.route.queryParamMap, (p, q) => ({
-      uid: p.get('id') || UNIVERSE_UID,
-      mode: p.get('mode'),
-      subj_id: this.data.parseSubjectId(q.get('subj')),
-    })).pipe(
+    this.location$ = combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(
+      map(([p, q]) => ({
+        uid: p.get('id') || UNIVERSE_UID,
+        mode: p.get('mode'),
+        subj_id: this.data.parseSubjectId(q.get('subj')),
+      })),
       switchMap((params) =>
         concat(
           this.buildLocationNoData(params.uid),
@@ -348,7 +349,7 @@ export class LocationComponent {
   }
 
   private buildLocationTree(subj_id: number): Observable<never> {
-    return this.locs.size !== 1 ? empty() : this.loadLocations(subj_id);
+    return this.locs.size !== 1 ? EMPTY : this.loadLocations(subj_id);
   }
 
   private createDataRecords(loc: LocData): ItemRecord[] {

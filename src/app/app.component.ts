@@ -9,7 +9,7 @@ import { X_WWW_FORM_UrlEncodingCodec } from './x-www-form-codec';
 import ru from '@angular/common/locales/ru';
 
 import ccpCopyright from './ccp.copyright.json';
-import { Observable, Subject, BehaviorSubject, never, merge, of } from 'rxjs';
+import { Observable, Subject, BehaviorSubject, merge, of, NEVER } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 
 import { getScopes, TOOL_SCOPES, ToolScopes, ScopesSetupComponent } from './scopes-setup/scopes-setup.component';
@@ -95,7 +95,7 @@ export class AppComponent {
             }),
             catchError((err) => {
               this.err = err as Error;
-              return never();
+              return NEVER;
             })
           ),
           this.reset.asObservable()

@@ -85,14 +85,13 @@ export class OrdersComponent {
       this.route.queryParamMap.pipe(
         map((q) => this.data.parseSubjectId(q.get('subj'))),
         switchMap((subj_id) =>
-          combineLatest(
+          combineLatest([
             this.data.loadMarketOrders(subj_id, 'sell'),
             this.data.loadWalletTransactions(subj_id, this.data.getSubjectType(subj_id) === 'characters').pipe(
               this.data.scoped([] as EsiWalletTransaction[]),
               map((wts) => wts.filter((wt) => !wt.is_buy && Date.now() - new Date(wt.date).getTime() < this.depth))
             ),
-            (orders, trans) => this.analyzeData(orders, trans)
-          )
+          ]).pipe(map(([orders, trans]) => this.analyzeData(orders, trans)))
         ),
         switchMap(([loc_types, subj_sales, ids]) => {
           const sales = new Map(subj_sales.map((s) => [s.l_id, s.tid_sales]));

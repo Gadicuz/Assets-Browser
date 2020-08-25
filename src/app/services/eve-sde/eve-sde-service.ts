@@ -113,9 +113,10 @@ export class SdeService {
       this.loadBlueprintsProducts(blueprintTypeIDs, act, prop),
       this.loadBlueprintsMaterials(blueprintTypeIDs, act, prop),
       this.loadBlueprintsSkills(blueprintTypeIDs, act, prop),
-      this.loadBlueprintsTime(blueprintTypeIDs, act, prop),
-      (p, m, s, t) => {
-        return blueprintTypeIDs.map((blueprintTypeID) => ({
+      this.loadBlueprintsTime(blueprintTypeIDs, act, prop)
+    ).pipe(
+      map(([p, m, s, t]) =>
+        blueprintTypeIDs.map((blueprintTypeID) => ({
           blueprintTypeID,
           activities: fromEntries(
             act
@@ -134,8 +135,8 @@ export class SdeService {
               .filter(([, d]) => d.length) // remove activities with empty data
               .map(([a, d]) => [SDE_CSV_ActivityName[a], fromEntries(d)]) // lookup activity name and assemble data object
           ),
-        }));
-      }
+        }))
+      )
     );
   }
 
