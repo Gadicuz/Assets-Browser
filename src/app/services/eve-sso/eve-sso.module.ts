@@ -1,16 +1,15 @@
 import { NgModule, ModuleWithProviders, Injectable, Inject } from '@angular/core';
-import { JwksValidationHandler } from 'angular-oauth2-oidc-jwks';
-import { OAuthModule, ValidationParams } from 'angular-oauth2-oidc';
-import { OAuthService } from 'angular-oauth2-oidc';
+import { OAuthModule, OAuthService } from 'angular-oauth2-oidc';
 
 import { EVESSO_CONFIG, EVESSOConfig } from './eve-sso.config';
 import { AccessTokenV2Payload } from './eve-sso.model';
 
-import { b64urlDecode } from '@waiting/base64';
 import { Observable, of, from } from 'rxjs';
 import { catchError, filter, switchMap, map } from 'rxjs/operators';
 
 export { EVESSOConfig } from './eve-sso.config';
+
+import { jwtValidate, JWKS } from 'ez-jwt';
 
 /*
 {
@@ -67,38 +66,27 @@ export class EVESSOService {
     return of(forced).pipe(
       switchMap((forced) =>
         // Load Discovery Document and then try to login the user
-        from(forced ? this.oauth.loadDiscoveryDocumentAndLogin() : this.oauth.loadDiscoveryDocumentAndTryLogin()).pipe(
-          filter(() => this.isLoggedIn())
+        from(forced ? this.oauth.loadDiscoveryDocumentAndLogin() : this.oauth.loadDiscoveryDocumentAndTryLogin())
+      ),
+      filter(() => this.isLoggedIn()),
+      switchMap(() =>
+        from(
+          jwtValidate<AccessTokenV2Payload>(this.oauth.getAccessToken(), {
+            keys: this.oauth.jwks as JWKS,
+            grace: 300,
+          })
         )
       ),
-      switchMap(() => {
-        const at = this.oauth.getAccessToken();
-        const [atHeader, atPayload] = at
-          .split('.')
-          .slice(0, 2)
-          .map((s) => JSON.parse(b64urlDecode(s)) as unknown) as [unknown, AccessTokenV2Payload];
-        return from(
-          this.oauth.tokenValidationHandler.validateSignature({
-            idToken: at,
-            idTokenHeader: atHeader,
-            idTokenClaims: atPayload,
-            jwks: this.oauth.jwks,
-          } as ValidationParams)
-        ).pipe(
-          map(() => {
-            const id = atPayload.sub.split(':').pop();
-            if (id == undefined || id === '') {
-              this.logout();
-              throw new SSOError(
-                `Access token subject entry '${atPayload.sub}' is malformed. Can't extract subject id.`
-              );
-            }
-            this._granted = atPayload.scp;
-            //this.oauth.timeoutFactor = 0.1;
-            this.oauth.setupAutomaticSilentRefresh();
-            return +id;
-          })
-        );
+      map((at) => {
+        const r = at.sub && /^CHARACTER:EVE:(\d+)$/.exec(at.sub);
+        if (!r) {
+          this.logout();
+          throw `Access token subject entry '${at.sub ?? ''}' is malformed. Can't extract subject id.`;
+        }
+        this._granted = at.scp;
+        //this.oauth.timeoutFactor = 0.1;
+        this.oauth.setupAutomaticSilentRefresh();
+        return +r[1];
       }),
       catchError((err) => {
         throw new SSOError(err);
@@ -120,7 +108,7 @@ export class EVESSOService {
 }
 
 @NgModule({
-  imports: [OAuthModule.forRoot(undefined, JwksValidationHandler)],
+  imports: [OAuthModule.forRoot()],
 })
 export class EVESSOModule {
   static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
