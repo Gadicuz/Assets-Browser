@@ -29,7 +29,7 @@
     "ajv": "^6.12.4",
     "angular-oauth2-oidc": "^10.0.3",
     "csv-rxjs-kit": "^1.2.0",
-    "ez-jwt": "^1.1.0",
+    "ez-jwt": "^1.1.1",
     "jsvrx-ajv": "^1.0.2",
     "rxjs": "^6.6.2",
     "rxjs-compat": "^6.6.2",
