@@ -114,14 +114,7 @@ export class EVESSOModule {
   static forRoot(cfg: EVESSOConfig): ModuleWithProviders<EVESSOModule> {
     return {
       ngModule: EVESSOModule,
-      providers: [
-        //{
-        //  provide: HTTP_INTERCEPTORS,
-        //  useClass: CodeVerifierInterceptorService,
-        //  multi: true
-        //},
-        { provide: EVESSO_CONFIG, useValue: cfg },
-      ],
+      providers: [{ provide: EVESSO_CONFIG, useValue: cfg }],
     };
   }
 }
