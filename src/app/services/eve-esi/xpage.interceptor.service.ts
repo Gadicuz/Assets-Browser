@@ -1,7 +1,6 @@
 import { Injectable, Inject } from '@angular/core';
 import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor, HttpResponse } from '@angular/common/http';
-import { Observable } from 'rxjs/Observable';
-import { of, range } from 'rxjs';
+import { Observable, of, range } from 'rxjs';
 import { filter, map, mergeMap, toArray } from 'rxjs/operators';
 import { EVEESI_CONFIG, EVEESIConfig } from './eve-esi.config';
 
